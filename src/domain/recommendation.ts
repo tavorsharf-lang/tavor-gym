@@ -1,4 +1,4 @@
-import type { Exercise, Rating, Rir, SetLog, WeightMode } from '@/db/types'
+import type { Exercise, Rating, RepRange, Rir, SetLog, WeightMode } from '@/db/types'
 import { RATING_LABELS, RIR_LABELS } from '@/db/types'
 import { formatSetShort, formatWeight, roundToIncrement, weightStep } from '@/domain/units'
 import { workSets, workingWeight } from '@/domain/volume'
@@ -36,21 +36,42 @@ export interface WeightRecommendation {
   tone: 'up' | 'steady' | 'down' | 'neutral'
 }
 
-/** מסדר מהחדש לישן ומשליך אימונים בלי אף סט עבודה */
-function usableHistory(history: readonly ExerciseSessionSummary[]): ExerciseSessionSummary[] {
+/**
+ * מסדר מהחדש לישן ומשליך אימונים בלי אף סט עבודה.
+ *
+ * מיוצא כי גם מסך האימון צריך אותו: אם "פעם קודמת" יציג אימון שהיה בו רק סט
+ * חימום, בעוד ההמלצה מדברת על אימון קודם יותר, שני החלקים של אותו כרטיס
+ * יסתרו זה את זה.
+ */
+export function usableHistory(
+  history: readonly ExerciseSessionSummary[]
+): ExerciseSessionSummary[] {
   return history
     .filter((h) => workSets(h.sets).length > 0)
     .slice()
     .sort((a, b) => b.startedAt - a.startedAt)
 }
 
+/** האימון האחרון שבוצעה בו עבודה אמיתית, או null */
+export function lastWorkedSession(
+  history: readonly ExerciseSessionSummary[]
+): ExerciseSessionSummary | null {
+  return usableHistory(history)[0] ?? null
+}
+
 function belowBottom(summary: ExerciseSessionSummary, min: number): boolean {
   return workSets(summary.sets).some((s) => s.reps < min)
 }
 
+/**
+ * @param targetReps טווח החזרות שבאמת עובדים לפיו. במסך האימון זה הטווח
+ *   שבתוכנית, שיכול להיות שונה מזה שבקטלוג — בלי הפרמטר הזה ההמלצה הייתה
+ *   מודדת מול טווח אחר מזה שמוצג על המסך.
+ */
 export function recommendWeight(
   exercise: Exercise,
-  history: readonly ExerciseSessionSummary[]
+  history: readonly ExerciseSessionSummary[],
+  targetReps: RepRange = exercise.targetReps
 ): WeightRecommendation {
   if (exercise.weightMode === 'bodyweight') {
     return {
@@ -63,7 +84,7 @@ export function recommendWeight(
 
   const mode: WeightMode = exercise.weightMode
   const increment = weightStep(exercise)
-  const { min, max } = exercise.targetReps
+  const { min, max } = targetReps
   const sessions = usableHistory(history)
   const last = sessions[0]
   const ref = last ? workingWeight(last.sets) : null
@@ -84,7 +105,6 @@ export function recommendWeight(
 
   const holdWeight = roundToIncrement(ref, increment)
   const sets = workSets(last.sets)
-  const bestReps = sets.reduce((m, s) => Math.max(m, s.reps), 0)
   const lowestReps = sets.reduce((m, s) => Math.min(m, s.reps), Infinity)
   const hitTopAll = sets.every((s) => s.reps >= max)
   const missedBottom = lowestReps < min
@@ -144,10 +164,16 @@ export function recommendWeight(
     }
   }
 
+  // הנימוק חייב לדבר על הסט החלש ולא על החזק. "עשית 12, היעד 12" סותר את
+  // עצמו כשסט אחד הגיע לראש הטווח והשני לא — ובדיוק במצב הזה אנחנו כאן.
+  const atTop = sets.filter((s) => s.reps >= max).length
   return {
     action: 'hold',
     weightKg: holdWeight,
-    reason: `עשית ${bestReps} חזרות, היעד ${max} — עוד חזרות לפני שעולים`,
+    reason:
+      atTop > 0
+        ? `${atTop} מתוך ${sets.length} סטים הגיעו ל-${max} — עוד חזרות לפני שעולים`
+        : `הסט החלש היה ${lowestReps} חזרות, היעד ${max} — עוד חזרות לפני שעולים`,
     tone: 'steady',
   }
 }

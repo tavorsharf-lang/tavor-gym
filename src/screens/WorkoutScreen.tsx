@@ -50,12 +50,18 @@ function ElapsedClock({ startedAt }: { startedAt: number }): JSX.Element {
   )
 }
 
-/** "4 סטים · 25×10" — הסט הכבד ביותר מייצג את השורה המכווצת */
-function summarize(sets: DraftSet[], mode: WeightMode): string {
+/**
+ * "4 סטים · 25×10" לשורה המכווצת, מפורק לשני חלקים.
+ * המספרים חייבים להישאר בריצת LTR נפרדת, אחרת 25×10 מתהפך ל-10×25.
+ */
+function summarize(
+  sets: DraftSet[],
+  mode: WeightMode
+): { count: number; top: string } | null {
   const work = sets.filter((s) => s.type === 'work')
-  if (work.length === 0) return ''
+  if (work.length === 0) return null
   const top = work.reduce((best, s) => (s.weightKg > best.weightKg ? s : best))
-  return `${work.length} סטים · ${formatSetShort(top.weightKg, top.reps, mode)}`
+  return { count: work.length, top: formatSetShort(top.weightKg, top.reps, mode) }
 }
 
 export function WorkoutScreen(): JSX.Element | null {

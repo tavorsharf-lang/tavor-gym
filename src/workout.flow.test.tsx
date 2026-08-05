@@ -221,3 +221,86 @@ describe('ניווט', () => {
     }
   }, 30000)
 })
+
+describe('שיאים מתואמים לסטים שבאמת קיימים', () => {
+  beforeEach(resetAll)
+
+  it('מחיקת סט מבטלת את השיא שהוא יצר', async () => {
+    await useWorkout.getState().start('C', [])
+    const key = useWorkout.getState().workout?.currentKey ?? ''
+
+    await useWorkout.getState().logSet(key, 'work', 160, 8)
+    await useWorkout.getState().logSet(key, 'work', 300, 5) // הקלדה שגויה
+    expect((await db.prs.get(['leg-press', 'maxWeight']))?.value).toBe(300)
+
+    const bad = useWorkout.getState().workout?.setsByKey[key]?.at(-1)
+    await useWorkout.getState().removeSet(key, bad?.logId ?? 0)
+
+    // השיא חוזר למה שבאמת הורם
+    expect((await db.prs.get(['leg-press', 'maxWeight']))?.value).toBe(160)
+    // וגם המטמון שבזיכרון מתעדכן, אחרת סט של 200 לא היה מזוהה כשיא
+    const cached = useWorkout.getState().prCache.find((p) => p.kind === 'maxWeight')
+    expect(cached?.value).toBe(160)
+
+    await useWorkout.getState().logSet(key, 'work', 200, 5)
+    expect(useWorkout.getState().drainPrEvents().some((e) => e.kind === 'maxWeight')).toBe(true)
+  }, 20000)
+
+  it('תיקון משקל של סט מעדכן את השיא', async () => {
+    await useWorkout.getState().start('C', [])
+    const key = useWorkout.getState().workout?.currentKey ?? ''
+    await useWorkout.getState().logSet(key, 'work', 250, 5)
+    const set = useWorkout.getState().workout?.setsByKey[key]?.[0]
+
+    await useWorkout.getState().updateSet(key, set?.logId ?? 0, 150, 5)
+    expect((await db.prs.get(['leg-press', 'maxWeight']))?.value).toBe(150)
+  }, 20000)
+
+  it('הפיכת סט לחימום מבטלת את השיא — חימום לא שובר שיאים', async () => {
+    await useWorkout.getState().start('C', [])
+    const key = useWorkout.getState().workout?.currentKey ?? ''
+    await useWorkout.getState().logSet(key, 'work', 180, 6)
+    const set = useWorkout.getState().workout?.setsByKey[key]?.[0]
+
+    await useWorkout.getState().toggleSetType(key, set?.logId ?? 0)
+    expect(await db.prs.get(['leg-press', 'maxWeight'])).toBeUndefined()
+  }, 20000)
+
+  it('ביטול אימון מוחק גם את השיאים שהוא כתב', async () => {
+    // אימון אמיתי שקובע רף
+    await useWorkout.getState().start('C', [])
+    const k1 = useWorkout.getState().workout?.currentKey ?? ''
+    await useWorkout.getState().logSet(k1, 'work', 150, 8)
+    await useWorkout.getState().finish()
+
+    // אימון שמתחיל, קובע שיא, ומבוטל
+    await useWorkout.getState().start('C', [])
+    const k2 = useWorkout.getState().workout?.currentKey ?? ''
+    await useWorkout.getState().logSet(k2, 'work', 220, 8)
+    await useWorkout.getState().discard()
+
+    expect((await db.prs.get(['leg-press', 'maxWeight']))?.value).toBe(150)
+
+    // ולכן שיא של 200 באימון הבא כן ייחשב
+    await useWorkout.getState().start('C', [])
+    const k3 = useWorkout.getState().workout?.currentKey ?? ''
+    await useWorkout.getState().logSet(k3, 'work', 200, 8)
+    expect(useWorkout.getState().drainPrEvents().some((e) => e.kind === 'maxWeight')).toBe(true)
+  }, 20000)
+
+  it('לחיצה כפולה על "סיים אימון" לא מכפילה את הדירוגים', async () => {
+    await useWorkout.getState().start('A', [])
+    const key = useWorkout.getState().workout?.currentKey ?? ''
+    await useWorkout.getState().logSet(key, 'work', 0, 15)
+    await useWorkout.getState().rate(key, 2, 1)
+
+    const [a, b] = await Promise.all([
+      useWorkout.getState().finish(),
+      useWorkout.getState().finish(),
+    ])
+    expect(a).toBe(b)
+
+    const ratings = await db.ratings.where('sessionId').equals(a ?? '').toArray()
+    expect(ratings.length).toBe(1)
+  }, 20000)
+})

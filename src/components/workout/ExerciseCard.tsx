@@ -10,15 +10,15 @@ import type {
   Rir,
   SetType,
 } from '@/db/types'
-import { EQUIPMENT_LABELS, MUSCLE_GROUPS, RATING_LABELS, RIR_LABELS } from '@/db/types'
+import { EQUIPMENT_LABELS, MUSCLE_GROUPS, RATING_LABELS } from '@/db/types'
 import { BottomSheet, Button, PlateProgress, Stepper } from '@/components/ui'
 import type { PlateSegState } from '@/components/ui'
 import { VideoThumb } from '@/components/media/VideoThumb'
 import { touchedGroups, useWorkout } from '@/state/activeWorkoutStore'
 import type { ExerciseSessionSummary } from '@/domain/recommendation'
-import { lastSessionSetsText, recommendWeight } from '@/domain/recommendation'
+import { lastSessionSetsText, lastWorkedSession, recommendWeight } from '@/domain/recommendation'
 import { suggestWarmup } from '@/domain/warmup'
-import { formatRepRange, formatWeight, weightStep } from '@/domain/units'
+import { formatRatingText, formatRepRange, formatWeight, weightStep } from '@/domain/units'
 import { workSets } from '@/domain/volume'
 import { formatRelativeDay } from '@/lib/dates'
 import type { AudioCue } from '@/hooks/useAudioCue'
@@ -117,9 +117,14 @@ export function ExerciseCard({
   const workCount = sets.filter((s) => s.type === 'work').length
   const lastWork = [...sets].reverse().find((s) => s.type === 'work') ?? null
 
-  const recommendation = useMemo(() => recommendWeight(exercise, history), [exercise, history])
+  // הטווח שבתוכנית הוא הקובע, לא זה שבקטלוג — הוא גם מה שמוצג על הכרטיס
+  const recommendation = useMemo(
+    () => recommendWeight(exercise, history, item.targetReps),
+    [exercise, history, item.targetReps]
+  )
 
-  const previous = history.length > 0 ? history[0] : null
+  // אותו סינון שמנוע ההמלצות עושה: אימון שהיה בו רק חימום אינו "פעם קודמת"
+  const previous = lastWorkedSession(history)
   const previousWork = previous ? workSets(previous.sets) : []
   const previousTop =
     previousWork.length > 0
@@ -226,7 +231,11 @@ export function ExerciseCard({
           <p className="mt-1.5 text-sm font-bold text-flame-400">
             {setLine}
             <span className="ms-2 text-xs font-medium text-bone-500">
-              {formatRepRange(item.targetReps)} חזרות
+              {/* אי LTR: בלי זה "8–12" מוצג כ-"12–8" ונקרא כטווח יורד */}
+              <span dir="ltr" className="tnum">
+                {formatRepRange(item.targetReps)}
+              </span>{' '}
+              חזרות
             </span>
           </p>
         </div>
@@ -439,10 +448,7 @@ export function ExerciseCard({
           onClick={onOpenRating}
           className="mt-2.5 flex min-h-12 w-full items-center justify-center gap-2 rounded-pill border border-ink-700 bg-ink-900/60 px-4 text-sm font-bold text-bone-300"
         >
-          <span>הרגיש {RATING_LABELS[rating.rating]}</span>
-          {rating.rir !== null && (
-            <span className="text-bone-500">· נשארו {RIR_LABELS[rating.rir]} במחסנית</span>
-          )}
+          <span>הרגיש {formatRatingText(rating.rating, rating.rir)}</span>
         </button>
       )}
 

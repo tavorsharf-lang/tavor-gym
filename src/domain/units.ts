@@ -1,4 +1,5 @@
 import type { Exercise, RepRange, WeightMode } from '@/db/types'
+import { RATING_LABELS } from '@/db/types'
 
 /**
  * עיגול ועיצוב של משקלים.
@@ -95,6 +96,19 @@ export function formatBytes(bytes: number): string {
 export function weightStep(ex: Pick<Exercise, 'weightIncrementKg' | 'weightMode'>): number {
   if (ex.weightMode === 'bodyweight') return 0
   return ex.weightIncrementKg > 0 ? ex.weightIncrementKg : 2.5
+}
+
+/**
+ * טקסט הדירוג כפי שהוא מוצג בכל המסכים: "בינוני · נשארו 2 במחסנית".
+ *
+ * RIR 0 מקבל טיפול נפרד כי התווית שלו היא המילה "כשל", ו"נשארו כשל במחסנית"
+ * הוא משפט שבור. ריכוז כאן במקום שכפול בשלושה מסכים.
+ */
+export function formatRatingText(rating: 1 | 2 | 3, rir: number | null): string {
+  const base = RATING_LABELS[rating]
+  if (rir === null) return base
+  if (rir === 0) return `${base} · כשל`
+  return `${base} · נשארו ${rir >= 4 ? '4+' : rir} במחסנית`
 }
 
 /** מזהה קצר ויציב, בלי תלות ב-crypto.randomUUID (לא קיים בכל ההקשרים) */

@@ -467,19 +467,34 @@ export async function importMedia(
 // ─── שמירה למכשיר ──────────────────────────────────────────────────────────
 
 /**
+ * ביטול של גיליון השיתוף מגיע כ-AbortError — בספארי כ-DOMException, ובחלק
+ * מהמנועים כ-Error רגיל. שתי הצורות הן אותו דבר: המשתמש סגר את הגיליון.
+ */
+function isAbortError(err: unknown): boolean {
+  return (err instanceof DOMException || err instanceof Error) && err.name === 'AbortError'
+}
+
+/**
  * ב-iOS במצב standalone הורדה דרך <a download> נעלמת בלי עקבות, ולכן קודם
  * מנסים את גיליון השיתוף — משם אפשר לשמור ל"קבצים" או לשלוח לעצמך.
- * החזרה 'shared' כוללת גם ביטול של המשתמש: הוא ראה את הגיליון, אין טעם
- * להוריד מאחורי גבו.
+ *
+ * שלוש תוצאות, והקורא חייב להבדיל ביניהן:
+ * 'shared'     — הקובץ נמסר לגיליון השיתוף.
+ * 'downloaded' — נשמר דרך עוגן ההורדה. גם כישלון שיתוף שאינו ביטול נופל לכאן.
+ * 'cancelled'  — המשתמש סגר את הגיליון. אין קובץ בשום מקום, ולכן אסור לרשום
+ *                שגובה — אבל גם אין טעם להוריד מאחורי גבו.
  */
-export async function saveBlob(blob: Blob, filename: string): Promise<'shared' | 'downloaded'> {
+export async function saveBlob(
+  blob: Blob,
+  filename: string
+): Promise<'shared' | 'downloaded' | 'cancelled'> {
   const file = new File([blob], filename, { type: blob.type })
   if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: filename })
       return 'shared'
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') return 'shared'
+      if (isAbortError(err)) return 'cancelled'
       // כל שגיאה אחרת — נופלים לעוגן
     }
   }

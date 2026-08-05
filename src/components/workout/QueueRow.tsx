@@ -18,7 +18,8 @@ export function QueueRow({
   exercise: Exercise
   setCount: number
   /** "4 סטים · 25×10" — ריק כשעוד לא בוצע כלום */
-  summary: string
+  /** מפורק לשני חלקים כדי שכל אחד יקבל את כיוון הכתיבה הנכון */
+  summary: { count: number; top: string } | null
   onTap: () => void
 }): JSX.Element {
   const done = item.status === 'done'
@@ -59,8 +60,24 @@ export function QueueRow({
         )}
       </span>
 
-      <span className="tnum shrink-0 text-xs font-semibold text-bone-500" dir={summary ? 'rtl' : 'ltr'}>
-        {summary || `${item.targetSets}×${formatRepRange(item.targetReps)}`}
+      {/*
+        הסיכום מגיע כ-"4 סטים · 25×10". המילה עברית והמספרים לא, ובריצה אחת
+        של RTL הזוג משקל×חזרות מתהפך ו-25×10 נקרא כ-10×25 — שני מספרים סבירים
+        לגמרי, ולכן טעות שקטה. לכן כל חלק מקבל את הכיוון שלו.
+      */}
+      <span className="shrink-0 text-xs font-semibold text-bone-500">
+        {summary ? (
+          <>
+            <span>{summary.count} סטים · </span>
+            <span dir="ltr" className="tnum inline-block">
+              {summary.top}
+            </span>
+          </>
+        ) : (
+          <span dir="ltr" className="tnum inline-block">
+            {item.targetSets}×{formatRepRange(item.targetReps)}
+          </span>
+        )}
       </span>
 
       {/* קורא מסך: מספר הסטים כבר מגולם בסיכום, אבל שורה בלי סיכום צריכה אותו */}

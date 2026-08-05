@@ -116,9 +116,12 @@ function buildBlocks(detail: Detail): ExerciseBlock[] {
   return order.map((exerciseId, index) => {
     const exercise = byId.get(exerciseId)
     const weightMode = exercise?.weightMode ?? 'total'
+    // מיון לפי זמן הביצוע בלבד. setIndex ממוספר לכל פריט בתור בנפרד, ולכן
+    // תרגיל שהופיע פעמיים באימון (אחרי החלפה, או שנוסף שוב מהתור) מייצר שתי
+    // סדרות 0,1,2 — ומיון לפיו היה משזר אותן לסדר שלא קרה מעולם.
     const mine = (setsOf.get(exerciseId) ?? [])
       .slice()
-      .sort((a, b) => a.setIndex - b.setIndex || a.completedAt - b.completedAt)
+      .sort((a, b) => a.completedAt - b.completedAt)
 
     const stars = new Map<SetLog, PrKind[]>()
     let volumePr = false

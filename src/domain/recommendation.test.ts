@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Exercise, Rating, Rir, SetLog, SetType } from '@/db/types'
 import {
   lastSessionSetsText,
+  lastWorkedSession,
   recommendWeight,
   type ExerciseSessionSummary,
   type WeightRecommendation,
@@ -209,7 +210,9 @@ const CASES: Case[] = [
       ),
     ],
     expected: { action: 'hold', weightKg: 60, tone: 'steady' },
-    reasonIncludes: ['10', '12'],
+    // הנימוק מדבר על הסט החלש (9) ולא על החזק (10): "עשית 10, היעד 12" היה
+    // סותר את עצמו כשסט אחר כבר הגיע לראש הטווח
+    reasonIncludes: ['9', '12'],
   },
   {
     name: 'אימון עם סטי חימום בלבד מדולג לגמרי',
@@ -350,5 +353,51 @@ describe('lastSessionSetsText', () => {
   it('perSide מוצג כמו שהוא, בלי הכפלה', () => {
     const s = makeSession('s1', 1000, [[22.5, 10]])
     expect(lastSessionSetsText(s, 'perSide')).toBe('22.5×10')
+  })
+})
+
+describe('טווח החזרות של התוכנית גובר על זה שבקטלוג', () => {
+  it('שלושה סטים של 8 בטווח תוכנית 5–8 מזכים בעלייה, למרות שהקטלוג אומר 8–12', () => {
+    const exercise = makeExercise({ targetReps: { min: 8, max: 12 }, weightIncrementKg: 5 })
+    const history = [
+      makeSession(
+        's1',
+        1000,
+        [
+          [160, 8],
+          [160, 8],
+          [160, 8],
+        ],
+        rate(2)
+      ),
+    ]
+
+    // בלי הפרמטר — הטווח של הקטלוג, ולכן עדיין לא הגענו לראש
+    expect(recommendWeight(exercise, history).action).toBe('hold')
+
+    // עם הטווח שבתוכנית — 8 הוא ראש הטווח, ועולים
+    const planned = recommendWeight(exercise, history, { min: 5, max: 8 })
+    expect(planned.action).toBe('increase')
+    expect(planned.weightKg).toBe(165)
+    expect(planned.reason).toContain('8')
+  })
+
+  it('lastWorkedSession מדלג על אימון שהיה בו רק חימום', () => {
+    const warmupOnly = makeSession('s2', 2000, [])
+    warmupOnly.sets = [
+      {
+        sessionId: 's2',
+        exerciseId: 'ex',
+        setIndex: 0,
+        type: 'warmup',
+        weightKg: 30,
+        reps: 12,
+        completedAt: 2000,
+      },
+    ]
+    const real = makeSession('s1', 1000, [[60, 10]], rate(2))
+
+    expect(lastWorkedSession([warmupOnly, real])?.sessionId).toBe('s1')
+    expect(lastWorkedSession([])).toBeNull()
   })
 })

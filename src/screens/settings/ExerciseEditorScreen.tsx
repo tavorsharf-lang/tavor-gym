@@ -5,14 +5,16 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { ChevronDown, ChevronUp, Plus, Trash2, X } from 'lucide-react'
 import { db } from '@/db/db'
 import { getBlocks, getExercise, getRoutines } from '@/db/queries'
-import type { Equipment, Exercise, MuscleGroup, WeightMode } from '@/db/types'
+import type { Equipment, Exercise, MuscleGroup, Session, SetLog, WeightMode } from '@/db/types'
 import {
   EQUIPMENT_LABELS,
   MUSCLE_GROUPS,
   MUSCLE_GROUP_ORDER,
   WEIGHT_MODE_LABELS,
 } from '@/db/types'
+import { rebuildPrs } from '@/domain/prs'
 import { formatClock, formatKg } from '@/domain/units'
+import { summarize, weightModeLookup } from '@/domain/volume'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { BottomSheet, Button, EmptyState, toast } from '@/components/ui'
 import { SettingNumber, SettingToggle } from '@/components/settings/SettingRow'
@@ -39,6 +41,101 @@ const WEIGHT_MODE_OPTIONS = (Object.keys(WEIGHT_MODE_LABELS) as WeightMode[]).ma
   value: k,
   label: WEIGHT_MODE_LABELS[k],
 }))
+
+interface Problems {
+  reps: string | null
+  increment: string | null
+}
+
+/**
+ * בדיקות שחוסמות שמירה. שתיהן על ערכים שהמסכים כאן מהדקים לבד, אבל גיבוי
+ * מיובא או רשומה ישנה יכולים להביא אותם שבורים — ואז עדיף לעצור מאשר לכתוב
+ * למסד תרגיל שאי אפשר לאמן לפיו.
+ */
+function validate(draft: Exercise): Problems {
+  return {
+    reps:
+      draft.targetReps.min > draft.targetReps.max
+        ? 'טווח החזרות הפוך — המינימום גדול מהמקסימום'
+        : null,
+    // הקפיצה מחלקת משקלים בהמלצות ובמחשבון הפלטות, ואפס שם הוא חלוקה באפס
+    increment:
+      draft.weightMode !== 'bodyweight' && !(draft.weightIncrementKg > 0)
+        ? 'קפיצת המשקל חייבת להיות גדולה מאפס'
+        : null,
+  }
+}
+
+/**
+ * שמירה שגם מתקנת את ההיסטוריה, כשאופן המשקל השתנה.
+ *
+ * זה השדה היחיד שמשנה למפרע את החשבון של סטים שכבר נרשמו: perSide מוכפל
+ * בנפח ו-total לא. הנפח שמור מדונרמל ב-sessions והשיאים יושבים בטבלה נפרדת,
+ * ולכן בלי חישוב מחדש כרטיס אימון היה מציג נפח שלא מתאים לסטים שמתחתיו.
+ * הכל בטרנזקציה אחת כדי שלא יישאר מצב ביניים.
+ *
+ * @returns כמה אימונים באמת התעדכנו
+ */
+async function saveAndRepairHistory(exercise: Exercise): Promise<number> {
+  return db.transaction('rw', db.exercises, db.sessions, db.setLogs, db.prs, async () => {
+    await db.exercises.put(exercise)
+
+    // באימון יש עוד תרגילים, ולכן הסיכום צריך את כל הקטלוג ולא רק את זה שנערך
+    const catalog = await db.exercises.toArray()
+    const modeOf = weightModeLookup(
+      catalog.map((e) => (e.id === exercise.id ? exercise : e))
+    )
+
+    const sessions = await db.sessions.where('exerciseIds').equals(exercise.id).toArray()
+    let repaired = 0
+    if (sessions.length > 0) {
+      const sets = await db.setLogs
+        .where('sessionId')
+        .anyOf(sessions.map((s) => s.id))
+        .toArray()
+      const bySession = new Map<string, SetLog[]>()
+      for (const s of sets) {
+        const list = bySession.get(s.sessionId)
+        if (list) list.push(s)
+        else bySession.set(s.sessionId, [s])
+      }
+
+      const updated: Session[] = []
+      for (const session of sessions) {
+        const totals = summarize(bySession.get(session.id) ?? [], modeOf)
+        const same =
+          session.totalVolumeKg === totals.volumeKg &&
+          session.totalSets === totals.totalSets &&
+          session.totalWorkSets === totals.workSets
+        if (same) continue
+        updated.push({
+          ...session,
+          totalVolumeKg: totals.volumeKg,
+          totalSets: totals.totalSets,
+          totalWorkSets: totals.workSets,
+        })
+      }
+      if (updated.length > 0) await db.sessions.bulkPut(updated)
+      repaired = updated.length
+    }
+
+    // מחיקה ובנייה מחדש ולא דריסה: מעבר למשקל גוף מחליף גם את *סוגי* השיאים,
+    // ושורה ישנה מסוג שכבר לא רלוונטי הייתה נשארת תלויה באוויר
+    const own = await db.setLogs.where('exerciseId').equals(exercise.id).toArray()
+    await db.prs.where('exerciseId').equals(exercise.id).delete()
+    const fresh = rebuildPrs([exercise], own)
+    if (fresh.length > 0) await db.prs.bulkPut(fresh)
+
+    return repaired
+  })
+}
+
+/** 'עודכנו 12 אימונים והשיאים חושבו מחדש' */
+function repairText(sessions: number): string {
+  if (sessions === 0) return 'השיאים חושבו מחדש'
+  if (sessions === 1) return 'עודכן אימון אחד והשיאים חושבו מחדש'
+  return `עודכנו ${sessions} אימונים והשיאים חושבו מחדש`
+}
 
 function Card({ title, children }: { title: string; children: ReactNode }): JSX.Element {
   return (
@@ -156,6 +253,9 @@ export function ExerciseEditorScreen(): JSX.Element {
 
   const [draft, setDraft] = useState<Exercise | null>(null)
   const [saved, setSaved] = useState('')
+  /** אופן המשקל כפי שהיה כשהמסך נטען — ההשוואה מולו קובעת אם צריך תיקון היסטוריה */
+  const [savedMode, setSavedMode] = useState<WeightMode | null>(null)
+  const [problems, setProblems] = useState<Problems>({ reps: null, increment: null })
   const [loading, setLoading] = useState(true)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [sessionCount, setSessionCount] = useState(0)
@@ -176,6 +276,7 @@ export function ExerciseEditorScreen(): JSX.Element {
       if (cancelled) return
       setDraft(exercise ?? null)
       setSaved(exercise ? JSON.stringify(exercise) : '')
+      setSavedMode(exercise?.weightMode ?? null)
       setSessionCount(count)
       setLoading(false)
     })()
@@ -247,9 +348,24 @@ export function ExerciseEditorScreen(): JSX.Element {
       barWeightKg: draft.usesPlates ? (draft.barWeightKg ?? 0) : null,
       updatedAt: Date.now(),
     }
+
+    const found = validate(clean)
+    if (found.reps || found.increment) {
+      setProblems(found)
+      return
+    }
+
+    // אופן המשקל הוא השדה היחיד שמשנה למפרע את החשבון של סטים שכבר נרשמו
+    const modeChanged = savedMode !== null && savedMode !== clean.weightMode
+
     try {
-      await db.exercises.put(clean)
-      toast('התרגיל נשמר', { tone: 'success' })
+      if (modeChanged) {
+        const repaired = await saveAndRepairHistory(clean)
+        toast(repairText(repaired), { tone: 'success' })
+      } else {
+        await db.exercises.put(clean)
+        toast('התרגיל נשמר', { tone: 'success' })
+      }
       navigate(-1)
     } catch {
       toast('השמירה נכשלה', { tone: 'warn' })
@@ -463,6 +579,12 @@ export function ExerciseEditorScreen(): JSX.Element {
             max={50}
           />
         </div>
+        {problems.reps && (
+          <p className="px-4 py-2 text-xs font-semibold text-hard-400">{problems.reps}</p>
+        )}
+        {problems.increment && (
+          <p className="px-4 py-2 text-xs font-semibold text-hard-400">{problems.increment}</p>
+        )}
       </Card>
 
       <section className="mb-5">

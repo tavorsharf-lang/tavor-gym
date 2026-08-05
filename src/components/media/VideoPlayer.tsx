@@ -136,8 +136,9 @@ export function VideoPlayer({
 
       {videos.length > 1 && (
         <div className="flex items-center justify-center gap-3 px-5 pb-safe pt-4">
+          {/* ב-RTL חץ ימינה הוא "אחורה" — ולכן הוא זה שמחזיר לסרטון הקודם */}
           <button
-            onClick={() => setIndex((i) => (i + 1) % videos.length)}
+            onClick={() => setIndex((i) => (i - 1 + videos.length) % videos.length)}
             aria-label="הסרטון הקודם"
             className="btn-ghost flex size-14 items-center justify-center rounded-full"
           >
@@ -156,7 +157,7 @@ export function VideoPlayer({
             ))}
           </div>
           <button
-            onClick={() => setIndex((i) => (i - 1 + videos.length) % videos.length)}
+            onClick={() => setIndex((i) => (i + 1) % videos.length)}
             aria-label="הסרטון הבא"
             className="btn-ghost flex size-14 items-center justify-center rounded-full"
           >

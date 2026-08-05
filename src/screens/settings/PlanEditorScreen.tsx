@@ -110,14 +110,34 @@ export function PlanEditorScreen(): JSX.Element {
   }
 
   const removeItem = (index: number): void => {
-    const before = items
     const removed = items[index]
     const name = exerciseById.get(removed.exerciseId)?.name ?? 'התרגיל'
     void persistItems(items.filter((_, i) => i !== index))
     toast(`${name} הוסר`, {
       actionLabel: 'בטל',
-      onAction: () => void persistItems(before),
+      // פעולה הפוכה ולא שחזור צילום-מצב: הטוסט נשאר על המסך, ובינתיים אפשר
+      // לערוך סטים או מנוחה של תרגיל אחר. החזרת רשימה שמורה הייתה מוחקת בשקט
+      // בדיוק את העריכות האלה.
+      onAction: () => void restoreItem(removed, index),
     })
+  }
+
+  /** מכניס פריט שהוסר חזרה למקומו, על גבי המצב העדכני שבמסד */
+  const restoreItem = async (item: PlanItem, index: number): Promise<void> => {
+    try {
+      const current = routine
+        ? (await db.routines.get(routine.id))?.items
+        : block
+          ? (await db.blocks.get(block.id))?.items
+          : undefined
+      if (!current) return
+      // אם התוכנית השתנתה מאז, המיקום המקורי כבר לא בהכרח קיים
+      const at = Math.min(Math.max(index, 0), current.length)
+      const next = [...current.slice(0, at), item, ...current.slice(at)]
+      await persistItems(next)
+    } catch {
+      toast('לא הצלחתי להחזיר את התרגיל', { tone: 'warn' })
+    }
   }
 
   const addExercise = (exercise: Exercise): void => {

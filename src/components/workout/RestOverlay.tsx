@@ -116,9 +116,15 @@ export function RestOverlay({
       </div>
 
       <div className="relative px-5 pb-safe">
-        <div className="mx-auto flex max-w-md items-stretch gap-3">
+        {/*
+          dir="ltr" בכוונה: מינוס בצד השמאלי הפיזי ופלוס בימני, בדיוק כמו
+          ה-Stepper של המשקל. האצבע עוברת ישירות מהאחד לשני באמצע אימון,
+          ושיקוף היה גורם להוריד זמן במקום להוסיף.
+        */}
+        <div dir="ltr" className="mx-auto flex max-w-md items-stretch gap-3">
           <button
             onClick={() => onAdjust(-15)}
+            aria-label="הפחת 15 שניות"
             className="btn-ghost flex h-16 flex-1 items-center justify-center gap-1.5 rounded-card text-base font-bold"
           >
             <Minus size={18} />
@@ -126,6 +132,7 @@ export function RestOverlay({
           </button>
           <button
             onClick={onSkip}
+            aria-label="דלג על המנוחה"
             className="btn-flame flex h-16 flex-[1.4] items-center justify-center gap-2 rounded-card text-lg"
           >
             <X size={20} />
@@ -133,6 +140,7 @@ export function RestOverlay({
           </button>
           <button
             onClick={() => onAdjust(15)}
+            aria-label="הוסף 15 שניות"
             className="btn-ghost flex h-16 flex-1 items-center justify-center gap-1.5 rounded-card text-base font-bold"
           >
             <Plus size={18} />

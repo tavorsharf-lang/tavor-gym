@@ -22,11 +22,14 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['icons/apple-touch-icon.png', 'icons/favicon.svg'],
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2}'],
+        // ה-jpg כאן הם התמונות הממוזערות של הסרטונים בלבד. 34 קבצים של ~9KB
+        // הם כלום, והם מה שמונע שכל כרטיס תרגיל יציג ריבוע שבור באימון אופליין
+        // לפני שהסרטונים הותקנו.
+        globPatterns: ['**/*.{js,css,html,svg,png,jpg,woff,woff2}'],
         globIgnores: [
-          // הסרטונים לא נכנסים ל-precache — 26MB היו הופכים את ההתקנה
+          // הסרטונים עצמם לא נכנסים ל-precache — 26MB היו הופכים את ההתקנה
           // לשברירית. הם מותקנים למכשיר דרך "התקן סרטונים" ל-IndexedDB.
-          '**/videos/**',
+          '**/videos/*.mp4',
           // תת-הקבוצות של הפונט שלעולם לא ייטענו כאן. ה-unicode-range כבר
           // מונע את הבקשה, ואין טעם לשמור אותן אופליין.
           '**/*arabic*',

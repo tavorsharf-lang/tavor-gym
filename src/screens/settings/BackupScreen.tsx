@@ -73,6 +73,12 @@ export function BackupScreen(): JSX.Element {
     try {
       const blob = await exportData()
       const how = await saveBlob(blob, backupFilename(Date.now(), 'data'))
+      // ביטול בגיליון השיתוף = אין קובץ בשום מקום. סימון תאריך גיבוי היה
+      // משתיק את האזהרה בבית לחודש שלם על סמך גיבוי שלא קיים.
+      if (how === 'cancelled') {
+        toast('הייצוא בוטל')
+        return
+      }
       await saveSettings({ lastBackupAt: Date.now() })
       toast(
         how === 'shared'
@@ -93,6 +99,10 @@ export function BackupScreen(): JSX.Element {
     try {
       const blob = await exportMedia((done, total) => setMediaProgress({ done, total }))
       const how = await saveBlob(blob, backupFilename(Date.now(), 'media'))
+      if (how === 'cancelled') {
+        toast('הייצוא בוטל')
+        return
+      }
       toast(how === 'shared' ? 'ארכיון הסרטונים נשלח לשיתוף' : 'ארכיון הסרטונים ירד למכשיר', {
         tone: 'success',
       })

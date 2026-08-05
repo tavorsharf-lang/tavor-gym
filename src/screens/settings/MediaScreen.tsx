@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Film, Plus, Trash2, Video, X } from 'lucide-react'
@@ -155,7 +155,20 @@ export function MediaScreen(): JSX.Element {
   const installing = progress !== null
   const missing = VIDEO_COUNT - installedBundled
 
+  // יציאה מהמסך עוצרת את ההורדה. בלי זה היא הייתה ממשיכה ברקע בלי מד התקדמות
+  // ובלי כפתור עצירה, וחזרה למסך הייתה מתחילה התקנה שנייה במקביל על אותו מסד.
+  useEffect(() => {
+    return () => {
+      cancelRef.current = true
+      abortRef.current?.abort()
+    }
+  }, [])
+
   const install = async (): Promise<void> => {
+    // שומר הכניסה היחיד הוא ה-ref: מצב ה-progress מתעדכן רק ברינדור הבא,
+    // ולחיצה כפולה מהירה הייתה מספיקה כדי להפעיל שתי לולאות במקביל.
+    if (abortRef.current) return
+
     const jobs = allJobs()
     const controller = new AbortController()
     abortRef.current = controller
@@ -172,8 +185,16 @@ export function MediaScreen(): JSX.Element {
         if (!existing) {
           const [blob, poster] = await Promise.all([
             fetchBlob(assetUrl(job.video.src), controller.signal),
-            fetchBlob(assetUrl(job.video.poster), controller.signal).catch(() => null),
+            // פוסטר חסר הוא לא סיבה להפיל התקנה — אבל ביטול כן: בלי ההבחנה הזאת
+            // היינו כותבים נכס בלי תמונה ממוזערת, וההתקנה החוזרת מדלגת עליו לנצח
+            fetchBlob(assetUrl(job.video.poster), controller.signal).catch((err: unknown) => {
+              if (controller.signal.aborted) throw err
+              return null
+            }),
           ])
+          // ההורדה יכולה להסתיים בדיוק כשהמשתמש עוצר או יוצא מהמסך — בודקים שוב
+          // ממש לפני הכתיבה כדי שביטול לא ישאיר נכס שנכתב אחרי העצירה
+          if (cancelRef.current || controller.signal.aborted) break
           const asset: VideoAsset = {
             id,
             exerciseId: job.exerciseId,
@@ -193,14 +214,16 @@ export function MediaScreen(): JSX.Element {
         setProgress({ done, total: jobs.length })
       }
 
-      if (cancelRef.current) {
+      if (cancelRef.current || controller.signal.aborted) {
         toast('ההתקנה נעצרה. מה שכבר ירד נשמר במכשיר')
       } else {
         await saveSettings({ videosInstalledAt: Date.now() })
         toast('כל הסרטונים במכשיר', { tone: 'success' })
       }
     } catch (err) {
-      const aborted = err instanceof DOMException && err.name === 'AbortError'
+      // לא כל דפדפן זורק DOMException על ביטול — הסיגנל עצמו הוא המקור האמין
+      const aborted =
+        controller.signal.aborted || (err instanceof DOMException && err.name === 'AbortError')
       toast(
         aborted
           ? 'ההתקנה נעצרה. מה שכבר ירד נשמר במכשיר'
@@ -210,6 +233,9 @@ export function MediaScreen(): JSX.Element {
     } finally {
       abortRef.current = null
       setProgress(null)
+      // המסך הזה כל תפקידו לדווח על מקום — בלי רענון הוא היה מציג את המספרים
+      // שמלפני ההתקנה. refresh מתעלם מעצמו אחרי unmount, ולכן בטוח גם כאן.
+      await storage.refresh()
     }
   }
 
@@ -226,6 +252,8 @@ export function MediaScreen(): JSX.Element {
       toast('הסרטונים המצורפים נמחקו מהמכשיר')
     } catch {
       toast('המחיקה נכשלה', { tone: 'warn' })
+    } finally {
+      await storage.refresh()
     }
   }
 
@@ -257,6 +285,7 @@ export function MediaScreen(): JSX.Element {
       toast('לא הצלחתי לשמור את הסרטון', { tone: 'warn' })
     } finally {
       setImportingId(null)
+      await storage.refresh()
     }
   }
 
@@ -266,6 +295,8 @@ export function MediaScreen(): JSX.Element {
       toast('הסרטון נמחק')
     } catch {
       toast('המחיקה נכשלה', { tone: 'warn' })
+    } finally {
+      await storage.refresh()
     }
   }
 

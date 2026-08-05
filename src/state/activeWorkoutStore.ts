@@ -19,7 +19,7 @@ import type {
 } from '@/db/types'
 import { newId } from '@/domain/units'
 import { summarize, weightModeLookup } from '@/domain/volume'
-import { detectSetPrs, detectVolumePr, type PrEvent } from '@/domain/prs'
+import { detectSetPrs, detectVolumePr, rebuildPrs, type PrEvent } from '@/domain/prs'
 import { todayISO } from '@/lib/dates'
 
 /**
@@ -117,6 +117,38 @@ async function persist(w: ActiveWorkout): Promise<void> {
   await db.activeWorkout.put({ ...w, lastSavedAt: Date.now() })
 }
 
+/**
+ * מחשב מחדש את השיאים של תרגיל מתוך כל הסטים שלו, ומחליף את הרשומות במסד.
+ *
+ * למה זה קיים: השיא נכתב ברגע שהסט נסגר, כדי שהקונפטי יעוף בזמן אמת. אבל סט
+ * אפשר לתקן, למחוק, להפוך לחימום, ואימון שלם אפשר לבטל — ואז השיא שנרשם כבר
+ * לא מייצג שום דבר שקרה. כאן setLogs חוזר להיות מקור האמת היחיד.
+ *
+ * מחזיר את הרשומות המעודכנות כדי שהקורא יוכל לרענן את המטמון.
+ */
+async function reconcilePrsFor(
+  exerciseIds: readonly string[],
+  exercisesById: Record<string, Exercise>
+): Promise<PersonalRecord[]> {
+  const unique = [...new Set(exerciseIds)].filter((id) => exercisesById[id])
+  if (!unique.length) return []
+
+  const rebuilt: PersonalRecord[] = []
+  for (const id of unique) {
+    const sets = await db.setLogs.where('exerciseId').equals(id).toArray()
+    rebuilt.push(...rebuildPrs([exercisesById[id]], sets))
+  }
+
+  await db.transaction('rw', db.prs, async () => {
+    // מוחקים את כל השיאים הישנים של התרגילים האלה לפני הכתיבה, אחרת סוג שיא
+    // שכבר לא קיים (למשל repsAtMaxWeight אחרי שהסט היחיד נמחק) היה שורד
+    for (const id of unique) await db.prs.where('exerciseId').equals(id).delete()
+    if (rebuilt.length) await db.prs.bulkPut(rebuilt)
+  })
+
+  return rebuilt
+}
+
 export const useWorkout = create<WorkoutState>((set, get) => {
   /** מחיל שינוי על המצב ושומר אותו. מרכז את ה-persist בנקודה אחת. */
   const mutate = async (fn: (w: ActiveWorkout) => ActiveWorkout): Promise<void> => {
@@ -126,6 +158,20 @@ export const useWorkout = create<WorkoutState>((set, get) => {
     set({ workout: next })
     await persist(next)
   }
+
+  /** מחשב מחדש שיאים של תרגילים ומסנכרן את המטמון שבזיכרון */
+  const reconcile = async (exerciseIds: readonly string[]): Promise<void> => {
+    const unique = [...new Set(exerciseIds)]
+    if (!unique.length) return
+    const rebuilt = await reconcilePrsFor(unique, get().exercisesById)
+    const affected = new Set(unique)
+    set({
+      prCache: [...get().prCache.filter((p) => !affected.has(p.exerciseId)), ...rebuilt],
+    })
+  }
+
+  /** מונע ריצה כפולה של finish כשלוחצים על "סיים אימון" פעמיים ברצף */
+  let finishing: Promise<string | null> | null = null
 
   return {
     workout: null,
@@ -244,102 +290,129 @@ export const useWorkout = create<WorkoutState>((set, get) => {
 
     async discard() {
       const w = get().workout
-      if (w) await db.setLogs.where('sessionId').equals(w.sessionId).delete()
+      if (w) {
+        // התרגילים שנגעו בהם — צריך לחשב להם שיאים מחדש *אחרי* שהסטים נמחקו,
+        // אחרת שיא מאימון שבוטל היה נשאר כרף להשוואה לנצח
+        const touched = [...new Set(w.queue.map((q) => q.exerciseId))]
+        await db.setLogs.where('sessionId').equals(w.sessionId).delete()
+        await reconcile(touched)
+      }
       await db.activeWorkout.delete('current')
       set({ workout: null, pendingPrEvents: [] })
     },
 
     async finish() {
-      const w = get().workout
-      const exercises = get().exercisesById
-      if (!w) return null
+      // לחיצה כפולה על "סיים אימון" היא רפלקס נורמלי בטלפון. בלי הנעילה הזו
+      // הריצה השנייה הייתה מכפילה את כל שורות הדירוג של האימון.
+      if (finishing) return finishing
 
-      const sets = await db.setLogs.where('sessionId').equals(w.sessionId).toArray()
-      const modeOf = weightModeLookup(Object.values(exercises))
-      const totals = summarize(sets, modeOf)
+      finishing = (async (): Promise<string | null> => {
+        const w = get().workout
+        const exercises = get().exercisesById
+        if (!w) return null
 
-      // סדר הביצוע בפועל, לפי הסט הראשון של כל תרגיל
-      const firstSetAt = new Map<string, number>()
-      for (const s of sets) {
-        const prev = firstSetAt.get(s.exerciseId)
-        if (prev === undefined || s.completedAt < prev) firstSetAt.set(s.exerciseId, s.completedAt)
-      }
-      const actualOrder = [...firstSetAt.entries()]
-        .sort((a, b) => a[1] - b[1])
-        .map(([id]) => id)
+        const sets = await db.setLogs.where('sessionId').equals(w.sessionId).toArray()
+        const modeOf = weightModeLookup(Object.values(exercises))
+        const totals = summarize(sets, modeOf)
 
-      const plannedOrder = w.queue.map((q) => q.plannedExerciseId)
-      const performed = new Set(actualOrder)
-      const skipped = [...new Set(w.queue.map((q) => q.exerciseId))].filter(
-        (id) => !performed.has(id)
-      )
-
-      const endedAt = Date.now()
-      const session: Session = {
-        id: w.sessionId,
-        routineId: w.routineId,
-        blockIds: [...w.blockIds],
-        date: todayISO(w.startedAt),
-        startedAt: w.startedAt,
-        endedAt,
-        durationSeconds: Math.round((endedAt - w.startedAt) / 1000),
-        plannedOrder,
-        actualOrder,
-        substitutions: [...w.substitutions],
-        skippedExerciseIds: skipped,
-        exerciseIds: actualOrder,
-        notes: w.notes,
-        totalVolumeKg: totals.volumeKg,
-        totalSets: totals.totalSets,
-        totalWorkSets: totals.workSets,
-      }
-
-      // שיאי נפח מחושבים רק עכשיו, כשהאימון סגור
-      const volumeEvents: PrEvent[] = []
-      const prs = [...get().prCache]
-      for (const exId of actualOrder) {
-        const ex = exercises[exId]
-        if (!ex) continue
-        const ev = detectVolumePr(
-          ex,
-          sets.filter((s) => s.exerciseId === exId),
-          prs.filter((p) => p.exerciseId === exId)
-        )
-        if (ev) volumeEvents.push(ev)
-      }
-
-      await db.transaction('rw', db.sessions, db.ratings, db.prs, db.activeWorkout, async () => {
-        await db.sessions.put(session)
-        const ratings = Object.entries(w.ratingsByKey).flatMap(([key, r]) => {
-          const item = w.queue.find((q) => q.key === key)
-          if (!item) return []
-          return [
-            {
-              sessionId: w.sessionId,
-              exerciseId: item.exerciseId,
-              rating: r.rating,
-              rir: r.rir,
-              createdAt: endedAt,
-            },
-          ]
-        })
-        if (ratings.length) await db.ratings.bulkAdd(ratings)
-        for (const ev of volumeEvents) {
-          await db.prs.put({
-            exerciseId: ev.exerciseId,
-            kind: ev.kind,
-            value: ev.value,
-            weightKg: ev.weightKg,
-            reps: ev.reps,
-            sessionId: w.sessionId,
-            achievedAt: endedAt,
-          })
+        // סדר הביצוע בפועל, לפי הסט הראשון של כל תרגיל
+        const firstSetAt = new Map<string, number>()
+        for (const s of sets) {
+          const prev = firstSetAt.get(s.exerciseId)
+          if (prev === undefined || s.completedAt < prev) {
+            firstSetAt.set(s.exerciseId, s.completedAt)
+          }
         }
-        await db.activeWorkout.delete('current')
-      })
+        const actualOrder = [...firstSetAt.entries()]
+          .sort((a, b) => a[1] - b[1])
+          .map(([id]) => id)
 
-      set({ workout: null, pendingPrEvents: [] })
-      return session.id
+        const plannedOrder = w.queue.map((q) => q.plannedExerciseId)
+        const performed = new Set(actualOrder)
+        const skipped = [...new Set(w.queue.map((q) => q.exerciseId))].filter(
+          (id) => !performed.has(id)
+        )
+
+        const endedAt = Date.now()
+        const session: Session = {
+          id: w.sessionId,
+          routineId: w.routineId,
+          blockIds: [...w.blockIds],
+          date: todayISO(w.startedAt),
+          startedAt: w.startedAt,
+          endedAt,
+          durationSeconds: Math.round((endedAt - w.startedAt) / 1000),
+          plannedOrder,
+          actualOrder,
+          substitutions: [...w.substitutions],
+          skippedExerciseIds: skipped,
+          exerciseIds: actualOrder,
+          notes: w.notes,
+          totalVolumeKg: totals.volumeKg,
+          totalSets: totals.totalSets,
+          totalWorkSets: totals.workSets,
+        }
+
+        // שיאי נפח מחושבים רק עכשיו, כשהאימון סגור
+        const volumeEvents: PrEvent[] = []
+        const prs = [...get().prCache]
+        for (const exId of actualOrder) {
+          const ex = exercises[exId]
+          if (!ex) continue
+          const ev = detectVolumePr(
+            ex,
+            sets.filter((s) => s.exerciseId === exId),
+            prs.filter((p) => p.exerciseId === exId)
+          )
+          if (ev) volumeEvents.push(ev)
+        }
+
+        await db.transaction('rw', db.sessions, db.ratings, db.prs, db.activeWorkout, async () => {
+          await db.sessions.put(session)
+          // put ולא bulkAdd: ריצה חוזרת של אותו אימון תדרוס במקום לשכפל
+          const existing = await db.ratings.where('sessionId').equals(w.sessionId).toArray()
+          if (existing.length) {
+            await db.ratings.bulkDelete(
+              existing.map((r) => r.id).filter((id): id is number => id !== undefined)
+            )
+          }
+          const ratings = Object.entries(w.ratingsByKey).flatMap(([key, r]) => {
+            const item = w.queue.find((q) => q.key === key)
+            if (!item) return []
+            return [
+              {
+                sessionId: w.sessionId,
+                exerciseId: item.exerciseId,
+                rating: r.rating,
+                rir: r.rir,
+                createdAt: endedAt,
+              },
+            ]
+          })
+          if (ratings.length) await db.ratings.bulkAdd(ratings)
+          for (const ev of volumeEvents) {
+            await db.prs.put({
+              exerciseId: ev.exerciseId,
+              kind: ev.kind,
+              value: ev.value,
+              weightKg: ev.weightKg,
+              reps: ev.reps,
+              sessionId: w.sessionId,
+              achievedAt: endedAt,
+            })
+          }
+          await db.activeWorkout.delete('current')
+        })
+
+        set({ workout: null, pendingPrEvents: [] })
+        return session.id
+      })()
+
+      try {
+        return await finishing
+      } finally {
+        finishing = null
+      }
     },
 
     async logSet(key, type, weightKg, reps) {
@@ -403,6 +476,7 @@ export const useWorkout = create<WorkoutState>((set, get) => {
     },
 
     async updateSet(key, logId, weightKg, reps) {
+      const exerciseId = get().workout?.queue.find((q) => q.key === key)?.exerciseId
       await db.setLogs.update(logId, { weightKg, reps })
       await mutate((cur) => ({
         ...cur,
@@ -413,12 +487,15 @@ export const useWorkout = create<WorkoutState>((set, get) => {
           ),
         },
       }))
+      // תיקון משקל שגוי חייב לבטל את השיא שהוא יצר
+      if (exerciseId) await reconcile([exerciseId])
     },
 
     async toggleSetType(key, logId) {
       const cur = get().workout
       const found = cur?.setsByKey[key]?.find((s) => s.logId === logId)
       if (!found) return
+      const exerciseId = cur?.queue.find((q) => q.key === key)?.exerciseId
       const next: SetType = found.type === 'work' ? 'warmup' : 'work'
       await db.setLogs.update(logId, { type: next })
       await mutate((w) => ({
@@ -428,9 +505,12 @@ export const useWorkout = create<WorkoutState>((set, get) => {
           [key]: (w.setsByKey[key] ?? []).map((s) => (s.logId === logId ? { ...s, type: next } : s)),
         },
       }))
+      // סט שהפך לחימום לא רשאי להחזיק שיא — זה האינווריאנט של domain/prs.ts
+      if (exerciseId) await reconcile([exerciseId])
     },
 
     async removeSet(key, logId) {
+      const exerciseId = get().workout?.queue.find((q) => q.key === key)?.exerciseId
       await db.setLogs.delete(logId)
       await mutate((w) => {
         const remaining = (w.setsByKey[key] ?? []).filter((s) => s.logId !== logId)
@@ -441,6 +521,8 @@ export const useWorkout = create<WorkoutState>((set, get) => {
       await Promise.all(
         remaining.map((s, i) => db.setLogs.update(s.logId, { setIndex: i }))
       )
+      // סט שנמחק לא יכול להשאיר אחריו שיא
+      if (exerciseId) await reconcile([exerciseId])
     },
 
     async rate(key, rating, rir) {
