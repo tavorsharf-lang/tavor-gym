@@ -1,0 +1,113 @@
+import 'fake-indexeddb/auto'
+import { afterEach, vi } from 'vitest'
+import { cleanup } from '@testing-library/react'
+
+/**
+ * סביבת הבדיקות. jsdom חסר כמעט את כל ה-API-ים שהאפליקציה נשענת עליהם
+ * באייפון, ולכן כולם מקבלים כאן פנקס דמה — הקוד עצמו כבר יודע להסתדר בלעדיהם,
+ * וזה בדיוק מה שהבדיקה מוודאת.
+ */
+
+afterEach(() => {
+  cleanup()
+})
+
+// matchMedia — נדרש לבדיקת prefers-reduced-motion
+if (!window.matchMedia) {
+  window.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })) as unknown as typeof window.matchMedia
+}
+
+// Screen Wake Lock
+Object.defineProperty(navigator, 'wakeLock', {
+  configurable: true,
+  value: { request: vi.fn().mockRejectedValue(new Error('not supported')) },
+})
+
+// Storage Manager
+Object.defineProperty(navigator, 'storage', {
+  configurable: true,
+  value: {
+    persisted: vi.fn().mockResolvedValue(false),
+    persist: vi.fn().mockResolvedValue(false),
+    estimate: vi.fn().mockResolvedValue({ usage: 0, quota: 1_000_000_000 }),
+  },
+})
+
+// AudioContext — האפליקציה חייבת לשרוד גם בלי אודיו
+class FakeAudioContext {
+  state = 'running'
+  currentTime = 0
+  sampleRate = 48000
+  destination = {}
+  createBuffer() {
+    return {}
+  }
+  createBufferSource() {
+    return { buffer: null, connect: vi.fn(), start: vi.fn() }
+  }
+  createOscillator() {
+    return {
+      type: '',
+      frequency: { setValueAtTime: vi.fn() },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+      onended: null,
+    }
+  }
+  createGain() {
+    return {
+      gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    }
+  }
+  resume() {
+    return Promise.resolve()
+  }
+}
+Object.defineProperty(window, 'AudioContext', { configurable: true, value: FakeAudioContext })
+
+// URL.createObjectURL — jsdom לא מממש אותו, וטעינת תמונות ממוזערות נופלת בלעדיו
+if (!URL.createObjectURL) {
+  URL.createObjectURL = vi.fn(() => 'blob:test')
+  URL.revokeObjectURL = vi.fn()
+}
+
+// ResizeObserver — Chart.js נשען עליו
+if (!window.ResizeObserver) {
+  window.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}
+
+// Canvas — Chart.js מצייר לתוכו
+HTMLCanvasElement.prototype.getContext = vi.fn(
+  () => null
+) as unknown as HTMLCanvasElement['getContext']
+
+// jsdom לא מממש גלילה, וה-shell קורא לזה בכל מעבר מסך
+window.scrollTo = vi.fn()
+
+// virtual:pwa-register לא קיים מחוץ ל-Vite build
+vi.mock('virtual:pwa-register', () => ({
+  registerSW: () => () => Promise.resolve(),
+}))
+
+// canvas-confetti מצייר ל-canvas אמיתי ונופל ב-jsdom. הוא לא חלק מהלוגיקה
+// שאנחנו בודקים, ולכן מוחלף בפונקציה ריקה.
+vi.mock('canvas-confetti', () => ({
+  default: Object.assign(vi.fn(), { create: () => vi.fn() }),
+}))

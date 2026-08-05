@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db, ensureReady } from '@/db/db'
+import { mediaDb } from '@/db/mediaDb'
+import { backupFilename, exportData, importData, importMedia } from '@/db/backup'
 import type { Block, Exercise, Routine, Session, SetLog } from '@/db/types'
 import {
   addBodyWeight,
@@ -238,5 +240,130 @@ describe('addBodyWeight', () => {
     expect(entry.weightKg).toBe(79.5)
     expect(entry.note).toBe('אחרי אימון')
     expect(entry.createdAt).toBeLessThanOrEqual(Date.now() + DAY)
+  })
+})
+
+describe('גיבוי נתונים', () => {
+  it('שם הקובץ נושא את התאריך', () => {
+    expect(backupFilename(T3, 'data')).toBe('tavor-gym-נתונים-2026-08-05.json')
+    expect(backupFilename(T3, 'media')).toBe('tavor-gym-סרטונים-2026-08-05.zip')
+  })
+
+  it('דוחה בעברית קובץ שאינו גיבוי של האפליקציה', async () => {
+    expect(await importData(new Blob(['לא JSON בכלל']))).toEqual({
+      ok: false,
+      error: 'הקובץ אינו JSON תקין',
+    })
+    expect(await importData(new Blob([JSON.stringify({ app: 'משהו אחר' })]))).toEqual({
+      ok: false,
+      error: 'הקובץ אינו גיבוי של אימוני כושר',
+    })
+    expect(await importData(new Blob([JSON.stringify({ app: 'tavor-gym' })]))).toEqual({
+      ok: false,
+      error: 'הגיבוי פגום — חסר החלק "תרגילים"',
+    })
+  })
+
+  it('ייצוא וייבוא מחזירים את אותם נתונים ומחשבים שיאים מחדש', async () => {
+    const blob = await exportData()
+    await db.prs.clear()
+    await db.exercises.clear()
+
+    const result = await importData(blob)
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.counts['אימונים']).toBe(3)
+
+    expect(await db.exercises.count()).toBe(5)
+    expect((await getFinishedSessions()).map((s) => s.id)).toEqual(['s2', 's1'])
+    // השיאים לא הגיעו מהקובץ אלא חושבו מחדש מהסטים
+    expect((await db.prs.where('exerciseId').equals('press').toArray()).length).toBeGreaterThan(0)
+  })
+})
+
+
+/**
+ * ארכיוני הסרטונים.
+ *
+ * client-zip לא רץ תחת jsdom (ה-Uint8Array של ה-TextEncoder שייך לתחום אחר),
+ * ו-fake-indexeddb לא משמר Blob-ים בשכפול המובנה שלו. לכן הבדיקה עובדת מול
+ * ארכיון אמיתי שנוצר ב-Node על ידי client-zip, ובודקת בדיוק את מה שכתוב כאן
+ * ביד — הקורא של ה-ZIP.
+ *
+ * ב-FIXTURE יש ארבע רשומות בסדר הזה: video.mp4 · manifest.json ·
+ * bundled_videos_press-1.mp4 · bundled_videos_press-1.jpg. ה-manifest אינו
+ * הרשומה הראשונה בכוונה — פענוח שלו מוכיח שגם היסט של רשומה מאוחרת מחושב נכון.
+ */
+const MEDIA_ZIP_BASE64 =
+  'UEsDBC0ACAgAAACgBVsAAAAAAAAAAAAAAAAJAAAAdmlkZW8ubXA0KlBLBwhbJrkJAQAAAAEAAABQ' +
+  'SwMELQAICAAAAKAFWwAAAAAAAAAAAAAAAA0AAABtYW5pZmVzdC5qc29ueyJhcHAiOiJ0YXZvci1n' +
+  'eW0iLCJzY2hlbWFWZXJzaW9uIjoxLCJleHBvcnRlZEF0IjoxNzU0NDEzMjAwMDAwLCJ2aWRlb3Mi' +
+  'Olt7ImlkIjoiYnVuZGxlZDp2aWRlb3MvcHJlc3MtMS5tcDQiLCJleGVyY2lzZUlkIjoicHJlc3Mi' +
+  'LCJvcmlnaW4iOiJidW5kbGVkIiwibGFiZWwiOiLXlNeT15LXnteUIDEiLCJkdXJhdGlvblNlYyI6' +
+  'MTIsInNpemVCeXRlcyI6OCwid2lkdGgiOjcyMCwiaGVpZ2h0IjoxMjgwLCJoYXNUaHVtYm5haWwi' +
+  'OnRydWUsImZpbGUiOiJidW5kbGVkX3ZpZGVvc19wcmVzcy0xLm1wNCIsInRodW1iIjoiYnVuZGxl' +
+  'ZF92aWRlb3NfcHJlc3MtMS5qcGcifSx7ImlkIjoi16nXnNeZLTEiLCJleGVyY2lzZUlkIjoiZmx5' +
+  'Iiwib3JpZ2luIjoiaW1wb3J0ZWQiLCJsYWJlbCI6Iteh16jXmNeV158g16nXnNeZIiwiZHVyYXRp' +
+  'b25TZWMiOjMsInNpemVCeXRlcyI6MSwid2lkdGgiOjEwODAsImhlaWdodCI6MTkyMCwiaGFzVGh1' +
+  'bWJuYWlsIjpmYWxzZSwiZmlsZSI6InZpZGVvLm1wNCIsInRodW1iIjpudWxsfV19UEsHCKS0CnsH' +
+  'AgAABwIAAFBLAwQtAAgIAAAAoAVbAAAAAAAAAAAAAAAAGgAAAGJ1bmRsZWRfdmlkZW9zX3ByZXNz' +
+  'LTEubXA0AQIDBAUGBwhQSwcIxYjKPwgAAAAIAAAAUEsDBC0ACAgAAACgBVsAAAAAAAAAAAAAAAAa' +
+  'AAAAYnVuZGxlZF92aWRlb3NfcHJlc3MtMS5qcGcJCAdQSwcINv0tpgMAAAADAAAAUEsBAi0DLQAI' +
+  'CAAAAKAFW1smuQkBAAAAAQAAAAkAAAAAAAAAAAAAALSBAAAAAHZpZGVvLm1wNFBLAQItAy0ACAgA' +
+  'AACgBVuktAp7BwIAAAcCAAANAAAAAAAAAAAAAAC0gTgAAABtYW5pZmVzdC5qc29uUEsBAi0DLQAI' +
+  'CAAAAKAFW8WIyj8IAAAACAAAABoAAAAAAAAAAAAAALSBegIAAGJ1bmRsZWRfdmlkZW9zX3ByZXNz' +
+  'LTEubXA0UEsBAi0DLQAICAAAAKAFWzb9LaYDAAAAAwAAABoAAAAAAAAAAAAAALSBygIAAGJ1bmRs' +
+  'ZWRfdmlkZW9zX3ByZXNzLTEuanBnUEsFBgAAAAAEAAQAAgEAABUDAAAAAA=='
+
+/** ZIP תקין עם קובץ אחד ובלי manifest */
+const STRAY_ZIP_BASE64 =
+  'UEsDBC0ACAgAAACgBVsAAAAAAAAAAAAAAAAFAAAAYS50eHTXqdec15XXnVBLBwhNl5igCAAAAAgA' +
+  'AABQSwECLQMtAAgIAAAAoAVbTZeYoAgAAAAIAAAABQAAAAAAAAAAAAAAtIEAAAAAYS50eHRQSwUG' +
+  'AAAAAAEAAQAzAAAAOwAAAAAA'
+
+function zipBlob(base64: string): Blob {
+  const binary = atob(base64)
+  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0))
+  return new Blob([bytes], { type: 'application/zip' })
+}
+
+describe('importMedia', () => {
+  it('קורא ארכיון STORED ומשחזר את הסרטונים לפי ה-manifest', async () => {
+    await mediaDb.videos.clear()
+    const steps: Array<[number, number]> = []
+    const result = await importMedia(zipBlob(MEDIA_ZIP_BASE64), (done, total) =>
+      steps.push([done, total])
+    )
+
+    expect(result).toEqual({ ok: true, count: 2 })
+    expect(steps).toEqual([
+      [0, 2],
+      [1, 2],
+      [2, 2],
+    ])
+
+    const bundled = await mediaDb.videos.get('bundled:videos/press-1.mp4')
+    expect(bundled?.exerciseId).toBe('press')
+    expect(bundled?.origin).toBe('bundled')
+    expect(bundled?.label).toBe('הדגמה 1')
+    // הגודל נלקח מהחיתוך של ה-Blob, לא מהמספר שרשום ב-manifest
+    expect(bundled?.sizeBytes).toBe(8)
+    expect(bundled?.thumbnailBlob).not.toBeNull()
+
+    // מזהה בעברית שורד את ניקוי שם הקובץ, בזכות המיפוי ב-manifest
+    const mine = await mediaDb.videos.get('שלי-1')
+    expect(mine?.exerciseId).toBe('fly')
+    expect(mine?.sizeBytes).toBe(1)
+    expect(mine?.thumbnailBlob).toBeNull()
+  })
+
+  it('דוחה בעברית קובץ שאינו ארכיון סרטונים', async () => {
+    expect(await importMedia(new Blob(['בכלל לא ZIP']))).toEqual({
+      ok: false,
+      error: 'הקובץ אינו ZIP',
+    })
+    expect(await importMedia(zipBlob(STRAY_ZIP_BASE64))).toEqual({
+      ok: false,
+      error: 'הקובץ אינו גיבוי סרטונים של אימוני כושר',
+    })
   })
 })

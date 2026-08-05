@@ -26,6 +26,8 @@ export function useWakeLock(active: boolean): WakeLockState {
   useEffect(() => {
     if (!supported || !active) {
       setHeld(false)
+      // האזהרה שייכת לאימון שנגמר — לא נשארים איתה על המסך
+      if (!active) setError(null)
       return
     }
 

@@ -1,0 +1,507 @@
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useLiveQuery } from 'dexie-react-hooks'
+import {
+  ChevronLeft,
+  Dumbbell,
+  Film,
+  Minus,
+  Play,
+  SearchX,
+  SquarePen,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react'
+import type { JSX, ReactNode } from 'react'
+import type {
+  Exercise,
+  PersonalRecord,
+  PlayableVideo,
+  PrKind,
+  Rating,
+  Rir,
+  SetLog,
+} from '@/db/types'
+import { EQUIPMENT_LABELS, RATING_LABELS, RIR_LABELS, WEIGHT_MODE_LABELS } from '@/db/types'
+import {
+  getExercise,
+  getExerciseHistory,
+  getPrsForExercise,
+  getSetsForExercise,
+  searchSessions,
+} from '@/db/queries'
+import { loadVideosFor, releaseVideos } from '@/db/mediaDb'
+import { prLabel } from '@/domain/prs'
+import { recommendWeight } from '@/domain/recommendation'
+import type { ExerciseSessionSummary } from '@/domain/recommendation'
+import { exerciseTrend } from '@/domain/stats'
+import {
+  formatClock,
+  formatKg,
+  formatRepRange,
+  formatSetShort,
+  formatVolume,
+  formatWeight,
+} from '@/domain/units'
+import { summarize } from '@/domain/volume'
+import { formatDateShort, formatRelativeDay } from '@/lib/dates'
+import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
+import { EmptyState } from '@/components/ui'
+import { VideoPlayer } from '@/components/media/VideoPlayer'
+import { TrendChart } from '@/components/charts/lazy'
+
+/**
+ * מסך התרגיל — כל מה שידוע על תרגיל אחד במקום אחד:
+ * הדגמה, דגשי ביצוע, שיאים, מה להרים היום, וההיסטוריה המלאה.
+ */
+
+/** מספיק גדול כדי לכסות כל היסטוריה סבירה, בלי לשלוף הכל בלי גבול */
+const HISTORY_LIMIT = 200
+
+const PR_ORDER: PrKind[] = ['maxWeight', 'repsAtMaxWeight', 'maxReps', 'maxSessionVolume']
+
+const RATING_TONE: Record<Rating, string> = {
+  1: 'border-ink-700 bg-ink-800 text-bone-400',
+  2: 'border-flame-500/25 bg-flame-500/10 text-flame-300',
+  3: 'border-hard-400/30 bg-hard-400/10 text-hard-400',
+}
+
+const RECOMMENDATION_TONE = {
+  up: 'text-flame-400',
+  steady: 'text-bone-50',
+  down: 'text-hard-400',
+  neutral: 'text-bone-400',
+} as const
+
+// ─── חלקים קטנים ───────────────────────────────────────────────────────────
+
+function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="animate-rise">
+      <div className="mb-2.5 flex items-center gap-2">
+        <h2 className="meta">{title}</h2>
+        {action ? <div className="ms-auto">{action}</div> : null}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function RatingChip({ rating, rir }: { rating: Rating; rir: Rir | null }): JSX.Element {
+  const extra = rir === null ? '' : rir === 0 ? ' · כשל' : ` · נשארו ${RIR_LABELS[rir]}`
+  return (
+    <span className={`rounded-pill border px-2.5 py-1 text-[11px] font-bold ${RATING_TONE[rating]}`}>
+      {RATING_LABELS[rating]}
+      {extra}
+    </span>
+  )
+}
+
+/** שורת הדגמות. loadVideosFor מייצר objectURL-ים ולכן חייבים לשחרר אותם ביציאה. */
+function MediaRow({ exerciseId, onOpen }: { exerciseId: string; onOpen: () => void }): JSX.Element {
+  const [videos, setVideos] = useState<PlayableVideo[]>([])
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    let created: PlayableVideo[] = []
+    let cancelled = false
+    setLoaded(false)
+    loadVideosFor(exerciseId).then((list) => {
+      if (cancelled) {
+        releaseVideos(list)
+        return
+      }
+      created = list
+      setVideos(list)
+      setLoaded(true)
+    })
+    return () => {
+      cancelled = true
+      releaseVideos(created)
+      setVideos([])
+    }
+  }, [exerciseId])
+
+  if (!loaded) return <div className="h-24 rounded-card bg-ink-900/60" />
+
+  if (videos.length === 0) {
+    return <p className="text-sm text-bone-600">אין עדיין סרטון</p>
+  }
+
+  return (
+    <div className="scroll-touch -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+      {videos.map((v) => (
+        <button
+          key={v.id}
+          onClick={onOpen}
+          aria-label={`נגן ${v.label}`}
+          className="relative h-24 w-[4.5rem] shrink-0 overflow-hidden rounded-xl border border-ink-700 transition-transform active:scale-95"
+        >
+          {v.posterUrl ? (
+            <img src={v.posterUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center bg-ink-850 text-bone-600">
+              <Film size={20} />
+            </span>
+          )}
+          <span className="absolute inset-0 flex items-center justify-center bg-ink-950/30">
+            <Play size={18} className="text-bone-50 drop-shadow" fill="currentColor" />
+          </span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function Fact({ label, value }: { label: string; value: string }): JSX.Element {
+  return (
+    <div>
+      <p className="meta">{label}</p>
+      <p className="mt-1 text-sm font-bold text-bone-100 tnum" dir="ltr">
+        {value}
+      </p>
+    </div>
+  )
+}
+
+/** הטקסט של שיא אחד, לפי הסוג שלו */
+function prValueText(pr: PersonalRecord, exercise: Exercise): string {
+  switch (pr.kind) {
+    case 'maxWeight':
+      return formatWeight(pr.value, exercise.weightMode)
+    case 'repsAtMaxWeight':
+      return `${pr.value} חזרות`
+    case 'maxReps':
+      return `${pr.value} חזרות`
+    case 'maxSessionVolume':
+      return formatVolume(pr.value)
+  }
+}
+
+function SetChips({ sets, exercise }: { sets: SetLog[]; exercise: Exercise }): JSX.Element {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {sets.map((s, i) => (
+        <span
+          key={s.id ?? `${s.completedAt}-${i}`}
+          className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-semibold ${
+            s.type === 'warmup'
+              ? 'border-warmup-400/25 bg-warmup-400/10 text-warmup-400'
+              : 'border-ink-700 bg-ink-800 text-bone-200'
+          }`}
+        >
+          {s.type === 'warmup' && <span className="text-[9px] font-bold opacity-80">חימום</span>}
+          <span dir="ltr" className="tnum">
+            {formatSetShort(s.weightKg, s.reps, exercise.weightMode)}
+          </span>
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function HistoryRow({
+  entry,
+  exercise,
+  onOpen,
+}: {
+  entry: ExerciseSessionSummary
+  exercise: Exercise
+  onOpen: () => void
+}): JSX.Element {
+  const totals = summarize(entry.sets, () => exercise.weightMode)
+  return (
+    <button
+      onClick={onOpen}
+      className="card w-full p-3.5 text-start transition-transform active:scale-[0.99]"
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-extrabold text-bone-50">{formatRelativeDay(entry.startedAt)}</span>
+        <span className="text-xs text-bone-600 tnum" dir="ltr">
+          {formatDateShort(entry.startedAt)}
+        </span>
+        <span className="ms-auto flex items-center gap-2">
+          {entry.rating && <RatingChip rating={entry.rating.rating} rir={entry.rating.rir} />}
+          <ChevronLeft size={16} className="shrink-0 text-bone-600" />
+        </span>
+      </div>
+
+      <div className="mt-2.5">
+        <SetChips sets={entry.sets} exercise={exercise} />
+      </div>
+
+      {totals.volumeKg > 0 && (
+        <p className="mt-2.5 text-xs text-bone-500">נפח {formatVolume(totals.volumeKg)}</p>
+      )}
+    </button>
+  )
+}
+
+// ─── המסך ──────────────────────────────────────────────────────────────────
+
+export function ExerciseScreen(): JSX.Element {
+  const { exerciseId = '' } = useParams<{ exerciseId: string }>()
+  const navigate = useNavigate()
+  const [playerOpen, setPlayerOpen] = useState(false)
+
+  // null = התרגיל לא קיים · undefined = עוד נטען
+  const data = useLiveQuery(async () => {
+    const exercise = await getExercise(exerciseId)
+    if (!exercise) return null
+    const [prs, history, sessions, sets] = await Promise.all([
+      getPrsForExercise(exerciseId),
+      getExerciseHistory(exerciseId, HISTORY_LIMIT),
+      searchSessions({ exerciseId }),
+      getSetsForExercise(exerciseId),
+    ])
+    return {
+      exercise,
+      prs,
+      history,
+      trend: exerciseTrend(exercise, sessions, sets),
+      recommendation: recommendWeight(exercise, history),
+    }
+  }, [exerciseId])
+
+  const weightPoints = useMemo(
+    () =>
+      (data?.trend ?? []).flatMap((p) =>
+        p.workingWeightKg === null
+          ? []
+          : [{ label: formatDateShort(p.timestamp), value: p.workingWeightKg }]
+      ),
+    [data]
+  )
+
+  const repsPoints = useMemo(
+    () =>
+      (data?.trend ?? []).flatMap((p) =>
+        p.topSetReps === null ? [] : [{ label: formatDateShort(p.timestamp), value: p.topSetReps }]
+      ),
+    [data]
+  )
+
+  const volumePoints = useMemo(
+    () =>
+      (data?.trend ?? []).map((p) => ({
+        label: formatDateShort(p.timestamp),
+        value: p.volumeKg,
+      })),
+    [data]
+  )
+
+  if (data === undefined) {
+    return (
+      <Screen dock={false}>
+        <ScreenHeader title="תרגיל" />
+        <div className="space-y-3">
+          <div className="h-24 rounded-card bg-ink-900/60" />
+          <div className="h-32 rounded-card bg-ink-900/60" />
+          <div className="h-32 rounded-card bg-ink-900/60" />
+        </div>
+      </Screen>
+    )
+  }
+
+  if (data === null) {
+    return (
+      <Screen dock={false}>
+        <ScreenHeader title="תרגיל לא נמצא" />
+        <EmptyState
+          icon={<SearchX />}
+          title="התרגיל הזה כבר לא בקטלוג"
+          hint="אולי הוא נמחק. אפשר לחזור אחורה ולבחור תרגיל אחר מהרשימה."
+        />
+      </Screen>
+    )
+  }
+
+  const { exercise, prs, history, recommendation } = data
+  const isBodyweight = exercise.weightMode === 'bodyweight'
+  const heroUnit = exercise.weightMode === 'perSide' ? 'ק״ג כל צד' : 'ק״ג'
+  const sortedPrs = PR_ORDER.flatMap((kind) => prs.filter((p) => p.kind === kind))
+  const maxWeightPr = sortedPrs.find((p) => p.kind === 'maxWeight')
+  const otherPrs = sortedPrs.filter((p) => p.kind !== 'maxWeight')
+  const RecIcon =
+    recommendation.tone === 'up' ? TrendingUp : recommendation.tone === 'down' ? TrendingDown : Minus
+
+  return (
+    <Screen dock={false}>
+      <ScreenHeader
+        title={exercise.name}
+        subtitle={`${exercise.subTarget} · ${EQUIPMENT_LABELS[exercise.equipment]}`}
+      />
+
+      <div className="space-y-7">
+        {/* 1 · הדגמה */}
+        <Section title="הדגמה">
+          <MediaRow exerciseId={exercise.id} onOpen={() => setPlayerOpen(true)} />
+        </Section>
+
+        {/* 2 · דגשי ביצוע — כאן הם תמיד פתוחים, זה המקום שבאים אליו ללמוד */}
+        <Section
+          title="דגשי ביצוע"
+          action={
+            <Link
+              to={`/settings/exercises/${exercise.id}`}
+              className="flex min-h-12 items-center gap-1.5 px-2 text-xs font-bold text-flame-400"
+            >
+              <SquarePen size={14} />
+              ערוך
+            </Link>
+          }
+        >
+          {exercise.cues.length ? (
+            <ul className="card space-y-2.5 p-4">
+              {exercise.cues.map((cue) => (
+                <li key={cue} className="flex gap-2.5">
+                  <span className="mt-2 size-1.5 shrink-0 rounded-full bg-flame-500 shadow-[0_0_8px_rgb(255_106_0/0.7)]" />
+                  <span className="text-sm leading-relaxed text-bone-200">{cue}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-bone-600">עוד לא כתבת דגשים לתרגיל הזה</p>
+          )}
+        </Section>
+
+        {/* 3 · מספרי היעד */}
+        <Section title="היעד">
+          <div className="card grid grid-cols-2 gap-4 p-4">
+            <Fact label="סטים × חזרות" value={`${exercise.targetSets} × ${formatRepRange(exercise.targetReps)}`} />
+            <Fact label="מנוחה" value={formatClock(exercise.defaultRestSeconds)} />
+            <Fact label="מצב משקל" value={WEIGHT_MODE_LABELS[exercise.weightMode]} />
+            <Fact
+              label="קפיצת משקל"
+              value={isBodyweight ? '—' : `${formatKg(exercise.weightIncrementKg)} ק״ג`}
+            />
+          </div>
+        </Section>
+
+        {history.length === 0 ? (
+          <EmptyState
+            icon={<Dumbbell />}
+            title="עוד לא הרמת את התרגיל הזה"
+            hint={recommendation.reason}
+          />
+        ) : (
+          <>
+            {/* 4 · שיאים */}
+            {sortedPrs.length > 0 && (
+              <Section title="שיאים">
+                <div className="space-y-3">
+                  {maxWeightPr && (
+                    <div className="card animate-stamp p-4">
+                      <p className="meta">{prLabel(maxWeightPr.kind)}</p>
+                      <p className="mt-2 flex items-baseline gap-2">
+                        <span className="numeral-hero text-4xl text-pr-400 tnum" dir="ltr">
+                          {formatKg(maxWeightPr.value)}
+                        </span>
+                        <span className="text-sm font-bold text-pr-400/70">{heroUnit}</span>
+                      </p>
+                      <p className="mt-2.5 text-xs text-bone-500">
+                        נקבע ב-<span dir="ltr" className="tnum">{formatDateShort(maxWeightPr.achievedAt)}</span>
+                        {maxWeightPr.reps ? ` · ${maxWeightPr.reps} חזרות` : ''}
+                      </p>
+                    </div>
+                  )}
+
+                  {otherPrs.length > 0 && (
+                    <div className="grid grid-cols-2 gap-3">
+                      {otherPrs.map((pr) => (
+                        <div key={pr.kind} className="card p-3.5">
+                          <p className="meta">{prLabel(pr.kind)}</p>
+                          <p className="mt-1.5 text-lg font-extrabold text-pr-400">
+                            {prValueText(pr, exercise)}
+                          </p>
+                          {pr.kind === 'repsAtMaxWeight' && pr.weightKg !== null && (
+                            <p className="text-xs text-bone-500">
+                              ב-{formatWeight(pr.weightKg, exercise.weightMode)}
+                            </p>
+                          )}
+                          <p className="mt-1.5 text-[11px] text-bone-600 tnum" dir="ltr">
+                            {formatDateShort(pr.achievedAt)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Section>
+            )}
+
+            {/* 5 · המלצה להיום */}
+            <Section title="המלצה להיום">
+              <div className="card p-4">
+                <div className="flex items-center gap-3">
+                  <span className={`flex size-10 shrink-0 items-center justify-center rounded-full bg-ink-800 ${RECOMMENDATION_TONE[recommendation.tone]}`}>
+                    <RecIcon size={20} />
+                  </span>
+                  {recommendation.weightKg !== null && (
+                    <p className="flex items-baseline gap-1.5">
+                      <span
+                        className={`numeral-hero text-3xl tnum ${RECOMMENDATION_TONE[recommendation.tone]}`}
+                        dir="ltr"
+                      >
+                        {formatKg(recommendation.weightKg)}
+                      </span>
+                      <span className="text-xs font-bold text-bone-500">{heroUnit}</span>
+                    </p>
+                  )}
+                </div>
+                <p className="mt-3 text-sm leading-relaxed text-bone-300">{recommendation.reason}</p>
+              </div>
+            </Section>
+
+            {/* 6 · גרפים */}
+            <Section title="התקדמות">
+              <div className="space-y-3">
+                {/* בתרגיל משקל גוף אין משקל ואין נפח — החזרות הן ההתקדמות היחידה */}
+                {isBodyweight ? (
+                  <div className="card p-3">
+                    <p className="mb-1 px-1 text-xs font-bold text-bone-400">חזרות בסט הטוב</p>
+                    <TrendChart points={repsPoints} unit="חזרות" color="flame" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="card p-3">
+                      <p className="mb-1 px-1 text-xs font-bold text-bone-400">משקל עבודה</p>
+                      <TrendChart points={weightPoints} unit="ק״ג" color="flame" />
+                    </div>
+                    <div className="card p-3">
+                      <p className="mb-1 px-1 text-xs font-bold text-bone-400">נפח לאימון</p>
+                      <TrendChart points={volumePoints} unit="ק״ג" color="pr" />
+                    </div>
+                  </>
+                )}
+              </div>
+            </Section>
+
+            {/* 7 · היסטוריה מלאה */}
+            <Section title="היסטוריה מלאה">
+              <div className="space-y-2.5">
+                {history.map((entry) => (
+                  <HistoryRow
+                    key={entry.sessionId}
+                    entry={entry}
+                    exercise={exercise}
+                    onOpen={() => navigate(`/history/${entry.sessionId}`)}
+                  />
+                ))}
+              </div>
+            </Section>
+          </>
+        )}
+
+        <div className="h-4" />
+      </div>
+
+      <VideoPlayer
+        exerciseId={exercise.id}
+        exerciseName={exercise.name}
+        open={playerOpen}
+        onClose={() => setPlayerOpen(false)}
+      />
+    </Screen>
+  )
+}

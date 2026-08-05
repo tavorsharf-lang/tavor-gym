@@ -1,0 +1,88 @@
+import { useEffect, useId, useRef } from 'react'
+import type { JSX, ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+
+/**
+ * גיליון תחתון — בורר תרגיל, מחשבון פלטות, עריכת סט.
+ *
+ * נפתח מלמטה כי שם היד. נטען דרך portal ל-body כדי לא לרשת overflow או
+ * transform מהמסך שמתחתיו, מה שהיה שובר את ה-fixed באייפון.
+ */
+
+export interface BottomSheetProps {
+  open: boolean
+  onClose: () => void
+  title?: string
+  children: ReactNode
+  /** גובה מרבי באחוזי גובה חלון דינמי */
+  maxHeightVh?: number
+}
+
+export function BottomSheet({
+  open,
+  onClose,
+  title,
+  children,
+  maxHeightVh = 85,
+}: BottomSheetProps): JSX.Element | null {
+  const titleId = useId()
+
+  // onClose נשמר ב-ref כדי שנעילת הגלילה תיקבע רק לפי open. פונקציה חדשה
+  // בכל רינדור הייתה מבטלת ומחזירה את הנעילה שוב ושוב.
+  const closeRef = useRef(onClose)
+  useEffect(() => {
+    closeRef.current = onClose
+  })
+
+  useEffect(() => {
+    if (!open) return
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeRef.current()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = previous
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  if (!open) return null
+
+  return createPortal(
+    <div
+      className="fixed inset-x-0 top-0 z-50 flex h-[100dvh] items-end"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={title ? titleId : undefined}
+      aria-label={title ? undefined : 'חלון'}
+    >
+      <div
+        className="animate-fade absolute inset-0 bg-ink-950/70 backdrop-blur-sm"
+        aria-hidden="true"
+        onClick={() => closeRef.current()}
+      />
+
+      <div
+        className="animate-sheet relative flex w-full flex-col overflow-hidden rounded-t-[1.5rem] border-t border-ink-700 bg-ink-900 shadow-[0_-14px_44px_-14px_rgba(0,0,0,0.85)]"
+        style={{ maxHeight: `${maxHeightVh}dvh` }}
+      >
+        <div className="flex shrink-0 justify-center pt-3 pb-1">
+          <div className="knurl h-1.5 w-12 rounded-full bg-ink-800" />
+        </div>
+
+        {title ? (
+          <h2 id={titleId} className="shrink-0 px-5 pt-1 pb-3 text-lg font-extrabold text-bone-50">
+            {title}
+          </h2>
+        ) : null}
+
+        <div className="scroll-touch min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-safe">
+          {children}
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}

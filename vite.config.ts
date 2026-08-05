@@ -23,9 +23,15 @@ export default defineConfig({
       includeAssets: ['icons/apple-touch-icon.png', 'icons/favicon.svg'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2}'],
-        // הסרטונים לא נכנסים ל-precache — 20MB+ היו הופכים את ההתקנה לשברירית.
-        // הם מותקנים למכשיר דרך "התקן סרטונים" ונשמרים ב-IndexedDB.
-        globIgnores: ['**/videos/**'],
+        globIgnores: [
+          // הסרטונים לא נכנסים ל-precache — 26MB היו הופכים את ההתקנה
+          // לשברירית. הם מותקנים למכשיר דרך "התקן סרטונים" ל-IndexedDB.
+          '**/videos/**',
+          // תת-הקבוצות של הפונט שלעולם לא ייטענו כאן. ה-unicode-range כבר
+          // מונע את הבקשה, ואין טעם לשמור אותן אופליין.
+          '**/*arabic*',
+          '**/*cyrillic*',
+        ],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
@@ -63,19 +69,14 @@ export default defineConfig({
   ],
   build: {
     target: 'es2020', // iOS Safari 16.4+
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          react: ['react', 'react-dom', 'react-router-dom'],
-          charts: ['chart.js', 'react-chartjs-2'],
-          db: ['dexie', 'dexie-react-hooks'],
-        },
-      },
-    },
+    // בלי פיצול ידני: כל ה-shell נכנס ל-precache ממילא, ולכן צ'אנק אחד גדול
+    // נטען מהר יותר מכמה בקשות. הספריות הכבדות (client-zip, canvas-confetti)
+    // נטענות דינמית בקוד ולכן יוצאות לצ'אנק נפרד בכל מקרה.
   },
   test: {
     environment: 'jsdom',
     globals: true,
+    setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     css: false,
   },

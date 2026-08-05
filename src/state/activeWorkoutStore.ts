@@ -167,8 +167,17 @@ export const useWorkout = create<WorkoutState>((set, get) => {
         })
       }
 
+      // מנוחה שהדד-ליין שלה עבר מזמן לא אמורה לצוץ בפתיחה מחדש ולצפצף.
+      // עד שתי דקות זו עדיין אותה מנוחה שרק ננעל עליה המסך.
+      const staleRest = saved.restEndsAt !== null && Date.now() - saved.restEndsAt > 120_000
+
       set({
-        workout: { ...saved, setsByKey: byKey },
+        workout: {
+          ...saved,
+          setsByKey: byKey,
+          restEndsAt: staleRest ? null : saved.restEndsAt,
+          restForKey: staleRest ? null : saved.restForKey,
+        },
         exercisesById: Object.fromEntries(exercises.map((e) => [e.id, e])),
         prCache: prs,
         hydrated: true,
