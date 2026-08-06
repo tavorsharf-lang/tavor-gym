@@ -13,6 +13,7 @@ import type {
   SetLog,
 } from '@/db/types'
 import type { ExerciseSessionSummary } from '@/domain/recommendation'
+import { workingWeight } from '@/domain/volume'
 
 /**
  * כל הקריאות מהמסד, במקום אחד.
@@ -55,6 +56,46 @@ export async function getSubstituteCandidates(exercise: Exercise): Promise<Exerc
       const rank = (e: Exercise) => (e.subTarget === exercise.subTarget ? 0 : 1)
       return rank(a) - rank(b) || a.order - b.order
     })
+}
+
+/** מה שהורמת לאחרונה בתרגיל — המספר שעונה על "כמה אני עושה בזה" */
+export interface LastPerformed {
+  weightKg: number
+  reps: number
+  at: number
+  sets: number
+}
+
+/**
+ * המשקל האחרון של *כל* התרגילים, בסריקה אחת.
+ *
+ * ספריית התרגילים צריכה את המספר הזה לכל שורה, ושאילתה נפרדת לכל תרגיל הייתה
+ * עשרות הלוך-ושוב. נפח הנתונים של משתמש יחיד קטן מספיק כדי לסרוק פעם אחת.
+ */
+export async function getLastPerformedMap(): Promise<Map<string, LastPerformed>> {
+  const byExercise = new Map<string, SetLog[]>()
+  await db.setLogs.each((s) => {
+    if (s.type !== 'work') return
+    const list = byExercise.get(s.exerciseId)
+    if (list) list.push(s)
+    else byExercise.set(s.exerciseId, [s])
+  })
+
+  const out = new Map<string, LastPerformed>()
+  for (const [exerciseId, sets] of byExercise) {
+    const latest = sets.reduce((a, b) => (b.completedAt > a.completedAt ? b : a))
+    // רק הסטים מאותו אימון — "כמה אני עושה" זה המשקל של הפעם האחרונה, לא שיא
+    const sameSession = sets.filter((s) => s.sessionId === latest.sessionId)
+    const weightKg = workingWeight(sameSession) ?? latest.weightKg
+    const atWeight = sameSession.filter((s) => s.weightKg === weightKg)
+    out.set(exerciseId, {
+      weightKg,
+      reps: atWeight.length ? Math.max(...atWeight.map((s) => s.reps)) : latest.reps,
+      at: latest.completedAt,
+      sets: sameSession.length,
+    })
+  }
+  return out
 }
 
 // ─── תוכניות ובלוקים ───────────────────────────────────────────────────────

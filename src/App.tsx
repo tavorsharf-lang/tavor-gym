@@ -11,6 +11,7 @@ import { SummaryScreen } from '@/screens/SummaryScreen'
 import { HistoryScreen } from '@/screens/HistoryScreen'
 import { SessionDetailScreen } from '@/screens/SessionDetailScreen'
 import { ExerciseScreen } from '@/screens/ExerciseScreen'
+import { ExerciseLibraryScreen } from '@/screens/ExerciseLibraryScreen'
 import { StatsScreen } from '@/screens/StatsScreen'
 import { SettingsScreen } from '@/screens/settings/SettingsScreen'
 import { ExerciseCatalogScreen } from '@/screens/settings/ExerciseCatalogScreen'
@@ -40,6 +41,7 @@ function Shell() {
         <Route path="/summary/:sessionId" element={<SummaryScreen />} />
         <Route path="/history" element={<HistoryScreen />} />
         <Route path="/history/:sessionId" element={<SessionDetailScreen />} />
+        <Route path="/exercises" element={<ExerciseLibraryScreen />} />
         <Route path="/exercise/:exerciseId" element={<ExerciseScreen />} />
         <Route path="/stats" element={<StatsScreen />} />
         <Route path="/settings" element={<SettingsScreen />} />

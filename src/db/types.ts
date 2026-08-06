@@ -373,6 +373,22 @@ export const MUSCLE_GROUP_ORDER: MuscleGroup[] = [
   'calves',
 ]
 
+/**
+ * מהשריר הגדול לקטן. זה הסדר שבו מציגים את ספריית התרגילים — הוא גם סדר
+ * העדיפות באימון עצמו, כי שריר גדול דורש יותר אנרגיה ובא קודם.
+ */
+export const MUSCLE_GROUP_BY_SIZE: MuscleGroup[] = [
+  'legs',
+  'back',
+  'chest',
+  'shoulders',
+  'triceps',
+  'biceps',
+  'calves',
+  'abs',
+  'forearms',
+]
+
 export const EQUIPMENT_LABELS: Record<Equipment, string> = {
   machine: 'מכונה',
   freeWeights: 'משקולות חופשיות',

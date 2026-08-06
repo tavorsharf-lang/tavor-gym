@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { App } from './App'
 import { db, ensureReady } from './db/db'
@@ -74,4 +75,73 @@ describe('App', () => {
     )
     expect(missing).toEqual([])
   })
+})
+
+/**
+ * מסך הבית מרנדר את כרטיסי הכניסה רק אחרי שכל ה-liveQueries נפתרו, ולכן
+ * ממתינים קודם לתוכן שמגיע איתם ורק אז מחפשים את הכרטיס.
+ */
+async function openLibrary(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+  await waitFor(() => expect(screen.getAllByText(/פול באדי/).length).toBeGreaterThan(0), {
+    timeout: 10000,
+  })
+  const card = await screen.findByRole('button', { name: /כל התרגילים/ }, { timeout: 10000 })
+  await user.click(card)
+}
+
+describe('ספריית התרגילים', () => {
+  beforeEach(async () => {
+    // ה-hash שורד בין בדיקות, ובלי האיפוס הבדיקה הבאה נפתחת כבר בתוך הספרייה
+    window.location.hash = ''
+    await db.delete()
+    await db.open()
+    await ensureReady()
+  })
+
+  it('נפתחת ממסך הבית ומציגה את כל התרגילים לפי שריר, מהגדול לקטן', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await openLibrary(user)
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'רגליים' })).toBeTruthy(), {
+      timeout: 5000,
+    })
+
+    // סדר הכותרות הוא סדר גודל השרירים, לא סדר הקטלוג
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
+    expect(headings.indexOf('רגליים')).toBeLessThan(headings.indexOf('גב'))
+    expect(headings.indexOf('גב')).toBeLessThan(headings.indexOf('חזה'))
+    expect(headings.indexOf('חזה')).toBeLessThan(headings.indexOf('כתפיים'))
+    expect(headings.indexOf('בטן')).toBeGreaterThan(headings.indexOf('כתפיים'))
+
+    // כל 28 התרגילים מופיעים
+    expect(screen.getByText('לחיצת רגליים')).toBeTruthy()
+    expect(screen.getByText('פטישים יושב')).toBeTruthy()
+  }, 30000)
+
+  it('לחיצה על תרגיל פותחת אותו עם השם באנגלית', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await openLibrary(user)
+    await waitFor(() => expect(screen.getByText('לחיצת רגליים')).toBeTruthy(), { timeout: 5000 })
+    await user.click(screen.getByText('לחיצת רגליים'))
+
+    // השם באנגלית מופיע רק כאן, לא ברשימה
+    await waitFor(() => expect(screen.getByText('Leg Press')).toBeTruthy(), { timeout: 5000 })
+    // והדגשים מגיעים איתו
+    expect(screen.getByText(/לדחוף מהעקבים/)).toBeTruthy()
+  }, 30000)
+
+  it('הרשימה עצמה בעברית בלבד — בלי שמות באנגלית', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await openLibrary(user)
+    await waitFor(() => expect(screen.getByText('לחיצת רגליים')).toBeTruthy(), { timeout: 5000 })
+
+    expect(screen.queryByText('Leg Press')).toBeNull()
+    expect(screen.queryByText('Lat Pulldown')).toBeNull()
+  }, 30000)
 })

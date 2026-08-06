@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ChevronLeft, CloudOff, Dumbbell, X } from 'lucide-react'
+import { BookOpen, ChevronLeft, CloudOff, Dumbbell, ListPlus, X } from 'lucide-react'
 import { getSettings } from '@/db/db'
 import { getActiveRoutines, getBlocks, getFinishedSessions } from '@/db/queries'
 import type { RoutineId } from '@/db/types'
@@ -135,10 +135,16 @@ export function HomeScreen(): JSX.Element {
         <>
           <section className="mb-5">
             <p className="meta mb-2">התוכניות</p>
-            <div className="grid grid-cols-3 gap-2">
+            {/* הרשת מתאימה את עצמה למספר התוכניות — פול-באדי הוא שתיים, פיצול שלוש */}
+            <div
+              className="grid gap-2"
+              style={{ gridTemplateColumns: `repeat(${Math.min(rStatuses.length, 3)}, minmax(0, 1fr))` }}
+            >
               {rStatuses.map((status, i) => {
                 const routine = (routines ?? []).find((r) => r.id === status.routineId)
                 const isSuggested = status.routineId === suggested
+                // אות בודדת לפיצול; לתוכנית עם שם אמיתי מציגים את השם
+                const glyph = status.routineId.length === 1 ? status.routineId : null
                 return (
                   <button
                     key={status.routineId}
@@ -154,11 +160,11 @@ export function HomeScreen(): JSX.Element {
                   >
                     <span
                       className={[
-                        'numeral-hero text-3xl',
+                        glyph ? 'numeral-hero text-3xl' : 'text-sm leading-tight font-extrabold',
                         isSuggested ? 'text-flame-400' : 'text-bone-200',
                       ].join(' ')}
                     >
-                      {status.routineId}
+                      {glyph ?? routine?.name ?? status.routineId}
                     </span>
                     <span className="text-[0.6875rem] leading-tight text-bone-400">
                       {routine?.subtitle}
@@ -198,6 +204,31 @@ export function HomeScreen(): JSX.Element {
               </div>
             </section>
           ) : null}
+
+          {/*
+            שתי הכניסות שרוצים מהר מהבית: לראות מה עושים בתרגיל מסוים, ולשנות
+            את מה שנכנס לאימון. שתיהן היו קבורות בהגדרות.
+          */}
+          <section className="mb-5 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/exercises')}
+              className="card flex min-h-20 flex-col justify-center gap-1 p-4 text-start active:bg-ink-800"
+            >
+              <BookOpen size={20} className="text-flame-400" />
+              <span className="text-sm font-extrabold text-bone-50">כל התרגילים</span>
+              <span className="meta">סרטון, דגשים ומשקלים</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/settings/plans')}
+              className="card flex min-h-20 flex-col justify-center gap-1 p-4 text-start active:bg-ink-800"
+            >
+              <ListPlus size={20} className="text-flame-400" />
+              <span className="text-sm font-extrabold text-bone-50">עריכת האימונים</span>
+              <span className="meta">הוספה, הסרה ושינוי</span>
+            </button>
+          </section>
 
           <section className="mb-5">
             <StreakRow sessions={sessions ?? []} goal={settings?.weeklyGoal ?? 3} />

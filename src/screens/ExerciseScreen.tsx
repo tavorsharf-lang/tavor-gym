@@ -26,6 +26,7 @@ import { EQUIPMENT_LABELS, RATING_LABELS, RIR_LABELS, WEIGHT_MODE_LABELS } from 
 import {
   getExercise,
   getExerciseHistory,
+  getLastPerformedMap,
   getPrsForExercise,
   getSetsForExercise,
   searchSessions,
@@ -256,6 +257,7 @@ export function ExerciseScreen(): JSX.Element {
     ])
     return {
       exercise,
+      lastDone: (await getLastPerformedMap()).get(exerciseId) ?? null,
       prs,
       history,
       trend: exerciseTrend(exercise, sessions, sets),
@@ -316,7 +318,7 @@ export function ExerciseScreen(): JSX.Element {
     )
   }
 
-  const { exercise, prs, history, recommendation } = data
+  const { exercise, prs, history, recommendation, lastDone } = data
   const isBodyweight = exercise.weightMode === 'bodyweight'
   const heroUnit = exercise.weightMode === 'perSide' ? 'ק״ג כל צד' : 'ק״ג'
   const sortedPrs = PR_ORDER.flatMap((kind) => prs.filter((p) => p.kind === kind))
@@ -331,6 +333,37 @@ export function ExerciseScreen(): JSX.Element {
         title={exercise.name}
         subtitle={`${exercise.subTarget} · ${EQUIPMENT_LABELS[exercise.equipment]}`}
       />
+
+      {/*
+        השם באנגלית מופיע רק כאן ולא ברשימה. הוא מה שמחפשים בו סרטון ברשת
+        ומה שכתוב על המדבקה של המכונה, אז הוא צריך להיות זמין — אבל לא להתחרות
+        בשם העברי בסריקה של הרשימה.
+      */}
+      {exercise.nameEn ? (
+        <p dir="ltr" className="-mt-2 mb-5 text-start text-sm font-semibold tracking-wide text-bone-500">
+          {exercise.nameEn}
+        </p>
+      ) : null}
+
+      {/* 0 · כמה אני עושה בזה — השאלה שבשבילה נכנסים למסך */}
+      {lastDone ? (
+        <div className="card animate-rise mb-7 p-4">
+          <p className="meta">כמה אני עושה בזה</p>
+          <p className="mt-2 flex items-baseline gap-2">
+            <span dir="ltr" className="numeral-hero tnum text-4xl text-bone-50">
+              {isBodyweight ? lastDone.reps : formatKg(lastDone.weightKg)}
+            </span>
+            <span className="text-sm font-bold text-bone-400">
+              {isBodyweight
+                ? 'חזרות'
+                : `${exercise.weightMode === 'perSide' ? 'ק״ג כל צד' : 'ק״ג'} × ${lastDone.reps}`}
+            </span>
+          </p>
+          <p className="meta mt-2">
+            {lastDone.sets} סטים · {formatRelativeDay(lastDone.at)}
+          </p>
+        </div>
+      ) : null}
 
       <div className="space-y-7">
         {/* 1 · הדגמה */}
