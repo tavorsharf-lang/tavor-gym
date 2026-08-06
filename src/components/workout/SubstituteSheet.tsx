@@ -9,6 +9,7 @@ import { getAllPrs, getSubstituteCandidates } from '@/db/queries'
 import { EQUIPMENT_LABELS, MUSCLE_GROUPS } from '@/db/types'
 import type { Exercise, PersonalRecord } from '@/db/types'
 import { formatWeight } from '@/domain/units'
+import { distinguisher, duplicateNames } from '@/domain/naming'
 
 /**
  * החלפת תרגיל באמצע אימון.
@@ -43,11 +44,14 @@ function prText(ex: Exercise, prs: PersonalRecord[]): string | null {
 function Row({
   ex,
   prs,
+  apart,
   onPick,
   onPlay,
 }: {
   ex: Exercise
   prs: PersonalRecord[]
+  /** המשקל שמבדיל בין שני תרגילים בעלי אותו שם, כשיש כאלה ברשימה */
+  apart: string | null
   onPick: () => void
   onPlay: () => void
 }): JSX.Element {
@@ -62,7 +66,7 @@ function Row({
       >
         <span className="text-base leading-tight font-bold text-bone-50">{ex.name}</span>
         <span className="meta">
-          {ex.subTarget} · {EQUIPMENT_LABELS[ex.equipment]}
+          {[ex.subTarget, EQUIPMENT_LABELS[ex.equipment], apart].filter(Boolean).join(' · ')}
         </span>
         {pr ? (
           <span className="mt-0.5 flex items-center gap-1 text-xs font-bold text-bone-400">
@@ -101,6 +105,12 @@ export function SubstituteSheet({
     () => (open ? getAllPrs() : Promise.resolve([])),
     [open],
     []
+  )
+
+  // התרגיל הנוכחי נספר גם הוא: הוא זה שנשאר על המסך ליד המועמדים
+  const duplicates = useMemo(
+    () => duplicateNames([exercise, ...candidates]),
+    [exercise, candidates]
   )
 
   const { same, others } = useMemo(() => {
@@ -199,6 +209,7 @@ export function SubstituteSheet({
                       key={ex.id}
                       ex={ex}
                       prs={prs}
+                      apart={distinguisher(ex, duplicates)}
                       onPick={() => choose(ex.id)}
                       onPlay={() => setPlaying(ex)}
                     />
@@ -218,6 +229,7 @@ export function SubstituteSheet({
                       key={ex.id}
                       ex={ex}
                       prs={prs}
+                      apart={distinguisher(ex, duplicates)}
                       onPick={() => choose(ex.id)}
                       onPlay={() => setPlaying(ex)}
                     />

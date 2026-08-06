@@ -117,7 +117,7 @@ describe('ספריית התרגילים', () => {
 
     // כל 28 התרגילים מופיעים
     expect(screen.getByText('לחיצת רגליים')).toBeTruthy()
-    expect(screen.getByText('פטישים יושב')).toBeTruthy()
+    expect(screen.getByText('כפיפת פטיש')).toBeTruthy()
   }, 30000)
 
   it('לחיצה על תרגיל פותחת אותו עם השם באנגלית', async () => {
@@ -128,20 +128,35 @@ describe('ספריית התרגילים', () => {
     await waitFor(() => expect(screen.getByText('לחיצת רגליים')).toBeTruthy(), { timeout: 5000 })
     await user.click(screen.getByText('לחיצת רגליים'))
 
-    // השם באנגלית מופיע רק כאן, לא ברשימה
-    await waitFor(() => expect(screen.getByText('Leg Press')).toBeTruthy(), { timeout: 5000 })
+    await waitFor(() => expect(screen.getAllByText('Leg Press').length).toBeGreaterThan(0), {
+      timeout: 5000,
+    })
     // והדגשים מגיעים איתו
     expect(screen.getByText(/לדחוף מהעקבים/)).toBeTruthy()
   }, 30000)
 
-  it('הרשימה עצמה בעברית בלבד — בלי שמות באנגלית', async () => {
+  it('מציגה את השם באנגלית כשורה שנייה — הוא מה שכתוב על המכונה', async () => {
     const user = userEvent.setup()
     render(<App />)
 
     await openLibrary(user)
     await waitFor(() => expect(screen.getByText('לחיצת רגליים')).toBeTruthy(), { timeout: 5000 })
 
-    expect(screen.queryByText('Leg Press')).toBeNull()
-    expect(screen.queryByText('Lat Pulldown')).toBeNull()
+    expect(screen.getByText('Leg Press')).toBeTruthy()
+    expect(screen.getByText('Lat Pulldown')).toBeTruthy()
+  }, 30000)
+
+  it('מפרידה בין שני תרגילים בעלי אותו שם לפי המשקל', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await openLibrary(user)
+    await waitFor(() => expect(screen.getByText('לחיצת רגליים')).toBeTruthy(), { timeout: 5000 })
+
+    // שתי החתירות נשארות שני תרגילים נפרדים, והמשקל הוא מה שמבדיל ביניהן
+    const rows = screen.getAllByText('חתירה במכונה')
+    expect(rows.length).toBe(2)
+    expect(screen.getByText(/60 ק״ג כל צד/)).toBeTruthy()
+    expect(screen.getByText(/50 ק״ג כל צד/)).toBeTruthy()
   }, 30000)
 })

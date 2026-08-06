@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { ensureReady } from '@/db/db'
+import { repairReplacedBundled } from '@/db/mediaDb'
 import { useWorkout } from '@/state/activeWorkoutStore'
 import { ToastHost } from '@/components/ui'
 import { TabBar } from '@/components/shell/TabBar'
@@ -70,6 +71,8 @@ export function App() {
         await ensureReady()
         await hydrate()
         if (!cancelled) setReady(true)
+        // אחרי שהמסך כבר עולה — זה ניקוי של מדיה ישנה ולא תנאי לפתיחה
+        void repairReplacedBundled()
       } catch (e) {
         if (!cancelled) {
           setError(

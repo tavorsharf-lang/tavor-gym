@@ -45,7 +45,7 @@ describe('זרימת אימון', () => {
     await user.click(start)
 
     // מסך האימון: התרגיל הראשון של פול באדי א׳ הוא חימום שכיבות סמיכה
-    await waitFor(() => expect(screen.getByText('שכיבות סמיכה — חימום')).toBeTruthy(), {
+    await waitFor(() => expect(screen.getByText('שכיבות סמיכה (חימום)')).toBeTruthy(), {
       timeout: 5000,
     })
 
@@ -195,7 +195,7 @@ describe('זרימת אימון', () => {
   it('נפח perSide מוכפל פעם אחת בלבד', async () => {
     await useWorkout.getState().start('A', [])
     const w = useWorkout.getState().workout
-    // לחיצת חזה חופשי — perSide
+    // לחיצת חזה במוט — perSide
     const item = w?.queue.find((q) => q.exerciseId === 'db-bench-press')
     await useWorkout.getState().logSet(item?.key ?? '', 'work', 22.5, 10)
 

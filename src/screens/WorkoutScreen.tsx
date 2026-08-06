@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -12,6 +12,7 @@ import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { openItems, useWorkout } from '@/state/activeWorkoutStore'
 import { prHeadline } from '@/domain/prs'
 import { formatClock, formatSetShort } from '@/domain/units'
+import { distinguisher, duplicateNames } from '@/domain/naming'
 import type { ExerciseSessionSummary } from '@/domain/recommendation'
 import { useNow } from '@/hooks/useNow'
 import { useAudioCue } from '@/hooks/useAudioCue'
@@ -67,6 +68,8 @@ function summarize(
 export function WorkoutScreen(): JSX.Element | null {
   const workout = useWorkout((s) => s.workout)
   const exercisesById = useWorkout((s) => s.exercisesById)
+  // שני תרגילים בקטלוג נושאים בכוונה אותו שם — בתור הם חייבים להיראות שונים
+  const duplicates = useMemo(() => duplicateNames(Object.values(exercisesById)), [exercisesById])
   const hydrated = useWorkout((s) => s.hydrated)
   const setCurrent = useWorkout((s) => s.setCurrent)
   const substitute = useWorkout((s) => s.substitute)
@@ -289,6 +292,7 @@ export function WorkoutScreen(): JSX.Element | null {
                 key={item.key}
                 item={item}
                 exercise={exercise}
+                apart={distinguisher(exercise, duplicates)}
                 setCount={sets.length}
                 summary={summarize(sets, exercise.weightMode)}
                 onTap={() => void setCurrent(item.key)}

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Film, Plus, Trash2, Video, X } from 'lucide-react'
+import { Film, Plus, Trash2, TriangleAlert, Video, X } from 'lucide-react'
 import { saveSettings } from '@/db/db'
 import { getAllExercises } from '@/db/queries'
 import { assetUrl, bundledId, bundledVideosFor, mediaDb, mediaUsage } from '@/db/mediaDb'
+import { videoMismatchNote } from '@/db/videoIssues'
 import { VIDEO_COUNT, VIDEO_MANIFEST, VIDEO_TOTAL_BYTES } from '@/db/videoManifest'
 import type { BundledVideo } from '@/db/videoManifest'
 import type { VideoAsset } from '@/db/types'
@@ -391,6 +392,7 @@ export function MediaScreen(): JSX.Element {
             exercises.map((ex) => {
               const bundled = bundledVideosFor(ex.id).length
               const own = importedByExercise.get(ex.id) ?? []
+              const mismatch = videoMismatchNote(ex.id)
               return (
                 <div key={ex.id} className="px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -398,7 +400,7 @@ export function MediaScreen(): JSX.Element {
                       <p className="truncate text-sm font-bold text-bone-50">{ex.name}</p>
                       <p className="meta tnum mt-1">
                         {bundled === 0 && own.length === 0
-                          ? 'אין סרטון'
+                          ? 'אין סרטון עדיין'
                           : [
                               bundled > 0 ? `${bundled} הדגמות` : '',
                               own.length > 0 ? `${own.length} שלי` : '',
@@ -406,6 +408,13 @@ export function MediaScreen(): JSX.Element {
                               .filter(Boolean)
                               .join(' · ')}
                       </p>
+                      {/* המסך הזה הוא המקום שמחליפים בו סרטון — כאן הסימון מוביל לפעולה */}
+                      {mismatch ? (
+                        <p className="mt-1 flex items-start gap-1.5 text-[11px] leading-relaxed text-warmup-400">
+                          <TriangleAlert size={12} className="mt-0.5 shrink-0" aria-hidden="true" />
+                          <span>{mismatch}</span>
+                        </p>
+                      ) : null}
                     </div>
 
                     {/*

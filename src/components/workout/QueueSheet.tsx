@@ -16,6 +16,7 @@ import { BottomSheet, EmptyState, toast } from '@/components/ui'
 import { MUSCLE_GROUPS, MUSCLE_GROUP_ORDER } from '@/db/types'
 import type { Exercise, MuscleGroup, QueueItem } from '@/db/types'
 import { formatRepRange } from '@/domain/units'
+import { distinguisher, duplicateNames } from '@/domain/naming'
 import { useWorkout } from '@/state/activeWorkoutStore'
 
 /**
@@ -43,6 +44,7 @@ function QueueRow({
   index,
   total,
   name,
+  apart,
   setCount,
   onMove,
 }: {
@@ -50,6 +52,8 @@ function QueueRow({
   index: number
   total: number
   name: string
+  /** המשקל שמבדיל בין שני תרגילים בעלי אותו שם — null כשהשם ייחודי */
+  apart: string | null
   setCount: number
   onMove: (to: number) => void
 }): JSX.Element {
@@ -91,6 +95,7 @@ function QueueRow({
           </span>
           {' · '}
           {setCount > 0 ? `${setCount} סטים בוצעו` : 'עוד לא התחיל'}
+          {apart ? ` · ${apart}` : ''}
         </p>
       </div>
 
@@ -137,6 +142,9 @@ export function QueueSheet({ open, onClose }: QueueSheetProps): JSX.Element {
   )
 
   const queue = useMemo(() => workout?.queue ?? [], [workout])
+
+  // שני תרגילים בקטלוג נושאים בכוונה אותו שם — בתור הם חייבים להיראות שונים
+  const duplicates = useMemo(() => duplicateNames(Object.values(exercisesById)), [exercisesById])
 
   const catalog = useMemo(() => {
     const active = Object.values(exercisesById).filter((e) => e.isActive)
@@ -240,6 +248,11 @@ export function QueueSheet({ open, onClose }: QueueSheetProps): JSX.Element {
                       index={index}
                       total={queue.length}
                       name={exercisesById[item.exerciseId]?.name ?? 'תרגיל'}
+                      apart={
+                        exercisesById[item.exerciseId]
+                          ? distinguisher(exercisesById[item.exerciseId], duplicates)
+                          : null
+                      }
                       setCount={workout.setsByKey[item.key]?.length ?? 0}
                       onMove={(to) => move(index, to)}
                     />

@@ -13,6 +13,7 @@ import type {
   SettingsRow,
 } from './types'
 import { DEFAULT_SETTINGS, SEED_BLOCKS, SEED_EXERCISES, SEED_ROUTINES } from './seed'
+import { applyCatalogFix } from './catalogFix'
 
 /**
  * מסד הנתונים המובנה.
@@ -85,6 +86,24 @@ class GymDatabase extends Dexie {
             ...block,
             items: block.items.map((it) => ({ ...it, startWeightKg: it.startWeightKg ?? null })),
           })
+        }
+      })
+
+    /**
+     * גרסה 3 — שמות התרגילים המתוקנים.
+     *
+     * הזריעה מרימה קטלוג רק בהתקנה ראשונה, ולכן שינוי ב-seed.ts לבדו לא היה
+     * מגיע למכשיר שכבר מותקן. כאן זה מגיע — אבל רק לתרגילים שהמשתמש לא ערך
+     * בעצמו, לפי השם הישן (`was`). המזהים לא נגעים: הם המפתח לכל ההיסטוריה,
+     * לשיאים ולסרטונים.
+     */
+    this.version(3)
+      .stores({})
+      .upgrade(async (tx) => {
+        const table = tx.table<Exercise, string>('exercises')
+        for (const exercise of await table.toArray()) {
+          const fixed = applyCatalogFix(exercise)
+          if (fixed) await table.put(fixed)
         }
       })
 

@@ -310,8 +310,8 @@ export const VIDEO_MANIFEST: Record<string, BundledVideo[]> = {
       "poster": "videos/leg-curl-01.jpg",
       "width": 406,
       "height": 720,
-      "durationSec": 10.6,
-      "sizeBytes": 391240
+      "durationSec": 13.6,
+      "sizeBytes": 491643
     }
   ],
   "leg-extension": [
@@ -320,8 +320,8 @@ export const VIDEO_MANIFEST: Record<string, BundledVideo[]> = {
       "poster": "videos/leg-extension-01.jpg",
       "width": 406,
       "height": 720,
-      "durationSec": 13.6,
-      "sizeBytes": 491643
+      "durationSec": 10.6,
+      "sizeBytes": 391240
     }
   ],
   "abs": [

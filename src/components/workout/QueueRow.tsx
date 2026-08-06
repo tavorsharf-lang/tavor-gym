@@ -10,12 +10,15 @@ import { formatRepRange } from '@/domain/units'
 export function QueueRow({
   item,
   exercise,
+  apart,
   setCount,
   summary,
   onTap,
 }: {
   item: QueueItem
   exercise: Exercise
+  /** המשקל שמבדיל בין שני תרגילים בעלי אותו שם — null כשהשם ייחודי */
+  apart: string | null
   setCount: number
   /** "4 סטים · 25×10" — ריק כשעוד לא בוצע כלום */
   /** מפורק לשני חלקים כדי שכל אחד יקבל את כיוון הכתיבה הנכון */
@@ -53,11 +56,16 @@ export function QueueRow({
         <span className="block truncate text-[0.9375rem] font-bold text-bone-100">
           {exercise.name}
         </span>
-        {deferred && (
+        {deferred ? (
           <span className="mt-0.5 block truncate text-[0.6875rem] font-semibold text-flame-400">
             ממתין — המתקן היה תפוס
           </span>
-        )}
+        ) : apart ? (
+          // שתי שורות באותו שם בתור הן טעות שמחכה לקרות — המשקל מפריד ביניהן
+          <span className="mt-0.5 block truncate text-[0.6875rem] font-semibold text-bone-500">
+            {apart}
+          </span>
+        ) : null}
       </span>
 
       {/*

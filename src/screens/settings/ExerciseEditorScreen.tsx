@@ -438,13 +438,13 @@ export function ExerciseEditorScreen(): JSX.Element {
           label="שם"
           value={draft.name}
           onChange={(v) => patch({ name: v })}
-          placeholder="לחיצת חזה חופשי"
+          placeholder="לחיצת חזה במכונה"
         />
         <TextField
           label="שם באנגלית"
           value={draft.nameEn ?? ''}
           onChange={(v) => patch({ nameEn: v })}
-          placeholder="Dumbbell Bench Press"
+          placeholder="Machine Chest Press"
           ltr
         />
         <Segmented<MuscleGroup>

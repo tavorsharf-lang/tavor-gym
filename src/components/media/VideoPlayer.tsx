@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft, ChevronRight, Loader2, WifiOff, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, TriangleAlert, WifiOff, X } from 'lucide-react'
 import { loadVideosFor, releaseVideos } from '@/db/mediaDb'
+import { videoMismatchNote } from '@/db/videoIssues'
 import type { PlayableVideo } from '@/db/types'
 
 /**
@@ -73,6 +74,7 @@ export function VideoPlayer({
   if (!open) return null
 
   const current = videos[index]
+  const mismatch = videoMismatchNote(exerciseId)
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-ink-950/97 backdrop-blur-xl animate-fade">
@@ -96,6 +98,19 @@ export function VideoPlayer({
           <X size={24} />
         </button>
       </header>
+
+      {/*
+        האזהרה יושבת מעל הסרטון ולא מתחתיו: צריך לראות אותה לפני שמתחילים
+        לחקות את מה שקורה על המסך, לא אחרי.
+      */}
+      {mismatch ? (
+        <p className="mx-4 mb-1 flex items-start gap-2 rounded-xl border border-warmup-400/25 bg-warmup-400/10 px-3 py-2 text-xs leading-relaxed text-warmup-400">
+          <TriangleAlert size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <span>
+            <span className="font-bold">הסרטון לא תואם לתרגיל.</span> {mismatch}
+          </span>
+        </p>
+      ) : null}
 
       <div className="relative flex flex-1 items-center justify-center px-3">
         {loading && <Loader2 className="animate-spin text-bone-600" size={32} />}

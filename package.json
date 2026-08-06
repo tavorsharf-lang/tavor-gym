@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "gen:icons": "node scripts/gen-icons.mjs",
-    "import:videos": "node scripts/import-videos.mjs"
+    "import:videos": "node scripts/import-videos.mjs",
+    "deploy": "bash scripts/deploy.sh"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -9,6 +9,7 @@ import { bundledVideosFor, mediaDb } from '@/db/mediaDb'
 import type { Exercise, MuscleGroup } from '@/db/types'
 import { MUSCLE_GROUPS, MUSCLE_GROUP_ORDER, WEIGHT_MODE_LABELS } from '@/db/types'
 import { newId } from '@/domain/units'
+import { distinguisher, duplicateNames } from '@/domain/naming'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { Button, EmptyState, toast } from '@/components/ui'
 
@@ -43,6 +44,8 @@ export function ExerciseCatalogScreen(): JSX.Element {
     [],
     new Map<string, number>()
   )
+
+  const duplicates = useMemo(() => duplicateNames(exercises), [exercises])
 
   const groups = useMemo(() => {
     const q = normalize(query)
@@ -175,6 +178,8 @@ export function ExerciseCatalogScreen(): JSX.Element {
                       <span className="mt-1 block truncate text-xs text-bone-500">
                         {ex.subTarget ? `${ex.subTarget} · ` : ''}
                         {WEIGHT_MODE_LABELS[ex.weightMode]}
+                        {/* שם כפול בקטלוג הוא בכוונה — המשקל הוא מה שמפריד */}
+                        {distinguisher(ex, duplicates) ? ` · ${distinguisher(ex, duplicates)}` : ''}
                       </span>
                     </span>
 

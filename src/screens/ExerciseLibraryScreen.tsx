@@ -7,6 +7,7 @@ import { getAllExercises, getLastPerformedMap } from '@/db/queries'
 import type { Exercise, MuscleGroup } from '@/db/types'
 import { EQUIPMENT_LABELS, MUSCLE_GROUPS, MUSCLE_GROUP_BY_SIZE } from '@/db/types'
 import { formatSetShort } from '@/domain/units'
+import { duplicateNames, metaLine } from '@/domain/naming'
 import { formatRelativeDay } from '@/lib/dates'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { EmptyState } from '@/components/ui'
@@ -15,9 +16,11 @@ import { VideoThumb } from '@/components/media/VideoThumb'
 /**
  * ספריית התרגילים — כל מה שאפשר לעשות בחדר, במקום אחד.
  *
- * מסודר מהשריר הגדול לקטן, כי ככה גם בונים אימון וככה קל לסרוק. השמות כאן
- * בעברית בלבד; השם באנגלית מחכה במסך התרגיל, שם הוא באמת עוזר — לחפש סרטון
- * או לזהות מדבקה על מכונה.
+ * מסודר מהשריר הגדול לקטן, כי ככה גם בונים אימון וככה קל לסרוק.
+ *
+ * השם באנגלית יושב כשורה שנייה קטנה מתחת לעברי. הוא מה שכתוב על המדבקה של
+ * המכונה ומה שמחפשים בו סרטון, והוא זה שמפריד בין "לחיצת חזה במכונה" אחת
+ * לשנייה. כשגם הוא זהה — שתי החתירות — המשקל בשורת המשנה עושה את ההפרדה.
  *
  * כל שורה מראה גם כמה הרמת בפעם האחרונה, כי זו השאלה שבשבילה נכנסים לכאן.
  */
@@ -32,6 +35,9 @@ export function ExerciseLibraryScreen(): JSX.Element {
 
   const exercises = useLiveQuery(() => getAllExercises(true), [], [])
   const lastPerformed = useLiveQuery(() => getLastPerformedMap(), [], new Map())
+
+  // מחושב על כל הקטלוג ולא על תוצאות החיפוש — תרגיל לא משנה זהות לפי מה שהוקלד
+  const duplicates = useMemo(() => duplicateNames(exercises), [exercises])
 
   const groups = useMemo(() => {
     const q = normalize(query)
@@ -130,8 +136,16 @@ export function ExerciseLibraryScreen(): JSX.Element {
                         <span className="block truncate text-[0.9375rem] font-bold text-bone-50">
                           {ex.name}
                         </span>
+                        {ex.nameEn ? (
+                          <span
+                            dir="ltr"
+                            className="mt-0.5 block truncate text-start text-[0.6875rem] font-semibold text-bone-500"
+                          >
+                            {ex.nameEn}
+                          </span>
+                        ) : null}
                         <span className="meta mt-0.5 block truncate">
-                          {ex.subTarget} · {EQUIPMENT_LABELS[ex.equipment]}
+                          {metaLine(ex, EQUIPMENT_LABELS[ex.equipment], duplicates)}
                           {ex.isActive ? '' : ' · כבוי'}
                         </span>
                       </span>

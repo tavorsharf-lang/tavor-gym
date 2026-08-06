@@ -11,6 +11,7 @@ import {
   SquarePen,
   TrendingDown,
   TrendingUp,
+  TriangleAlert,
 } from 'lucide-react'
 import type { JSX, ReactNode } from 'react'
 import type {
@@ -24,6 +25,7 @@ import type {
 } from '@/db/types'
 import { EQUIPMENT_LABELS, RATING_LABELS, RIR_LABELS, WEIGHT_MODE_LABELS } from '@/db/types'
 import {
+  getAllExercises,
   getExercise,
   getExerciseHistory,
   getLastPerformedMap,
@@ -32,6 +34,7 @@ import {
   searchSessions,
 } from '@/db/queries'
 import { loadVideosFor, releaseVideos } from '@/db/mediaDb'
+import { videoMismatchNote } from '@/db/videoIssues'
 import { prLabel } from '@/domain/prs'
 import { recommendWeight } from '@/domain/recommendation'
 import type { ExerciseSessionSummary } from '@/domain/recommendation'
@@ -44,6 +47,7 @@ import {
   formatVolume,
   formatWeight,
 } from '@/domain/units'
+import { distinguisher, duplicateNames } from '@/domain/naming'
 import { summarize } from '@/domain/volume'
 import { formatDateShort, formatRelativeDay } from '@/lib/dates'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
@@ -98,6 +102,21 @@ function RatingChip({ rating, rir }: { rating: Rating; rir: Rir | null }): JSX.E
   )
 }
 
+/**
+ * אזהרה על סרטון שמראה תרגיל אחר. הסרטון נשאר — הוא עדיין הדגמה של משהו,
+ * והחלפה תגיע כשיצולם סרטון חדש — אבל אסור שילמדו ממנו את התרגיל הלא נכון.
+ */
+function VideoMismatchNote({ note }: { note: string }): JSX.Element {
+  return (
+    <p className="mt-2 flex items-start gap-2 rounded-xl border border-warmup-400/25 bg-warmup-400/10 px-3 py-2 text-xs leading-relaxed text-warmup-400">
+      <TriangleAlert size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+      <span>
+        <span className="font-bold">הסרטון לא תואם לתרגיל.</span> {note}
+      </span>
+    </p>
+  )
+}
+
 /** שורת הדגמות. loadVideosFor מייצר objectURL-ים ולכן חייבים לשחרר אותם ביציאה. */
 function MediaRow({ exerciseId, onOpen }: { exerciseId: string; onOpen: () => void }): JSX.Element {
   const [videos, setVideos] = useState<PlayableVideo[]>([])
@@ -125,8 +144,24 @@ function MediaRow({ exerciseId, onOpen }: { exerciseId: string; onOpen: () => vo
 
   if (!loaded) return <div className="h-24 rounded-card bg-ink-900/60" />
 
+  /*
+    שלושה תרגילים בתוכנית מעולם לא צולמו. זה מצב ריק מסודר ולא תקלה: התרגיל
+    קיים, מתאמנים בו, ופשוט אין לו עדיין הדגמה.
+  */
   if (videos.length === 0) {
-    return <p className="text-sm text-bone-600">אין עדיין סרטון</p>
+    return (
+      <div className="card flex items-center gap-3 p-4">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-ink-700 bg-ink-850 text-bone-600">
+          <Film size={18} />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-bold text-bone-300">אין סרטון עדיין</span>
+          <span className="meta mt-0.5 block">
+            אפשר לצרף אחד בהגדרות ← סרטונים ואחסון
+          </span>
+        </span>
+      </div>
+    )
   }
 
   return (
@@ -262,6 +297,8 @@ export function ExerciseScreen(): JSX.Element {
       history,
       trend: exerciseTrend(exercise, sessions, sets),
       recommendation: recommendWeight(exercise, history),
+      // יש בקטלוג זוגות שנושאים בכוונה שם זהה — הכותרת צריכה להגיד מי מהם זה
+      duplicates: duplicateNames(await getAllExercises(true)),
     }
   }, [exerciseId])
 
@@ -318,7 +355,9 @@ export function ExerciseScreen(): JSX.Element {
     )
   }
 
-  const { exercise, prs, history, recommendation, lastDone } = data
+  const { exercise, prs, history, recommendation, lastDone, duplicates } = data
+  const mismatch = videoMismatchNote(exercise.id)
+  const apart = distinguisher(exercise, duplicates)
   const isBodyweight = exercise.weightMode === 'bodyweight'
   const heroUnit = exercise.weightMode === 'perSide' ? 'ק״ג כל צד' : 'ק״ג'
   const sortedPrs = PR_ORDER.flatMap((kind) => prs.filter((p) => p.kind === kind))
@@ -331,7 +370,9 @@ export function ExerciseScreen(): JSX.Element {
     <Screen dock={false}>
       <ScreenHeader
         title={exercise.name}
-        subtitle={`${exercise.subTarget} · ${EQUIPMENT_LABELS[exercise.equipment]}`}
+        subtitle={[exercise.subTarget, EQUIPMENT_LABELS[exercise.equipment], apart]
+          .filter(Boolean)
+          .join(' · ')}
       />
 
       {/*
@@ -369,6 +410,7 @@ export function ExerciseScreen(): JSX.Element {
         {/* 1 · הדגמה */}
         <Section title="הדגמה">
           <MediaRow exerciseId={exercise.id} onOpen={() => setPlayerOpen(true)} />
+          {mismatch ? <VideoMismatchNote note={mismatch} /> : null}
         </Section>
 
         {/* 2 · דגשי ביצוע — כאן הם תמיד פתוחים, זה המקום שבאים אליו ללמוד */}
