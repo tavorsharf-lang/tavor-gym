@@ -85,8 +85,8 @@ const EXERCISES: Exercise[] = [
 ]
 
 const ROUTINES: Routine[] = [
-  { id: 'A', name: 'אימון A', subtitle: 'חזה ויד אחורית', order: 0, items: [] },
-  { id: 'B', name: 'אימון B', subtitle: 'גב ויד קדמית', order: 1, items: [] },
+  { id: 'A', name: 'אימון A', subtitle: 'חזה ויד אחורית', order: 0, isActive: true, suggestBlocks: true, items: [] },
+  { id: 'B', name: 'אימון B', subtitle: 'גב ויד קדמית', order: 1, isActive: true, suggestBlocks: true, items: [] },
 ]
 
 const BLOCKS: Block[] = [{ id: 'abs', name: 'בטן', order: 2, items: [] }]

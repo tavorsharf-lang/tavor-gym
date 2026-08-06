@@ -51,6 +51,43 @@ class GymDatabase extends Dexie {
       activeWorkout: '&id',
     })
 
+    /**
+     * גרסה 2 — תוכניות פול-באדי לחזרה הדרגתית.
+     *
+     * מוסיפה שתי תוכניות חדשות, ומכבה את הפיצול A/B/C. זו החלטה מכוונת ולא
+     * מחיקה: התוכניות נשארות במסד על כל ההיסטוריה שלהן, ומסך התוכניות מחזיר
+     * אותן בלחיצה אחת. תוכנית כבויה לא מוצעת במסך הבית ולא מופיעה בבחירה,
+     * כדי ששתי שיטות אימון שונות לא יתערבבו בהצעה של "מה מתאמנים היום".
+     */
+    this.version(2)
+      .stores({})
+      .upgrade(async (tx) => {
+        const table = tx.table<Routine, string>('routines')
+        const existing = await table.toArray()
+
+        for (const routine of existing) {
+          await table.put({
+            ...routine,
+            isActive: false,
+            suggestBlocks: routine.suggestBlocks ?? true,
+            order: routine.order + 2,
+            items: routine.items.map((it) => ({ ...it, startWeightKg: it.startWeightKg ?? null })),
+          })
+        }
+        for (const fresh of SEED_ROUTINES) {
+          if (fresh.id === 'F1' || fresh.id === 'F2') await table.put(fresh)
+        }
+
+        // הבלוקים לא משתנים, רק מקבלים את השדה החדש
+        const blocks = tx.table<Block, string>('blocks')
+        for (const block of await blocks.toArray()) {
+          await blocks.put({
+            ...block,
+            items: block.items.map((it) => ({ ...it, startWeightKg: it.startWeightKg ?? null })),
+          })
+        }
+      })
+
     // רץ פעם אחת בלבד, בפתיחה הראשונה של המסד
     this.on('populate', async () => {
       await this.exercises.bulkAdd(SEED_EXERCISES)

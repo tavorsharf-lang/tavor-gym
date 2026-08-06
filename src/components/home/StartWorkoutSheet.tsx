@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Check } from 'lucide-react'
 import { getSettings } from '@/db/db'
-import { getBlocks, getFinishedSessions, getRoutines } from '@/db/queries'
+import { getActiveRoutines, getBlocks, getFinishedSessions } from '@/db/queries'
 import type { PlanItem, RoutineId } from '@/db/types'
 import { blockStatuses, routineStatuses, suggestBlocks, suggestRoutine } from '@/domain/staleness'
 import { formatDuration } from '@/domain/units'
@@ -43,7 +43,7 @@ export function StartWorkoutSheet({
   const navigate = useNavigate()
   const now = useNow()
 
-  const routines = useLiveQuery(() => getRoutines(), [])
+  const routines = useLiveQuery(() => getActiveRoutines(), [])
   const blocks = useLiveQuery(() => getBlocks(), [])
   const sessions = useLiveQuery(() => getFinishedSessions(), [])
   const settings = useLiveQuery(() => getSettings(), [])
@@ -66,13 +66,21 @@ export function StartWorkoutSheet({
   const bStatuses = blockStatuses(blocks ?? [], sessions ?? [], now, settings?.blockStaleDays ?? 7)
 
   const selectedRoutine = routineOverride ?? initialRoutineId ?? suggestRoutine(rStatuses)
-  const selectedBlocks = blocksOverride ?? suggestBlocks(bStatuses)
-
   const routine = (routines ?? []).find((r) => r.id === selectedRoutine) ?? null
+
+  // תוכנית שמכסה את כל הגוף לא מקבלת בלוקים אוטומטית — אפשר עדיין לסמן ידנית
+  const selectedBlocks =
+    blocksOverride ?? (routine?.suggestBlocks === false ? [] : suggestBlocks(bStatuses))
+
   // סדר הבלוקים נקבע מהקטלוג ולא מסדר הלחיצות
   const chosenBlocks = (blocks ?? []).filter((b) => selectedBlocks.includes(b.id))
 
-  const planItems: PlanItem[] = [...(routine?.items ?? []), ...chosenBlocks.flatMap((b) => b.items)]
+  // תרגיל שכבר בתוכנית לא נספר פעמיים בהערכת האורך
+  const inRoutine = new Set((routine?.items ?? []).map((i) => i.exerciseId))
+  const planItems: PlanItem[] = [
+    ...(routine?.items ?? []),
+    ...chosenBlocks.flatMap((b) => b.items).filter((i) => !inRoutine.has(i.exerciseId)),
+  ]
   const totalSeconds = estimateSeconds(planItems)
 
   const toggleBlock = (id: string) => {

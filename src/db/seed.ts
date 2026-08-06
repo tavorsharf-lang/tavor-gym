@@ -659,17 +659,101 @@ function item(exerciseId: string, order: number): PlanItem {
     targetSets: ex.targetSets,
     targetReps: { ...ex.targetReps },
     restSeconds: ex.defaultRestSeconds,
+    startWeightKg: null,
   }
 }
 
 const plan = (ids: string[]): PlanItem[] => ids.map((id, i) => item(id, i))
 
+/**
+ * פריט לתוכנית החזרה: פחות סטים, יותר חזרות, ומשקל התחלה מופחת.
+ *
+ * @param ratio אחוז ממשקל הזריעה. 0.6 אחרי הפסקה ארוכה זו נקודת פתיחה
+ *   שמרגישה קלה מדי בכוונה — הגוף מקדים את הגידים, וזה מה שמונע פציעה.
+ */
+function comebackItem(
+  exerciseId: string,
+  order: number,
+  sets: number,
+  reps: RepRange,
+  ratio: number
+): PlanItem {
+  const ex = RAW.find((e) => e.id === exerciseId)
+  if (!ex) throw new Error(`seed: תרגיל לא קיים — ${exerciseId}`)
+  const inc = ex.weightIncrementKg > 0 ? ex.weightIncrementKg : 2.5
+  const start =
+    ex.seedWeightKg === null
+      ? null
+      : Math.max(inc, Math.round((ex.seedWeightKg * ratio) / inc) * inc)
+  return {
+    exerciseId,
+    order,
+    targetSets: sets,
+    targetReps: { ...reps },
+    // מנוחה קצרה יותר — העומס נמוך, והמטרה היא לחזור לשגרה ולא לשבור שיאים
+    restSeconds: Math.min(ex.defaultRestSeconds, 90),
+    startWeightKg: start,
+  }
+}
+
+/**
+ * שתי תוכניות פול-באדי מתחלפות, לחזרה הדרגתית אחרי הפסקה.
+ *
+ * העקרונות: תרגיל אחד לכל שריר קטן ושניים לגדולים, 2–3 סטים במקום 4, טווח
+ * חזרות גבוה יותר (10–15) שמעמיס פחות על המפרקים, ומשקל התחלה של כ-60%
+ * מהמשקל הקודם. שני האימונים מכסים את אותם השרירים בתרגילים שונים, כדי
+ * שאפשר יהיה להתאמן פעמיים-שלוש בשבוע בלי לחזור על עצמו.
+ */
+const R = { min: 10, max: 15 } as const
+const R_LOW = { min: 10, max: 12 } as const
+const R_HIGH = { min: 12, max: 20 } as const
+
 export const SEED_ROUTINES: Routine[] = [
+  {
+    id: 'F1',
+    name: 'פול באדי א׳',
+    subtitle: 'כל הגוף — חזרה הדרגתית',
+    order: 0,
+    isActive: true,
+    suggestBlocks: false,
+    items: [
+      comebackItem('pushup', 0, 2, R_HIGH, 1),
+      comebackItem('leg-press', 1, 3, R_LOW, 0.6),
+      comebackItem('lat-pulldown', 2, 3, R_LOW, 0.6),
+      comebackItem('decline-machine-press', 3, 3, R_LOW, 0.6),
+      comebackItem('leg-curl', 4, 2, R, 0.6),
+      comebackItem('machine-shoulder-press', 5, 2, R, 0.6),
+      comebackItem('preacher-curl', 6, 2, R, 0.6),
+      comebackItem('cable-tricep-pushdown', 7, 2, R, 0.6),
+      comebackItem('abs', 8, 2, R_HIGH, 1),
+    ],
+  },
+  {
+    id: 'F2',
+    name: 'פול באדי ב׳',
+    subtitle: 'כל הגוף — וריאציה שנייה',
+    order: 1,
+    isActive: true,
+    suggestBlocks: false,
+    items: [
+      comebackItem('pushup', 0, 2, R_HIGH, 1),
+      comebackItem('machine-squat', 1, 3, R_LOW, 0.6),
+      comebackItem('seated-row-heavy', 2, 3, R_LOW, 0.6),
+      comebackItem('db-bench-press', 3, 3, R_LOW, 0.6),
+      comebackItem('leg-extension', 4, 2, R, 0.6),
+      comebackItem('lateral-raise', 5, 2, R_HIGH, 0.6),
+      comebackItem('hammer-curl', 6, 2, R, 0.6),
+      comebackItem('cross-cable-tricep', 7, 2, R, 0.6),
+      comebackItem('calf-raise', 8, 2, R_HIGH, 0.6),
+    ],
+  },
   {
     id: 'A',
     name: 'אימון A',
     subtitle: 'חזה ויד אחורית',
-    order: 0,
+    order: 2,
+    isActive: false,
+    suggestBlocks: true,
     items: plan([
       'pushup',
       'db-bench-press',
@@ -686,7 +770,9 @@ export const SEED_ROUTINES: Routine[] = [
     id: 'B',
     name: 'אימון B',
     subtitle: 'גב ויד קדמית',
-    order: 1,
+    order: 3,
+    isActive: false,
+    suggestBlocks: true,
     items: plan([
       'lat-pulldown',
       'seated-row-heavy',
@@ -701,7 +787,9 @@ export const SEED_ROUTINES: Routine[] = [
     id: 'C',
     name: 'אימון C',
     subtitle: 'רגליים',
-    order: 2,
+    order: 4,
+    isActive: false,
+    suggestBlocks: true,
     items: plan([
       'leg-press',
       'calf-raise',

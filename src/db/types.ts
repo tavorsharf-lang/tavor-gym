@@ -37,7 +37,11 @@ export type Rating = 1 | 2 | 3
 /** חזרות שנשארו במחסנית. 4 = "4 ומעלה" */
 export type Rir = 0 | 1 | 2 | 3 | 4
 
-export type RoutineId = 'A' | 'B' | 'C'
+/**
+ * A/B/C הם הפיצול המלא. F1/F2 הם שני אימוני פול-באדי מתחלפים, לחזרה הדרגתית
+ * אחרי הפסקה. בכל רגע נתון פעילה תוכנית אחת מהשתיים, לפי `Routine.isActive`.
+ */
+export type RoutineId = 'A' | 'B' | 'C' | 'F1' | 'F2'
 
 export interface RepRange {
   min: number
@@ -85,6 +89,11 @@ export interface PlanItem {
   targetSets: number
   targetReps: RepRange
   restSeconds: number
+  /**
+   * משקל התחלה ספציפי לתוכנית הזו, בשימוש רק כשאין היסטוריה.
+   * זה מה שמאפשר לאותו תרגיל להתחיל קל בתוכנית חזרה ולהתחיל כבד בפיצול.
+   */
+  startWeightKg: number | null
 }
 
 export interface Routine {
@@ -92,6 +101,14 @@ export interface Routine {
   name: string
   subtitle: string
   order: number
+  /** רק תוכניות פעילות מוצעות במסך הבית ומופיעות בבחירת האימון */
+  isActive: boolean
+  /**
+   * האם להציע בלוקים נלווים לתוכנית הזו.
+   * הבלוקים קיימים כדי להשלים את מה שהפיצול לא מכסה. פול-באדי כבר מכסה הכל,
+   * ולכן שם הם רק היו מכפילים תרגילים ומנפחים אימון שכל מטרתו להיות קצר.
+   */
+  suggestBlocks: boolean
   items: PlanItem[]
 }
 
@@ -289,6 +306,8 @@ export interface QueueItem {
   targetSets: number
   targetReps: RepRange
   restSeconds: number
+  /** משקל ההתחלה של התוכנית, כשיש כזה. גובר על משקל הזריעה שבקטלוג. */
+  startWeightKg: number | null
   status: QueueItemStatus
   /** האם כבר הוצע סט חימום לקבוצת השריר הזו בתרגיל הזה */
   warmupOffered: boolean

@@ -33,8 +33,8 @@ describe('זרימת אימון', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    // מסך הבית נטען עם ההצעה
-    await waitFor(() => expect(screen.getAllByText(/חזה ויד אחורית/).length).toBeGreaterThan(0), {
+    // מסך הבית נטען עם ההצעה — תוכנית החזרה היא הפעילה
+    await waitFor(() => expect(screen.getAllByText(/פול באדי/).length).toBeGreaterThan(0), {
       timeout: 5000,
     })
 
@@ -44,17 +44,19 @@ describe('זרימת אימון', () => {
     const start = await screen.findByRole('button', { name: /^התחל$/ }, { timeout: 5000 })
     await user.click(start)
 
-    // מסך האימון: התרגיל הראשון של אימון A הוא חימום שכיבות סמיכה
+    // מסך האימון: התרגיל הראשון של פול באדי א׳ הוא חימום שכיבות סמיכה
     await waitFor(() => expect(screen.getByText('שכיבות סמיכה — חימום')).toBeTruthy(), {
       timeout: 5000,
     })
 
     const workout = useWorkout.getState().workout
     expect(workout).not.toBeNull()
-    // 9 באימון A, ועוד 4+2+1 מהבלוקים — כשאף בלוק לא בוצע מעולם כולם מוצעים
-    // מראש, וזו בדיוק ההתנהגות שהצעת הבלוקים אמורה לתת
-    expect(workout?.queue.length).toBe(16)
-    expect(workout?.blockIds.sort()).toEqual(['abs', 'forearms', 'shoulders'])
+    // 9 בפול באדי א׳, ועוד 4+2+1 מהבלוקים — כשאף בלוק לא בוצע מעולם כולם
+    // מוצעים מראש, וזו בדיוק ההתנהגות שהצעת הבלוקים אמורה לתת
+    expect(workout?.routineId).toBe('F1')
+    // פול באדי מכסה את כל הגוף, ולכן הבלוקים לא מוצעים אוטומטית
+    expect(workout?.queue.length).toBe(9)
+    expect(workout?.blockIds).toEqual([])
 
     // תיעוד סט
     const finishSet = await screen.findByRole('button', { name: /סיים סט/ })
@@ -82,11 +84,11 @@ describe('זרימת אימון', () => {
 
     const session = await db.sessions.get(finishedId ?? '')
     expect(session).toBeTruthy()
-    expect(session?.routineId).toBe('A')
+    expect(session?.routineId).toBe('F1')
     expect(session?.actualOrder).toEqual(['pushup'])
     // שכיבות סמיכה הן משקל גוף, ולכן נפח 0 — אבל הסט נספר
     expect(session?.totalSets).toBe(1)
-    expect(session?.skippedExerciseIds.length).toBe(15)
+    expect(session?.skippedExerciseIds.length).toBe(8)
     // האימון הפעיל נוקה
     expect(await db.activeWorkout.get('current')).toBeUndefined()
   }, 30000)

@@ -2,9 +2,11 @@
 <html lang="he" dir="rtl">
   <head>
     <meta charset="UTF-8" />
+    <!-- maximum-scale + user-scalable חוסמים זום. ספארי מתעלמת מהם בלשונית
+         רגילה, ולכן יש גם touch-action ב-CSS וחסימת gesture ב-JS -->
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, minimum-scale=1, user-scalable=no"
     />
     <title>אימוני כושר</title>
     <meta

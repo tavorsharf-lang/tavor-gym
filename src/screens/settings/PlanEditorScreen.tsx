@@ -3,8 +3,8 @@ import type { JSX, ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ChevronDown, ChevronUp, ListPlus, Trash2 } from 'lucide-react'
 import { db } from '@/db/db'
-import { getAllExercises, getBlocks, getRoutines } from '@/db/queries'
-import type { Exercise, MuscleGroup, PlanItem } from '@/db/types'
+import { activateRoutines, getAllExercises, getBlocks, getRoutines } from '@/db/queries'
+import type { Exercise, MuscleGroup, PlanItem, RoutineId } from '@/db/types'
 import { MUSCLE_GROUPS, MUSCLE_GROUP_ORDER } from '@/db/types'
 import { formatClock, formatRepRange } from '@/domain/units'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
@@ -51,7 +51,7 @@ export function PlanEditorScreen(): JSX.Element {
   const blocks = useLiveQuery(() => getBlocks(), [])
   const exercises = useLiveQuery(() => getAllExercises(true), [], [])
 
-  const [selectedId, setSelectedId] = useState('A')
+  const [selectedId, setSelectedId] = useState('F1')
   const [openId, setOpenId] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerQuery, setPickerQuery] = useState('')
@@ -147,6 +147,7 @@ export function PlanEditorScreen(): JSX.Element {
       targetSets: exercise.targetSets,
       targetReps: { ...exercise.targetReps },
       restSeconds: exercise.defaultRestSeconds,
+      startWeightKg: null,
     }
     void persistItems([...items, item])
     setPickerOpen(false)
@@ -176,13 +177,68 @@ export function PlanEditorScreen(): JSX.Element {
   }, [exercises, pickerQuery])
 
   const tabs = [
-    ...(routines ?? []).map((r) => ({ id: r.id as string, label: r.id as string })),
-    ...(blocks ?? []).map((b) => ({ id: b.id, label: b.name })),
+    // אות בודדת לפיצול, שם מלא לפול-באדי — "F1" לא אומר כלום בעברית
+    ...(routines ?? []).map((r) => ({
+      id: r.id as string,
+      label: r.id.length === 1 ? r.id : r.name,
+      dim: !r.isActive,
+    })),
+    ...(blocks ?? []).map((b) => ({ id: b.id, label: b.name, dim: false })),
   ]
+
+  const fullBodyActive = (routines ?? []).some((r) => r.id === 'F1' && r.isActive)
+
+  const switchProgram = async (ids: RoutineId[], label: string): Promise<void> => {
+    await activateRoutines(ids)
+    setSelectedId(ids[0])
+    toast(`${label} — זו התוכנית שתוצע במסך הבית`, { tone: 'success' })
+  }
 
   return (
     <Screen dock={false}>
       <ScreenHeader title="תוכניות ובלוקים" subtitle="מה נכנס לכל אימון ובאיזה סדר" />
+
+      {/*
+        שתי שיטות אימון שונות לא יכולות להתערבב בהצעה של "מה מתאמנים היום",
+        ולכן פעילה תמיד קבוצה אחת. הכבויה נשארת במסד עם כל ההיסטוריה שלה.
+      */}
+      <section className="card mb-4 p-3">
+        <p className="meta mb-2 px-1">התוכנית הפעילה</p>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            aria-pressed={fullBodyActive}
+            onClick={() => void switchProgram(['F1', 'F2'], 'פול באדי')}
+            className={[
+              'flex min-h-16 flex-col items-center justify-center rounded-card border px-3 text-center transition-colors',
+              fullBodyActive
+                ? 'border-flame-500/50 bg-flame-500/12 text-flame-300'
+                : 'border-ink-700 bg-ink-850 text-bone-400 active:bg-ink-800',
+            ].join(' ')}
+          >
+            <span className="text-sm font-extrabold">פול באדי</span>
+            <span className="mt-0.5 text-[0.6875rem] font-medium opacity-75">
+              חזרה הדרגתית · 2 אימונים
+            </span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={!fullBodyActive}
+            onClick={() => void switchProgram(['A', 'B', 'C'], 'פיצול A/B/C')}
+            className={[
+              'flex min-h-16 flex-col items-center justify-center rounded-card border px-3 text-center transition-colors',
+              !fullBodyActive
+                ? 'border-flame-500/50 bg-flame-500/12 text-flame-300'
+                : 'border-ink-700 bg-ink-850 text-bone-400 active:bg-ink-800',
+            ].join(' ')}
+          >
+            <span className="text-sm font-extrabold">פיצול A/B/C</span>
+            <span className="mt-0.5 text-[0.6875rem] font-medium opacity-75">
+              התוכנית המלאה · 3 אימונים
+            </span>
+          </button>
+        </div>
+      </section>
 
       <div className="scroll-touch -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {tabs.map((tab) => (
@@ -196,6 +252,7 @@ export function PlanEditorScreen(): JSX.Element {
               selectedId === tab.id
                 ? 'border-flame-500/50 bg-flame-500/12 text-flame-300'
                 : 'border-ink-700 bg-ink-850 text-bone-400 active:bg-ink-800',
+              tab.dim && selectedId !== tab.id ? 'opacity-45' : '',
             ].join(' ')}
           >
             {tab.label}

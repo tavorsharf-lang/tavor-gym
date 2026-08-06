@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ChevronLeft, CloudOff, Dumbbell, X } from 'lucide-react'
 import { getSettings } from '@/db/db'
-import { getBlocks, getFinishedSessions, getRoutines } from '@/db/queries'
+import { getActiveRoutines, getBlocks, getFinishedSessions } from '@/db/queries'
 import type { RoutineId } from '@/db/types'
 import { blockStatuses, routineStatuses, suggestRoutine } from '@/domain/staleness'
 import { formatDuration, formatVolume } from '@/domain/units'
@@ -32,7 +32,7 @@ export function HomeScreen(): JSX.Element {
   const workout = useWorkout((s) => s.workout)
   const discard = useWorkout((s) => s.discard)
 
-  const routines = useLiveQuery(() => getRoutines(), [])
+  const routines = useLiveQuery(() => getActiveRoutines(), [])
   const blocks = useLiveQuery(() => getBlocks(), [])
   const sessions = useLiveQuery(() => getFinishedSessions(), [])
   const settings = useLiveQuery(() => getSettings(), [])

@@ -29,19 +29,18 @@ describe('App', () => {
     )
   })
 
-  it('מציגה את שלוש התוכניות אחרי שהשאילתות נפתרות', async () => {
+  it('מציגה את תוכניות הפול-באדי הפעילות, ולא את הפיצול הכבוי', async () => {
     render(<App />)
 
-    // אין היסטוריה, ולכן אימון A אמור להיות המוצע — "מעולם לא בוצע" גובר על הכל
-    await waitFor(() => expect(screen.getAllByText(/חזה ויד אחורית/).length).toBeGreaterThan(0), {
+    // ברירת המחדל היא תוכנית החזרה. הפיצול קיים במסד אבל כבוי, ולכן לא מוצג
+    await waitFor(() => expect(screen.getAllByText(/פול באדי/).length).toBeGreaterThan(0), {
       timeout: 5000,
     })
 
-    expect(screen.getByText(/גב ויד קדמית/)).toBeTruthy()
-    expect(screen.getByText(/רגליים/)).toBeTruthy()
+    expect(screen.queryByText(/חזה ויד אחורית/)).toBeNull()
   })
 
-  it('הזריעה יוצרת קטלוג מלא, שלוש תוכניות ושלושה בלוקים', async () => {
+  it('הזריעה יוצרת קטלוג מלא, חמש תוכניות ושלושה בלוקים', async () => {
     const [exercises, routines, blocks] = await Promise.all([
       db.exercises.count(),
       db.routines.count(),
@@ -49,8 +48,22 @@ describe('App', () => {
     ])
     // 9 באימון A, 7 ב-B, 5 ב-C, ועוד 4+2+1 בבלוקים
     expect(exercises).toBe(28)
-    expect(routines).toBe(3)
+    // A/B/C + שתי תוכניות פול-באדי
+    expect(routines).toBe(5)
     expect(blocks).toBe(3)
+  })
+
+  it('רק תוכניות הפול-באדי פעילות בהתחלה', async () => {
+    const active = (await db.routines.toArray()).filter((r) => r.isActive).map((r) => r.id)
+    expect(active.sort()).toEqual(['F1', 'F2'])
+  })
+
+  it('לתוכנית החזרה יש משקלי התחלה מופחתים', async () => {
+    const f1 = await db.routines.get('F1')
+    const legPress = f1?.items.find((i) => i.exerciseId === 'leg-press')
+    // 160 בקטלוג, 60% מזה מעוגל לקפיצה של 5
+    expect(legPress?.startWeightKg).toBe(95)
+    expect(legPress?.targetSets).toBe(3)
   })
 
   it('כל פריט בתוכניות ובבלוקים מצביע על תרגיל שקיים בקטלוג', async () => {

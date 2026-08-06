@@ -117,10 +117,18 @@ export function ExerciseCard({
   const workCount = sets.filter((s) => s.type === 'work').length
   const lastWork = [...sets].reverse().find((s) => s.type === 'work') ?? null
 
-  // הטווח שבתוכנית הוא הקובע, לא זה שבקטלוג — הוא גם מה שמוצג על הכרטיס
+  // הטווח שבתוכנית הוא הקובע, לא זה שבקטלוג — הוא גם מה שמוצג על הכרטיס.
+  // וכשלתוכנית יש משקל התחלה משלה (תוכנית חזרה), הוא גובר על זה שבקטלוג.
   const recommendation = useMemo(
-    () => recommendWeight(exercise, history, item.targetReps),
-    [exercise, history, item.targetReps]
+    () =>
+      recommendWeight(
+        item.startWeightKg === null
+          ? exercise
+          : { ...exercise, seedWeightKg: item.startWeightKg },
+        history,
+        item.targetReps
+      ),
+    [exercise, history, item.targetReps, item.startWeightKg]
   )
 
   // אותו סינון שמנוע ההמלצות עושה: אימון שהיה בו רק חימום אינו "פעם קודמת"
@@ -132,11 +140,13 @@ export function ExerciseCard({
       : null
 
   // סדר ההעדפות למספרים שבשדות: מה שהרמתי לפני רגע, אחר כך ההמלצה,
-  // אחר כך הסט הכבד של הפעם הקודמת, ורק בסוף משקל הזריעה.
+  // אחר כך הסט הכבד של הפעם הקודמת. משקל ההתחלה של התוכנית קודם לזה
+  // שבקטלוג — זה מה שמאפשר לתוכנית חזרה להתחיל קל באותו תרגיל בדיוק.
   const seedWeight =
     lastWork?.weightKg ??
     recommendation.weightKg ??
     previousTop?.weightKg ??
+    item.startWeightKg ??
     exercise.seedWeightKg ??
     0
   const seedReps = lastWork?.reps ?? previousTop?.reps ?? exercise.targetReps.max

@@ -64,7 +64,15 @@
     background: var(--color-ink-950);
     /* iOS: בלי גרירת "גומי" של הדף מאחורי האפליקציה */
     overscroll-behavior-y: none;
+    /* מונע מספארי להגדיל טקסט לבד בסיבוב המכשיר */
     -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /*
+      pan-x pan-y מאפשר גלילה אבל חוסם צביטה לזום ולחיצה כפולה לזום.
+      זו אפליקציה שמופעלת ביד אחת מיוזעת — זום מקרי באמצע סט הוא הפרעה,
+      לא תכונה.
+    */
+    touch-action: pan-x pan-y;
   }
 
   body {
@@ -76,6 +84,15 @@
     font-synthesis-weight: none;
     -webkit-font-smoothing: antialiased;
     overscroll-behavior-y: none;
+    touch-action: pan-x pan-y;
+    /*
+      בלי בחירת טקסט ובלי תפריט הלחיצה-הארוכה. אצבע רטובה על מסך גורמת
+      להרבה לחיצות ארוכות בטעות, וכל אחת מהן הייתה מסמנת טקסט או פותחת
+      תפריט העתקה מעל הכפתור שרצינו ללחוץ. שדות קלט מוחרגים למטה.
+    */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
     /* טקסטורת גרעין עדינה — נותנת חומריות ומונעת פסי גרדיאנט ב-OLED */
     background-image:
       radial-gradient(120% 60% at 50% -10%, #1c1512 0%, transparent 60%),
@@ -83,12 +100,19 @@
     background-attachment: fixed;
   }
 
-  /* iOS: לא לזום על פוקוס — כל שדה קלט לפחות 16px */
+  /*
+    שדות קלט הם החריג היחיד: בלי בחירת טקסט אי אפשר לערוך משקל שהוקלד,
+    ו-select() של ה-Stepper היה מפסיק לעבוד.
+    16px לפחות — מתחת לזה ספארי מזנקת בזום על פוקוס.
+  */
   input,
   select,
   textarea {
     font-size: max(1rem, 16px);
     font-family: inherit;
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
   }
 
   button {

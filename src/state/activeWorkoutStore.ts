@@ -51,6 +51,7 @@ function itemFromPlan(
     targetSets: planItem.targetSets,
     targetReps: { ...planItem.targetReps },
     restSeconds: planItem.restSeconds,
+    startWeightKg: planItem.startWeightKg ?? null,
     status: 'pending',
     warmupOffered: false,
   }
@@ -246,11 +247,16 @@ export const useWorkout = create<WorkoutState>((set, get) => {
           queue.push(itemFromPlan(it, 'routine', routine.id))
         }
       }
+      // תרגיל שכבר נמצא בתוכנית לא נכנס שוב מבלוק נלווה. בפול-באדי, שמכסה
+      // ממילא כתפיים ובטן, בלי זה היו מופיעים שני מופעים של אותו תרגיל.
+      const already = new Set(queue.map((q) => q.exerciseId))
       const blockById = new Map<string, Block>(blocks.map((b) => [b.id, b]))
       for (const bid of blockIds) {
         const block = blockById.get(bid)
         if (!block) continue
         for (const it of [...block.items].sort((a, b) => a.order - b.order)) {
+          if (already.has(it.exerciseId)) continue
+          already.add(it.exerciseId)
           queue.push(itemFromPlan(it, 'block', block.id))
         }
       }
@@ -625,6 +631,8 @@ export const useWorkout = create<WorkoutState>((set, get) => {
           targetSets: target?.targetSets ?? item.targetSets,
           targetReps: target ? { ...target.targetReps } : item.targetReps,
           restSeconds: target?.defaultRestSeconds ?? item.restSeconds,
+          // תרגיל מחליף לא יורש את משקל ההתחלה של התרגיל שהוחלף
+          startWeightKg: null,
           status: 'active',
           warmupOffered: false,
         }
@@ -672,6 +680,7 @@ export const useWorkout = create<WorkoutState>((set, get) => {
             targetSets: ex.targetSets,
             targetReps: { ...ex.targetReps },
             restSeconds: ex.defaultRestSeconds,
+            startWeightKg: null,
             status: 'pending',
             warmupOffered: false,
           },

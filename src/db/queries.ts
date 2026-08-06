@@ -59,8 +59,31 @@ export async function getSubstituteCandidates(exercise: Exercise): Promise<Exerc
 
 // ─── תוכניות ובלוקים ───────────────────────────────────────────────────────
 
+/** כל התוכניות, כולל כבויות. למסך העריכה. */
 export async function getRoutines(): Promise<Routine[]> {
   return db.routines.orderBy('order').toArray()
+}
+
+/**
+ * רק התוכניות שפעילות עכשיו — זה מה שמסך הבית ובחירת האימון עובדים איתו.
+ * בלי הסינון הזה, "מה מתאמנים היום" היה מערבב פול-באדי עם פיצול.
+ */
+export async function getActiveRoutines(): Promise<Routine[]> {
+  const all = await db.routines.orderBy('order').toArray()
+  const active = all.filter((r) => r.isActive)
+  // ביטוח: אם כובו כולן בטעות, עדיף להציע הכל מאשר מסך בית ריק
+  return active.length > 0 ? active : all
+}
+
+/** מפעיל קבוצת תוכניות אחת ומכבה את השאר, בפעולה אחת */
+export async function activateRoutines(ids: readonly RoutineId[]): Promise<void> {
+  const wanted = new Set<string>(ids)
+  await db.transaction('rw', db.routines, async () => {
+    for (const routine of await db.routines.toArray()) {
+      const next = wanted.has(routine.id)
+      if (routine.isActive !== next) await db.routines.put({ ...routine, isActive: next })
+    }
+  })
 }
 
 export async function getBlocks(): Promise<Block[]> {
