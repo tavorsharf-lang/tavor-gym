@@ -381,7 +381,7 @@ export function ExerciseScreen(): JSX.Element {
         בשם העברי בסריקה של הרשימה.
       */}
       {exercise.nameEn ? (
-        <p dir="ltr" className="-mt-2 mb-5 text-start text-sm font-semibold tracking-wide text-bone-500">
+        <p dir="ltr" className="-mt-2 mb-5 text-end text-sm font-semibold tracking-wide text-bone-500">
           {exercise.nameEn}
         </p>
       ) : null}

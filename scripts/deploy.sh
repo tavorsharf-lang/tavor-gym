@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 #
-# פריסה ידנית ל-GitHub Pages, דרך ענף gh-pages.
+# פריסה ל-GitHub Pages, דרך ענף gh-pages.
 #
 # למה לא דרך Actions: שלב actions/deploy-pages על האתר הזה חרג דרך קבע
 # מהטיימאאוט שלו — הארטיפקט כולל 32MB של סרטוני הדגמה — ואז ביטל את הפריסה
 # והשאיר את האתר על גרסה ישנה. דחיפה של תיקיית ה-build כענף רגיל לוקחת שניות
 # ולא תלויה בתור ה-runner-ים.
 #
-# הבדיקות והבנייה הן השער: אם משהו מהם נכשל, שום דבר לא נדחף.
+# הסקריפט לא מסתפק בדחיפה: הוא ממתין ל-Pages ומאמת שהקובץ החדש באמת מוגש.
+# בלי זה ✓ היה מתפרסם גם כשהאתר נשאר על גרסה קודמת — וזה בדיוק מה שקרה.
 #
-# הרצה: npm run deploy
+# הרצה: npm run deploy   ·   על עץ עבודה מלוכלך: npm run deploy -- --allow-dirty
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -17,6 +18,24 @@ cd "$ROOT"
 
 BRANCH="gh-pages"
 WORKTREE=".deploy"
+SITE="https://tavorsharf-lang.github.io/tavor-gym/"
+REPO="tavorsharf-lang/tavor-gym"
+ALLOW_DIRTY=0
+[ "${1:-}" = "--allow-dirty" ] && ALLOW_DIRTY=1
+
+cleanup() {
+  git worktree remove "$WORKTREE" --force 2>/dev/null || true
+  rm -rf "$ROOT/$WORKTREE"
+}
+trap cleanup EXIT
+
+# ── שער 1: מה בדיוק נפרס ──
+# הסקריפט בונה מהדיסק, לא מ-HEAD. עץ מלוכלך פירושו שהאתר מקבל קוד שלא נמצא
+# בשום קומיט, והתווית על הפריסה תשקר.
+if [ "$ALLOW_DIRTY" -eq 0 ] && ! git diff --quiet HEAD 2>/dev/null; then
+  echo "✗ יש שינויים לא מקובעים. עשה commit, או הרץ: npm run deploy -- --allow-dirty" >&2
+  exit 1
+fi
 
 echo "▸ בדיקות"
 npm test
@@ -27,18 +46,30 @@ npm run build
 # בלי הקובץ הזה Jekyll של GitHub מעבד את התיקייה ומתעלם מקבצים שמתחילים ב-_
 touch dist/.nojekyll
 
+BUNDLE="$(basename "$(ls dist/assets/index-*.js | head -1)")"
+
 echo "▸ הכנת ענף $BRANCH"
 git worktree remove "$WORKTREE" --force 2>/dev/null || true
 rm -rf "$WORKTREE"
 
-if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+# ls-remote מחזיר 2 כשהענף לא קיים, וכל קוד אחר הוא תקלת רשת או הרשאה.
+# בלי ההבחנה הזו נפילת רשת הייתה נראית כמו "אין ענף" ומייצרת ענף יתום חדש.
+set +e
+git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1
+RC=$?
+set -e
+
+if [ "$RC" -eq 0 ]; then
   git fetch --quiet origin "$BRANCH"
   git worktree add --quiet "$WORKTREE" -B "$BRANCH" "origin/$BRANCH"
-else
-  # פעם ראשונה — ענף יתום, בלי היסטוריית הקוד. הענף הזה מכיל רק תוצר בנייה.
+elif [ "$RC" -eq 2 ]; then
+  # פעם ראשונה — ענף יתום, בלי היסטוריית הקוד. הענף מכיל רק תוצר בנייה.
   git worktree add --quiet --detach "$WORKTREE"
   git -C "$WORKTREE" checkout --quiet --orphan "$BRANCH"
   git -C "$WORKTREE" rm --quiet -rf . 2>/dev/null || true
+else
+  echo "✗ לא הצלחתי להגיע ל-origin (קוד $RC) — בדוק רשת או הרשאות" >&2
+  exit 1
 fi
 
 echo "▸ העתקת dist"
@@ -48,18 +79,45 @@ cp -R dist/. "$WORKTREE"/
 
 SHA="$(git rev-parse --short HEAD)"
 SUBJECT="$(git log -1 --pretty=%s)"
+[ "$ALLOW_DIRTY" -eq 1 ] && SUBJECT="$SUBJECT (+ שינויים לא מקובעים)"
 
-cd "$WORKTREE"
-git add -A
-if git diff --cached --quiet; then
-  echo "▸ אין שינוי בתוצר הבנייה — אין מה לפרוס"
-else
-  git -c user.name="Tavor Sharf" -c user.email="tavorsharf@gmail.com" \
-    commit --quiet -m "פריסה מ-$SHA — $SUBJECT"
+(
+  cd "$WORKTREE"
+  git add -A
+  if git diff --cached --quiet; then
+    # קומיט ריק בכוונה: Pages בונה רק בתגובה לדחיפה, ולפעמים צריך לעורר בנייה
+    # מחדש אחרי בנייה שנתקעה — בלי לשנות ולו בית אחד בתוצר.
+    git -c user.name="Tavor Sharf" -c user.email="tavorsharf@gmail.com" \
+      commit --quiet --allow-empty -m "פריסה מחדש מ-$SHA"
+  else
+    git -c user.name="Tavor Sharf" -c user.email="tavorsharf@gmail.com" \
+      commit --quiet -m "פריסה מ-$SHA — $SUBJECT"
+  fi
   git push --quiet --force origin "$BRANCH"
-  echo "▸ נדחף ל-$BRANCH"
-fi
-cd "$ROOT"
+)
+echo "▸ נדחף ל-$BRANCH"
 
-git worktree remove "$WORKTREE" --force
-echo "✓ https://tavorsharf-lang.github.io/tavor-gym/"
+# ── שער 2: פורסם באמת? ──
+# דחיפה מוצלחת אינה פרסום. Pages בונה מהענף, והבנייה הזו כבר נתקעה ונכשלה.
+echo "▸ ממתין לפרסום"
+for _ in $(seq 1 60); do
+  STATUS="$(gh api "repos/$REPO/pages/builds/latest" --jq '.status' 2>/dev/null || echo '?')"
+  if [ "$STATUS" = "built" ]; then break; fi
+  if [ "$STATUS" = "errored" ]; then
+    echo "✗ בניית Pages נכשלה. הרץ שוב — קומיט חדש לענף בדרך כלל מעורר בנייה תקינה." >&2
+    exit 1
+  fi
+  sleep 10
+done
+
+# האמת הסופית היא מה שהשרת מגיש, לא מה ש-API אומר
+for _ in $(seq 1 30); do
+  if curl -sf -o /dev/null "$SITE/assets/$BUNDLE"; then
+    echo "✓ פורסם — $SITE"
+    exit 0
+  fi
+  sleep 10
+done
+
+echo "✗ נדחף אבל האתר עדיין מגיש גרסה קודמת. $SITE" >&2
+exit 1

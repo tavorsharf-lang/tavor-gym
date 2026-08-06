@@ -7,7 +7,7 @@ import { getAllExercises, getLastPerformedMap } from '@/db/queries'
 import type { Exercise, MuscleGroup } from '@/db/types'
 import { EQUIPMENT_LABELS, MUSCLE_GROUPS, MUSCLE_GROUP_BY_SIZE } from '@/db/types'
 import { formatSetShort } from '@/domain/units'
-import { duplicateNames, metaLine } from '@/domain/naming'
+import { distinguisher, duplicateNames } from '@/domain/naming'
 import { formatRelativeDay } from '@/lib/dates'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { EmptyState } from '@/components/ui'
@@ -121,6 +121,7 @@ export function ExerciseLibraryScreen(): JSX.Element {
               <div className="card divide-y divide-ink-800/70 overflow-hidden">
                 {list.map((ex) => {
                   const last = lastPerformed.get(ex.id)
+                  const apart = distinguisher(ex, duplicates)
                   return (
                     <button
                       key={ex.id}
@@ -137,16 +138,29 @@ export function ExerciseLibraryScreen(): JSX.Element {
                           {ex.name}
                         </span>
                         {ex.nameEn ? (
+                          // dir=ltr לריצת הטקסט, אבל היישור נשאר לקצה ההתחלתי
+                          // של השורה העברית — אחרת השם קופץ לקצה הנגדי ומתנתק
+                          // מהשם שהוא אמור לתייג
                           <span
                             dir="ltr"
-                            className="mt-0.5 block truncate text-start text-[0.6875rem] font-semibold text-bone-500"
+                            className="mt-0.5 block truncate text-end text-[0.6875rem] font-semibold text-bone-500"
                           >
                             {ex.nameEn}
                           </span>
                         ) : null}
-                        <span className="meta mt-0.5 block truncate">
-                          {metaLine(ex, EQUIPMENT_LABELS[ex.equipment], duplicates)}
-                          {ex.isActive ? '' : ' · כבוי'}
+                        {/*
+                          המבדיל יושב מחוץ למחרוזת הקטומה ובלי shrink. כשהוא היה
+                          בסוף שורה אחת קטומה, דווקא הוא היה נחתך — ובשתי שורות
+                          בעלות אותו שם זה בדיוק מה שצריך להישאר על המסך.
+                        */}
+                        <span className="meta mt-0.5 flex items-baseline gap-1.5">
+                          {apart ? (
+                            <span className="shrink-0 font-bold text-bone-400">{apart}</span>
+                          ) : null}
+                          <span className="truncate">
+                            {ex.subTarget} · {EQUIPMENT_LABELS[ex.equipment]}
+                            {ex.isActive ? '' : ' · כבוי'}
+                          </span>
                         </span>
                       </span>
 
