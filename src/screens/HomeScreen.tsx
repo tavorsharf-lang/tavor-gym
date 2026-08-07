@@ -2,7 +2,15 @@ import { useState } from 'react'
 import type { JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { BookOpen, ChevronLeft, CloudOff, Dumbbell, ListPlus, X } from 'lucide-react'
+import {
+  BookOpen,
+  ChevronLeft,
+  CloudOff,
+  Dumbbell,
+  GraduationCap,
+  ListPlus,
+  X,
+} from 'lucide-react'
 import { getSettings } from '@/db/db'
 import { getActiveRoutines, getBlocks, getFinishedSessions } from '@/db/queries'
 import type { RoutineId } from '@/db/types'
@@ -227,6 +235,24 @@ export function HomeScreen(): JSX.Element {
               <ListPlus size={20} className="text-flame-400" />
               <span className="text-sm font-extrabold text-bone-50">עריכת האימונים</span>
               <span className="meta">הוספה, הסרה ושינוי</span>
+            </button>
+
+            {/*
+              המאגר יושב כאן ולא ליד "כל התרגילים" למרות הדמיון, כי הוא עונה על
+              שאלה אחרת: לא "כמה הרמתי" אלא "איך עושים את זה". שורה רוחבית כדי
+              שההבדל ייקרא מהצורה ולא רק מהטקסט.
+            */}
+            <button
+              type="button"
+              onClick={() => navigate('/library')}
+              className="card col-span-2 flex min-h-16 items-center gap-3 p-4 text-start active:bg-ink-800"
+            >
+              <GraduationCap size={20} className="shrink-0 text-flame-400" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-extrabold text-bone-50">מאגר תרגילים</span>
+                <span className="meta">איך מבצעים ואילו טעויות להימנע מהן</span>
+              </span>
+              <ChevronLeft size={18} className="shrink-0 text-bone-600" />
             </button>
           </section>
 

@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie'
 import type { PlayableVideo, VideoAsset } from './types'
 import { VIDEO_MANIFEST, type BundledVideo } from './videoManifest'
+import { LIBRARY_MANIFEST } from './libraryManifest'
 
 /**
  * מסד המדיה — סרטוני הדגמה בלבד, כ-Blob.
@@ -72,8 +73,15 @@ export function assetUrl(relativePath: string): string {
   return `${import.meta.env.BASE_URL}${relativePath}`
 }
 
+/**
+ * הסרטונים המצורפים של תרגיל — מהתוכנית או מהמאגר הלימודי.
+ *
+ * שני המניפסטים חולקים מבנה ומרחב מזהים זר: מזהי המאגר תמיד בתחילית `lib-`,
+ * ולכן חיפוש בשניהם לא יכול להתנגש. בזכות זה כל מה שמעל — הנגן, ההתקנה
+ * ל-IndexedDB, שחרור ה-objectURL — עובד על המאגר בלי שינוי.
+ */
 export function bundledVideosFor(exerciseId: string): BundledVideo[] {
-  return VIDEO_MANIFEST[exerciseId] ?? []
+  return VIDEO_MANIFEST[exerciseId] ?? LIBRARY_MANIFEST[exerciseId] ?? []
 }
 
 /**

@@ -131,7 +131,15 @@ export interface Block {
 export interface VideoAsset {
   id: string
   exerciseId: string
-  origin: 'bundled' | 'imported'
+  /**
+   * bundled  — הדגמה מצורפת לתרגיל בתוכנית
+   * library  — סרטון הסבר מהמאגר הלימודי
+   * imported — סרטון שהמשתמש הוסיף בעצמו
+   *
+   * library נפרד מ-bundled כדי שאפשר יהיה להתקין ולמחוק את המאגר בלי לגעת
+   * בהדגמות של האימון עצמו — הן הקטנות והחשובות, והוא הגדול והנלווה.
+   */
+  origin: 'bundled' | 'library' | 'imported'
   blob: Blob
   thumbnailBlob: Blob | null
   label: string

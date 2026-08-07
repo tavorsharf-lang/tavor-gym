@@ -1,26 +1,72 @@
 #!/usr/bin/env node
 /**
- * ייבוא ודחיסה של סרטוני ההדגמה מתיקיית "תוכנית אימונים (Workout Program)".
+ * ייבוא ודחיסה של סרטוני ההדגמה.
  *
- * מה זה עושה:
- *   1. עובר על התיקיות לפי המיפוי למטה
- *   2. דוחס כל mp4 ל-720px צד ארוך, בלי אודיו, H.264 crf 30, faststart
- *   3. מייצר poster JPG מהשנייה הראשונה
- *   4. כותב public/videos/<exerciseId>-NN.mp4 + .jpg
- *   5. מייצר src/db/videoManifest.ts — הרשימה שהאפליקציה קוראת
+ * שני מקורות:
+ *   א. "תוכנית אימונים (Workout Program)" — הדגמות לתרגילי התוכנית, לפי המיפוי למטה.
+ *      כל הסרטונים נכנסים, ויוצאים ל-videoManifest.ts.
+ *   ב. "מאגר תרגילים (Exercise Library)" — מאגר לימודי של 62 תרגילים.
+ *      נכנסים רק LIB_MAX הראשונים בכל תרגיל, ויוצאים ל-libraryManifest.ts.
+ *
+ * מה זה עושה לכל סרטון:
+ *   1. דוחס ל-720px צד ארוך, בלי אודיו, H.264 crf 30, faststart
+ *   2. מייצר poster JPG מהשנייה הראשונה
+ *   3. כותב public/videos/<id>-NN.mp4 + .jpg
+ *
+ * למה יש תקרה על המאגר ואין על התוכנית: 489 סרטוני המאגר שוקלים כ-390MB דחוסים,
+ * וזה הופך את הבנייה והפריסה לבלתי סבירות. הסרטונים בכל תרגיל ממוינים במקור לפי
+ * מספר צפיות, ולכן הראשונים הם גם הטובים ביותר. השאר נשארים נגישים דרך הקישור
+ * המקורי שנשמר במניפסט.
  *
  * הרצה: npm run import:videos
  * דורש ffmpeg (brew install ffmpeg).
  */
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, readdirSync, writeFileSync, existsSync, statSync, rmSync } from 'node:fs'
+import { mkdirSync, readdirSync, writeFileSync, existsSync, statSync, rmSync, readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SOURCE = '/Users/tavorsharf/projects/תוכנית אימונים (Workout Program)'
+const LIB_SOURCE = '/Users/tavorsharf/projects/מאגר תרגילים (Exercise Library)'
 const OUT_DIR = join(ROOT, 'public', 'videos')
+const LIB_OUT_DIR = join(OUT_DIR, 'lib')
 const MANIFEST = join(ROOT, 'src', 'db', 'videoManifest.ts')
+const LIB_MANIFEST = join(ROOT, 'src', 'db', 'libraryManifest.ts')
+
+/** כמה סרטונים לכל תרגיל במאגר נכנסים לבנייה */
+const LIB_MAX = 3
+
+/** קבוצת שריר במאגר (עברית) → הערך ב-MuscleGroup */
+const MUSCLE_MAP = {
+  'חזה': 'chest',
+  'גב': 'back',
+  'רגליים': 'legs',
+  'כתפיים': 'shoulders',
+  'יד קדמית': 'biceps',
+  'יד אחורית': 'triceps',
+  'אמות': 'forearms',
+  'בטן': 'abs',
+}
+
+/**
+ * במאגר אין תרגילי שוק — יוצר התוכן פשוט לא מכסה אותם, ולכן ל-calves אין מקור.
+ * אם יתווסף מקור בעתיד, כאן המקום למפות אותו: הוא יגיע תחת "רגליים" בעברית
+ * וצריך להגיע ל-calves ב-MuscleGroup.
+ */
+const CALVES_KEYS = new Set()
+
+/**
+ * מפתח המאגר הופך לשם קובץ ולחלק מכתובת. "row_(general)" חוקי בכתובת אבל
+ * שביר מספיק אצל שרתים סטטיים כדי לא לסמוך עליו — משאירים אותיות, ספרות וקו תחתון.
+ */
+function slug(key) {
+  return key
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '')
+}
 
 /** תיקיית מקור → מזהה התרגיל בקטלוג */
 const MAP = {
@@ -64,11 +110,17 @@ const MAX_EDGE = 720
 const CRF = 30
 
 function probe(file) {
-  const out = execFileSync('ffprobe', [
-    '-v', 'error', '-select_streams', 'v:0',
-    '-show_entries', 'stream=width,height:format=duration',
-    '-of', 'default=nw=1:nk=0', file,
-  ]).toString()
+  let out = ''
+  try {
+    out = execFileSync('ffprobe', [
+      '-v', 'error', '-select_streams', 'v:0',
+      '-show_entries', 'stream=width,height:format=duration',
+      '-of', 'default=nw=1:nk=0', file,
+    ]).toString()
+  } catch {
+    // קובץ שלא ניתן לקריאה מדווח כ"בלי מידות", והקורא מדלג עליו
+    return { width: 0, height: 0, duration: 0 }
+  }
   const get = (k) => {
     const m = out.match(new RegExp(`^${k}=(.+)$`, 'm'))
     return m ? m[1].trim() : null
@@ -80,14 +132,76 @@ function probe(file) {
   }
 }
 
-function main() {
-  if (!existsSync(SOURCE)) {
-    console.error(`✗ תיקיית המקור לא נמצאה: ${SOURCE}`)
-    process.exit(1)
-  }
-  rmSync(OUT_DIR, { recursive: true, force: true })
-  mkdirSync(OUT_DIR, { recursive: true })
+/**
+ * דוחס סרטון אחד ומייצר לו poster. מחזיר את רשומת המניפסט, או null אם דילגנו.
+ * `relDir` הוא הנתיב היחסי ל-public, כדי שה-src במניפסט יתאים ל-assetUrl.
+ *
+ * לא זורק. קובץ מקור אחד פגום לא אמור להפיל ייבוא של מאות סרטונים — הוא מדווח
+ * ומדולג, וההרצה ממשיכה. זה קרה בפועל: שני קבצים במאגר ירדו כאודיו בלבד,
+ * ffmpeg עם -an ייצר מהם קובץ בלי שום stream, וכל הייבוא נפל אחרי 88 סרטונים.
+ */
+function transcode(src, outDir, base, relDir) {
+  const outMp4 = join(outDir, `${base}.mp4`)
+  const outJpg = join(outDir, `${base}.jpg`)
+  const info = probe(src)
+  const inSize = statSync(src).size
 
+  if (!info.width || !info.height) {
+    console.warn(`  ⚠ ${base}: אין זרם וידאו במקור (${src}) — מדולג`)
+    return null
+  }
+
+  try {
+    // וידאו: צד ארוך עד 720, בלי אודיו, faststart לניגון מיידי
+    execFileSync('ffmpeg', [
+      '-y', '-loglevel', 'error', '-i', src,
+      '-an',
+      '-vf', `scale=w=${MAX_EDGE}:h=${MAX_EDGE}:force_original_aspect_ratio=decrease:force_divisible_by=2`,
+      '-c:v', 'libx264', '-profile:v', 'main', '-level', '4.0',
+      '-crf', String(CRF), '-preset', 'slow',
+      '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
+      outMp4,
+    ])
+
+    // poster מהשנייה הראשונה (או מההתחלה אם הסרטון קצר)
+    const posterAt = info.duration > 1.5 ? '1' : '0'
+    execFileSync('ffmpeg', [
+      '-y', '-loglevel', 'error', '-ss', posterAt, '-i', outMp4,
+      '-frames:v', '1', '-q:v', '5',
+      '-vf', `scale=w=400:h=400:force_original_aspect_ratio=decrease:force_divisible_by=2`,
+      outJpg,
+    ])
+  } catch (err) {
+    console.warn(`  ⚠ ${base}: הדחיסה נכשלה — ${err.message.split('\n')[0]} — מדולג`)
+    rmSync(outMp4, { force: true })
+    rmSync(outJpg, { force: true })
+    return null
+  }
+
+  const outSize = statSync(outMp4).size
+  const outInfo = probe(outMp4)
+
+  const pct = Math.round((1 - outSize / inSize) * 100)
+  console.log(
+    `  ✓ ${base}  ${(inSize / 1e6).toFixed(1)}MB → ${(outSize / 1e6).toFixed(1)}MB (-${pct}%)  ${outInfo.width}x${outInfo.height}  ${info.duration.toFixed(1)}s`
+  )
+
+  return {
+    entry: {
+      src: `${relDir}/${base}.mp4`,
+      poster: `${relDir}/${base}.jpg`,
+      width: outInfo.width,
+      height: outInfo.height,
+      durationSec: Math.round(info.duration * 10) / 10,
+      sizeBytes: outSize,
+    },
+    inSize,
+    outSize,
+  }
+}
+
+/** מקור א׳ — הדגמות לתרגילי התוכנית. הכל נכנס. */
+function importProgram() {
   const manifest = {}
   let totalIn = 0
   let totalOut = 0
@@ -103,57 +217,98 @@ function main() {
       if (!files.length) continue
 
       manifest[exerciseId] = []
-      files.forEach((f, i) => {
-        const src = join(srcDir, f)
-        const idx = String(i + 1).padStart(2, '0')
-        const base = `${exerciseId}-${idx}`
-        const outMp4 = join(OUT_DIR, `${base}.mp4`)
-        const outJpg = join(OUT_DIR, `${base}.jpg`)
-
-        const info = probe(src)
-        const inSize = statSync(src).size
-        totalIn += inSize
-
-        // וידאו: צד ארוך עד 720, בלי אודיו, faststart לניגון מיידי
-        execFileSync('ffmpeg', [
-          '-y', '-loglevel', 'error', '-i', src,
-          '-an',
-          '-vf', `scale=w=${MAX_EDGE}:h=${MAX_EDGE}:force_original_aspect_ratio=decrease:force_divisible_by=2`,
-          '-c:v', 'libx264', '-profile:v', 'main', '-level', '4.0',
-          '-crf', String(CRF), '-preset', 'slow',
-          '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
-          outMp4,
-        ])
-
-        // poster מהשנייה הראשונה (או מההתחלה אם הסרטון קצר)
-        const posterAt = info.duration > 1.5 ? '1' : '0'
-        execFileSync('ffmpeg', [
-          '-y', '-loglevel', 'error', '-ss', posterAt, '-i', outMp4,
-          '-frames:v', '1', '-q:v', '5',
-          '-vf', `scale=w=400:h=400:force_original_aspect_ratio=decrease:force_divisible_by=2`,
-          outJpg,
-        ])
-
-        const outSize = statSync(outMp4).size
-        totalOut += outSize
-        const outInfo = probe(outMp4)
-
-        manifest[exerciseId].push({
-          src: `videos/${base}.mp4`,
-          poster: `videos/${base}.jpg`,
-          width: outInfo.width,
-          height: outInfo.height,
-          durationSec: Math.round(info.duration * 10) / 10,
-          sizeBytes: outSize,
-        })
-
-        const pct = Math.round((1 - outSize / inSize) * 100)
-        console.log(
-          `  ✓ ${base}  ${(inSize / 1e6).toFixed(1)}MB → ${(outSize / 1e6).toFixed(1)}MB (-${pct}%)  ${outInfo.width}x${outInfo.height}  ${info.duration.toFixed(1)}s`
-        )
+      let kept = 0
+      files.forEach((f) => {
+        // המספור לפי מה שנכנס בפועל ולא לפי מיקום במקור, כדי שדילוג לא ישאיר חור
+        const idx = String(kept + 1).padStart(2, '0')
+        const r = transcode(join(srcDir, f), OUT_DIR, `${exerciseId}-${idx}`, 'videos')
+        if (!r) return
+        kept += 1
+        totalIn += r.inSize
+        totalOut += r.outSize
+        manifest[exerciseId].push(r.entry)
       })
+      if (!manifest[exerciseId].length) delete manifest[exerciseId]
     }
   }
+  return { manifest, totalIn, totalOut }
+}
+
+/** מקור ב׳ — המאגר הלימודי. רק LIB_MAX הראשונים בכל תרגיל. */
+function importLibrary() {
+  const jsonPath = join(LIB_SOURCE, 'exercise-library.json')
+  if (!existsSync(jsonPath)) {
+    console.warn(`  ⚠ המאגר לא נמצא, מדלג: ${jsonPath}`)
+    return null
+  }
+  const source = JSON.parse(readFileSync(jsonPath, 'utf8'))
+  mkdirSync(LIB_OUT_DIR, { recursive: true })
+
+  const manifest = {}
+  const catalog = []
+  let totalIn = 0
+  let totalOut = 0
+  let capped = 0
+
+  for (const ex of source) {
+    const muscle = CALVES_KEYS.has(ex.key) ? 'calves' : MUSCLE_MAP[ex.muscle]
+    if (!muscle) {
+      console.warn(`  ⚠ שריר לא מוכר "${ex.muscle}" בתרגיל ${ex.nameEn} — מדולג`)
+      continue
+    }
+    const key = slug(ex.key)
+    const id = `lib-${key}`
+    const picked = ex.videos.slice(0, LIB_MAX)
+    if (ex.videos.length > picked.length) capped += ex.videos.length - picked.length
+
+    manifest[id] = []
+    const videos = []
+    picked.forEach((v) => {
+      const srcFile = join(LIB_SOURCE, ex.folder, v.file)
+      if (!existsSync(srcFile)) {
+        console.warn(`  ⚠ קובץ חסר: ${ex.folder}/${v.file}`)
+        return
+      }
+      // המספור לפי מה שנכנס בפועל — videos ו-manifest[id] חייבים להישאר מקבילים
+      const idx = String(manifest[id].length + 1).padStart(2, '0')
+      const r = transcode(srcFile, LIB_OUT_DIR, `${key}-${idx}`, 'videos/lib')
+      if (!r) return
+      totalIn += r.inSize
+      totalOut += r.outSize
+      manifest[id].push(r.entry)
+      videos.push({ topic: v.topic, url: v.url })
+    })
+
+    if (!manifest[id].length) {
+      delete manifest[id]
+      continue
+    }
+    catalog.push({
+      id,
+      nameHe: ex.nameHe,
+      nameEn: ex.nameEn,
+      muscleGroup: muscle,
+      videos,
+      totalAvailable: ex.videoCount,
+    })
+  }
+
+  return { manifest, catalog, totalIn, totalOut, capped }
+}
+
+function main() {
+  if (!existsSync(SOURCE)) {
+    console.error(`✗ תיקיית המקור לא נמצאה: ${SOURCE}`)
+    process.exit(1)
+  }
+  rmSync(OUT_DIR, { recursive: true, force: true })
+  mkdirSync(OUT_DIR, { recursive: true })
+
+  console.log('— תוכנית האימונים —')
+  const { manifest, totalIn, totalOut } = importProgram()
+
+  console.log('\n— מאגר התרגילים —')
+  const lib = importLibrary()
 
   const ts = `// קובץ נוצר אוטומטית על ידי scripts/import-videos.mjs — אין לערוך ידנית.
 // הרצה מחדש: npm run import:videos
@@ -178,12 +333,71 @@ export const VIDEO_COUNT = ${Object.values(manifest).reduce((n, v) => n + v.leng
 `
   writeFileSync(MANIFEST, ts)
 
+  if (lib) {
+    const libCount = Object.values(lib.manifest).reduce((n, v) => n + v.length, 0)
+    const libTs = `// קובץ נוצר אוטומטית על ידי scripts/import-videos.mjs — אין לערוך ידנית.
+// הרצה מחדש: npm run import:videos
+
+import type { MuscleGroup } from './types'
+import type { BundledVideo } from './videoManifest'
+
+/** מה הסרטון הספציפי הזה מלמד, וקישור למקור */
+export interface LibraryVideoNote {
+  topic: string
+  url: string
+}
+
+export interface LibraryExercise {
+  /** תמיד בתחילית lib- כדי שלא יתנגש במזהי תרגילי התוכנית */
+  id: string
+  nameHe: string
+  nameEn: string
+  muscleGroup: MuscleGroup
+  /** מקביל אחד-לאחד ל-LIBRARY_MANIFEST[id] */
+  videos: LibraryVideoNote[]
+  /** כמה סרטונים קיימים במקור, לפני התקרה של ${LIB_MAX} */
+  totalAvailable: number
+}
+
+/** הסרטונים עצמם. אותו מבנה כמו VIDEO_MANIFEST, כדי ש-mediaDb יטפל בשניהם. */
+export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = ${JSON.stringify(lib.manifest, null, 2)}
+
+export const LIBRARY_CATALOG: LibraryExercise[] = ${JSON.stringify(lib.catalog, null, 2)}
+
+/** סך כל המשקל של סרטוני המאגר, בבתים */
+export const LIBRARY_TOTAL_BYTES = ${lib.totalOut}
+
+/** מספר סרטוני המאגר שנכנסו לבנייה */
+export const LIBRARY_COUNT = ${libCount}
+
+/** התקרה שהופעלה בייבוא — כמה סרטונים לכל תרגיל */
+export const LIBRARY_MAX_PER_EXERCISE = ${LIB_MAX}
+
+/** כמה סרטונים קיימים במקור ולא נכנסו לבנייה */
+export const LIBRARY_OMITTED = ${lib.capped}
+`
+    writeFileSync(LIB_MANIFEST, libTs)
+  }
+
+  const count = Object.values(manifest).reduce((n, v) => n + v.length, 0)
   console.log(
-    `\n✓ ${Object.values(manifest).reduce((n, v) => n + v.length, 0)} סרטונים · ` +
+    `\n✓ תוכנית: ${count} סרטונים · ` +
       `${(totalIn / 1e6).toFixed(0)}MB → ${(totalOut / 1e6).toFixed(0)}MB ` +
       `(-${Math.round((1 - totalOut / totalIn) * 100)}%)`
   )
+  if (lib) {
+    const libCount = Object.values(lib.manifest).reduce((n, v) => n + v.length, 0)
+    console.log(
+      `✓ מאגר: ${libCount} סרטונים ב-${lib.catalog.length} תרגילים · ` +
+        `${(lib.totalIn / 1e6).toFixed(0)}MB → ${(lib.totalOut / 1e6).toFixed(0)}MB ` +
+        `(-${Math.round((1 - lib.totalOut / lib.totalIn) * 100)}%)`
+    )
+    // קיצוץ שקט נקרא ככיסוי מלא — לכן הוא נאמר במפורש
+    console.log(`  ${lib.capped} סרטונים נוספים קיימים במקור ולא נכנסו (תקרה של ${LIB_MAX} לתרגיל)`)
+    console.log(`✓ סך הכל בבנייה: ${((totalOut + lib.totalOut) / 1e6).toFixed(0)}MB`)
+  }
   console.log(`✓ manifest: ${MANIFEST}`)
+  if (lib) console.log(`✓ manifest: ${LIB_MANIFEST}`)
 }
 
 main()

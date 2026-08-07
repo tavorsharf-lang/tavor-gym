@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Film, Plus, Trash2, TriangleAlert, Video, X } from 'lucide-react'
+import { Film, GraduationCap, Plus, Trash2, TriangleAlert, Video, X } from 'lucide-react'
 import { saveSettings } from '@/db/db'
 import { getAllExercises } from '@/db/queries'
 import { assetUrl, bundledId, bundledVideosFor, mediaDb, mediaUsage } from '@/db/mediaDb'
 import { videoMismatchNote } from '@/db/videoIssues'
 import { VIDEO_COUNT, VIDEO_MANIFEST, VIDEO_TOTAL_BYTES } from '@/db/videoManifest'
+import {
+  LIBRARY_CATALOG,
+  LIBRARY_COUNT,
+  LIBRARY_MANIFEST,
+  LIBRARY_TOTAL_BYTES,
+} from '@/db/libraryManifest'
 import type { BundledVideo } from '@/db/videoManifest'
 import type { VideoAsset } from '@/db/types'
 import { formatBytes, newId } from '@/domain/units'
@@ -33,13 +39,22 @@ interface InstallJob {
   video: BundledVideo
 }
 
-function allJobs(): InstallJob[] {
+function jobsFrom(manifest: Record<string, BundledVideo[]>): InstallJob[] {
   const jobs: InstallJob[] = []
-  for (const [exerciseId, list] of Object.entries(VIDEO_MANIFEST)) {
+  for (const [exerciseId, list] of Object.entries(manifest)) {
     list.forEach((video, index) => jobs.push({ exerciseId, index, video }))
   }
   return jobs
 }
+
+/**
+ * שני המקורות מותקנים בנפרד ובכוונה.
+ *
+ * הדגמות התוכנית הן מה שצריך באמצע אימון, והן שוקלות מעט. המאגר הלימודי גדול
+ * פי כמה ומשמש ללימוד בבית — מיזוג של השניים לכפתור אחד היה מכריח את מי שרוצה
+ * רק את ההדגמות להוריד גם את כל השאר.
+ */
+type InstallSource = 'program' | 'library'
 
 async function fetchBlob(url: string, signal: AbortSignal): Promise<Blob> {
   const res = await fetch(url, { signal })
@@ -147,7 +162,17 @@ export function MediaScreen(): JSX.Element {
     new Map<string, { id: string; label: string; sizeBytes: number }[]>()
   )
 
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
+  const installedLibrary = useLiveQuery(
+    () => mediaDb.videos.where('origin').equals('library').count(),
+    [],
+    0
+  )
+
+  const [progress, setProgress] = useState<{
+    done: number
+    total: number
+    source: InstallSource
+  } | null>(null)
   const [importingId, setImportingId] = useState<string | null>(null)
   const [clearOpen, setClearOpen] = useState(false)
   const cancelRef = useRef(false)
@@ -155,6 +180,7 @@ export function MediaScreen(): JSX.Element {
 
   const installing = progress !== null
   const missing = VIDEO_COUNT - installedBundled
+  const missingLibrary = LIBRARY_COUNT - installedLibrary
 
   // יציאה מהמסך עוצרת את ההורדה. בלי זה היא הייתה ממשיכה ברקע בלי מד התקדמות
   // ובלי כפתור עצירה, וחזרה למסך הייתה מתחילה התקנה שנייה במקביל על אותו מסד.
@@ -165,16 +191,16 @@ export function MediaScreen(): JSX.Element {
     }
   }, [])
 
-  const install = async (): Promise<void> => {
+  const install = async (source: InstallSource): Promise<void> => {
     // שומר הכניסה היחיד הוא ה-ref: מצב ה-progress מתעדכן רק ברינדור הבא,
     // ולחיצה כפולה מהירה הייתה מספיקה כדי להפעיל שתי לולאות במקביל.
     if (abortRef.current) return
 
-    const jobs = allJobs()
+    const jobs = jobsFrom(source === 'program' ? VIDEO_MANIFEST : LIBRARY_MANIFEST)
     const controller = new AbortController()
     abortRef.current = controller
     cancelRef.current = false
-    setProgress({ done: 0, total: jobs.length })
+    setProgress({ done: 0, total: jobs.length, source })
 
     let done = 0
     try {
@@ -199,7 +225,7 @@ export function MediaScreen(): JSX.Element {
           const asset: VideoAsset = {
             id,
             exerciseId: job.exerciseId,
-            origin: 'bundled',
+            origin: source === 'program' ? 'bundled' : 'library',
             blob,
             thumbnailBlob: poster,
             label: `הדגמה ${job.index + 1}`,
@@ -212,14 +238,16 @@ export function MediaScreen(): JSX.Element {
           await mediaDb.videos.put(asset)
         }
         done += 1
-        setProgress({ done, total: jobs.length })
+        setProgress({ done, total: jobs.length, source })
       }
 
       if (cancelRef.current || controller.signal.aborted) {
         toast('ההתקנה נעצרה. מה שכבר ירד נשמר במכשיר')
       } else {
-        await saveSettings({ videosInstalledAt: Date.now() })
-        toast('כל הסרטונים במכשיר', { tone: 'success' })
+        // videosInstalledAt מתעד את הדגמות התוכנית בלבד — המאגר נלווה ולא
+        // אמור להשפיע על החיווי "הסרטונים מותקנים" במקומות אחרים באפליקציה
+        if (source === 'program') await saveSettings({ videosInstalledAt: Date.now() })
+        toast(source === 'program' ? 'כל ההדגמות במכשיר' : 'המאגר במכשיר', { tone: 'success' })
       }
     } catch (err) {
       // לא כל דפדפן זורק DOMException על ביטול — הסיגנל עצמו הוא המקור האמין
@@ -251,6 +279,17 @@ export function MediaScreen(): JSX.Element {
       await saveSettings({ videosInstalledAt: null })
       setClearOpen(false)
       toast('הסרטונים המצורפים נמחקו מהמכשיר')
+    } catch {
+      toast('המחיקה נכשלה', { tone: 'warn' })
+    } finally {
+      await storage.refresh()
+    }
+  }
+
+  const clearLibrary = async (): Promise<void> => {
+    try {
+      await mediaDb.videos.where('origin').equals('library').delete()
+      toast('המאגר נמחק מהמכשיר')
     } catch {
       toast('המחיקה נכשלה', { tone: 'warn' })
     } finally {
@@ -334,7 +373,7 @@ export function MediaScreen(): JSX.Element {
             : `מותקנים ${installedBundled} מתוך ${VIDEO_COUNT}`}
         </p>
 
-        {installing ? (
+        {progress?.source === 'program' ? (
           <>
             <div
               className="mt-3 h-2 overflow-hidden rounded-pill bg-ink-800"
@@ -363,7 +402,7 @@ export function MediaScreen(): JSX.Element {
             fullWidth
             className="mt-4"
             disabled={missing <= 0}
-            onClick={() => void install()}
+            onClick={() => void install('program')}
           >
             {missing <= 0 ? 'הכל כבר במכשיר' : 'התקן סרטונים למכשיר'}
           </Button>
@@ -382,6 +421,85 @@ export function MediaScreen(): JSX.Element {
           </Button>
         ) : null}
       </section>
+
+      {/*
+        המאגר בכרטיס נפרד ולא כחלק מההתקנה שמעליו: הוא כבד פי כמה ומשמש ללימוד
+        בבית, לא באמצע סט. מי שרוצה רק את ההדגמות לא צריך לשלם עליו.
+      */}
+      {LIBRARY_COUNT > 0 ? (
+        <section className="card animate-rise mb-5 p-4">
+          <div className="flex items-start gap-3">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-ink-700 bg-ink-850 text-flame-400">
+              <GraduationCap size={20} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base font-extrabold text-bone-50">מאגר התרגילים</h2>
+              <p className="meta tnum mt-1">
+                {LIBRARY_CATALOG.length} תרגילים · {LIBRARY_COUNT} סרטונים ·{' '}
+                {formatBytes(LIBRARY_TOTAL_BYTES)}
+              </p>
+            </div>
+          </div>
+
+          <p className="mt-3 text-xs leading-relaxed text-bone-400">
+            סרטוני הסבר על ביצוע נכון וטעויות נפוצות. בלי התקנה הם עובדים רק מקוון.
+          </p>
+
+          <p className="tnum mt-3 text-sm font-bold text-bone-200">
+            {installedLibrary === 0
+              ? 'עוד לא הותקן אף סרטון'
+              : `מותקנים ${installedLibrary} מתוך ${LIBRARY_COUNT}`}
+          </p>
+
+          {progress?.source === 'library' ? (
+            <>
+              <div
+                className="mt-3 h-2 overflow-hidden rounded-pill bg-ink-800"
+                role="progressbar"
+                aria-label="התקדמות התקנת המאגר"
+                aria-valuenow={Math.round(percent)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <div
+                  className="h-full rounded-pill bg-flame-500 transition-[width] duration-300"
+                  style={{ width: `${Math.max(2, percent)}%` }}
+                />
+              </div>
+              <p className="tnum meta mt-2">
+                {progress.done} מתוך {progress.total}
+              </p>
+              <Button variant="ghost" size="md" fullWidth className="mt-3" onClick={cancelInstall}>
+                עצור
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="ghost"
+              size="lg"
+              fullWidth
+              className="mt-4"
+              disabled={missingLibrary <= 0 || installing}
+              onClick={() => void install('library')}
+            >
+              {missingLibrary <= 0 ? 'המאגר כבר במכשיר' : 'התקן את המאגר למכשיר'}
+            </Button>
+          )}
+
+          {installedLibrary > 0 && !installing ? (
+            <Button
+              variant="danger"
+              size="md"
+              fullWidth
+              className="mt-2"
+              icon={<Trash2 size={16} />}
+              onClick={() => void clearLibrary()}
+            >
+              מחק את המאגר מהמכשיר
+            </Button>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="mb-5">
         <h2 className="meta mb-2 px-1">סרטונים לפי תרגיל</h2>

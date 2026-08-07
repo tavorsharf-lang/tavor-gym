@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   Dumbbell,
   Film,
+  GraduationCap,
   Minus,
   Play,
   SearchX,
@@ -35,6 +36,7 @@ import {
 } from '@/db/queries'
 import { loadVideosFor, releaseVideos } from '@/db/mediaDb'
 import { videoMismatchNote } from '@/db/videoIssues'
+import { libraryFor } from '@/db/libraryLinks'
 import { prLabel } from '@/domain/prs'
 import { recommendWeight } from '@/domain/recommendation'
 import type { ExerciseSessionSummary } from '@/domain/recommendation'
@@ -357,6 +359,7 @@ export function ExerciseScreen(): JSX.Element {
 
   const { exercise, prs, history, recommendation, lastDone, duplicates } = data
   const mismatch = videoMismatchNote(exercise.id)
+  const libraryMatch = libraryFor(exercise.id)
   const apart = distinguisher(exercise, duplicates)
   const isBodyweight = exercise.weightMode === 'bodyweight'
   const heroUnit = exercise.weightMode === 'perSide' ? 'ק״ג כל צד' : 'ק״ג'
@@ -411,6 +414,25 @@ export function ExerciseScreen(): JSX.Element {
         <Section title="הדגמה">
           <MediaRow exerciseId={exercise.id} onOpen={() => setPlayerOpen(true)} />
           {mismatch ? <VideoMismatchNote note={mismatch} /> : null}
+          {/*
+            ההדגמה למעלה היא תבור מבצע את התרגיל. הקישור הזה מוביל להסבר של יוצר
+            תוכן על אותו תרגיל — טכניקה וטעויות. שני דברים שונים, ולכן שתי שורות.
+          */}
+          {libraryMatch ? (
+            <Link
+              to={`/library/${libraryMatch.id}`}
+              className="card mt-2 flex items-center gap-3 p-3 active:bg-ink-800"
+            >
+              <GraduationCap size={18} className="shrink-0 text-flame-400" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-bold text-bone-50">איך מבצעים נכון</span>
+                <span className="meta mt-0.5 block">
+                  {libraryMatch.videos.length} סרטוני הסבר במאגר
+                </span>
+              </span>
+              <ChevronLeft size={16} className="shrink-0 text-bone-600" />
+            </Link>
+          ) : null}
         </Section>
 
         {/* 2 · דגשי ביצוע — כאן הם תמיד פתוחים, זה המקום שבאים אליו ללמוד */}

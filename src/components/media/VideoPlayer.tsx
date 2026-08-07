@@ -16,14 +16,20 @@ export function VideoPlayer({
   exerciseName,
   open,
   onClose,
+  startIndex = 0,
+  labels,
 }: {
   exerciseId: string
   exerciseName: string
   open: boolean
   onClose: () => void
+  /** באיזה סרטון להיפתח. במאגר נכנסים לסרטון מסוים ולא לראשון. */
+  startIndex?: number
+  /** כותרת לכל סרטון לפי מיקומו, במקום "הדגמה N" */
+  labels?: readonly string[]
 }) {
   const [videos, setVideos] = useState<PlayableVideo[]>([])
-  const [index, setIndex] = useState(0)
+  const [index, setIndex] = useState(startIndex)
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -34,7 +40,7 @@ export function VideoPlayer({
     let cancelled = false
     setLoading(true)
     setFailed(false)
-    setIndex(0)
+    setIndex(startIndex)
 
     loadVideosFor(exerciseId).then((loaded) => {
       if (cancelled) {
@@ -51,6 +57,9 @@ export function VideoPlayer({
       releaseVideos(list)
       setVideos([])
     }
+    // startIndex לא ברשימת התלויות: הוא נקרא פעם אחת בפתיחה, וכל שינוי שלו
+    // בזמן שהנגן פתוח היה קופץ למשתמש מהסרטון שהוא צופה בו לסרטון אחר
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseId, open])
 
   // נעילת גלילת הרקע כל עוד הנגן פתוח
@@ -84,11 +93,19 @@ export function VideoPlayer({
       >
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-base font-bold text-bone-50">{exerciseName}</h2>
-          {videos.length > 1 && (
+          {/*
+            במאגר לכל סרטון יש נושא משלו — הוא מה שמזהה אותו, ולכן הוא מחליף את
+            "הדגמה N". השורה נשארת גם כשיש סרטון אחד, כי היא נושאת מידע ולא מיקום.
+          */}
+          {labels?.[index] ? (
+            <p dir="ltr" className="truncate text-end text-xs text-bone-500">
+              {labels[index]}
+            </p>
+          ) : videos.length > 1 ? (
             <p className="text-xs text-bone-500">
               הדגמה {index + 1} מתוך {videos.length}
             </p>
-          )}
+          ) : null}
         </div>
         <button
           onClick={onClose}
