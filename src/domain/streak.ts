@@ -39,7 +39,10 @@ export function computeStreak(
 
   const counts = new Map<number, number>()
   for (const s of sessions) {
-    if (s.endedAt <= 0) continue
+    // אימון שנסגר בלי אף סט עבודה לא מקדם רצף. "סיים בכל זאת" על אימון ריק
+    // הוא ויתור, ולספור אותו כשבוע-אימון הופך את הרצף למונה של פתיחות מסך.
+    // חימום נשמר ומוצג אבל לא נספר — אותו כלל בדיוק.
+    if (s.endedAt <= 0 || s.totalWorkSets <= 0) continue
     // משייכים לפי מועד ההתחלה, כמו שדה date — אימון שהתחיל בשבת בלילה
     // שייך לשבוע שבו התחיל גם אם נגמר אחרי חצות
     const week = startOfWeek(s.startedAt)

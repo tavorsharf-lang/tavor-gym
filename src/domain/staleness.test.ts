@@ -45,7 +45,8 @@ function done(routineId: RoutineId | null, daysAgo: number, blockIds: string[] =
     notes: '',
     totalVolumeKg: 0,
     totalSets: 0,
-    totalWorkSets: 0,
+    // אימון אמיתי. אפס סטי עבודה הוא מקרה נפרד שנבדק במפורש למטה.
+    totalWorkSets: 1,
   }
 }
 
@@ -89,6 +90,20 @@ describe('suggestRoutine', () => {
 
   it('בלי אף אימון — בוחר A', () => {
     expect(suggestRoutine(routineStatuses(ROUTINES, [], NOW))).toBe('A')
+  })
+
+  /**
+   * שתי תוכניות הפול-באדי הן ברירת המחדל, והרשימה הקשיחה הישנה (A/B/C) החזירה
+   * להן ‎-1 — כלומר לא הכריעה ביניהן בכלל, וההצעה נפלה על סדר האיטרציה.
+   */
+  it('מכריע גם בין תוכניות שלא ברשימה הישנה, בלי תלות בסדר ההגעה', () => {
+    const fullBody = [
+      { ...ROUTINES[0], id: 'F1' as const, order: 0 },
+      { ...ROUTINES[1], id: 'F2' as const, order: 1 },
+    ]
+    const statuses = routineStatuses(fullBody, [], NOW)
+    expect(suggestRoutine(statuses)).toBe('F1')
+    expect(suggestRoutine([...statuses].reverse())).toBe('F1')
   })
 
   it('שובר תיקו בסדר A→B→C', () => {

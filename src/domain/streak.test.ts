@@ -27,7 +27,8 @@ function at(month: number, day: number, hour = 10): Session {
     notes: '',
     totalVolumeKg: 0,
     totalSets: 0,
-    totalWorkSets: 0,
+    // אימון אמיתי. אפס סטי עבודה הוא מקרה נפרד שנבדק במפורש למטה.
+    totalWorkSets: 1,
   }
 }
 
@@ -113,5 +114,24 @@ describe('computeStreak', () => {
     expect(info.recentWeeks[7]).toMatchObject({ count: 2, met: true })
     expect(info.recentWeeks[6]).toMatchObject({ count: 1, met: false })
     expect(info.recentWeeks[5]).toMatchObject({ count: 0, met: false })
+  })
+})
+
+/**
+ * "סיים בכל זאת" על אימון בלי אף סט הוא ויתור, לא אימון. ספירה שלו הפכה את
+ * הרצף למונה של פתיחות מסך, ואיפסה את שעון ההזנחה כך שההצעה של מחר הצביעה
+ * על התוכנית הלא נכונה.
+ */
+describe('אימון ריק לא נספר', () => {
+  it('אימון בלי סטי עבודה לא מקדם את הרצף', () => {
+    const real = { ...at(8, 3), totalWorkSets: 4 }
+    const empty = { ...at(8, 4), totalWorkSets: 0 }
+    const warmupOnly = { ...at(8, 5), totalWorkSets: 0, totalSets: 2 }
+
+    // שלושה "אימונים" אבל רק אחד אמיתי — היעד השבועי לא הושג
+    expect(computeStreak([real, empty, warmupOnly], 3, NOW).thisWeekCount).toBe(1)
+
+    const allReal = [real, { ...at(8, 4), totalWorkSets: 2 }, { ...at(8, 5), totalWorkSets: 2 }]
+    expect(computeStreak(allReal, 3, NOW).thisWeekCount).toBe(3)
   })
 })

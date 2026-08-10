@@ -47,6 +47,12 @@ export interface TrendPoint {
 /** מתחת לאחוז הזה מהשבוע הקודם — הקבוצה מסומנת כמוזנחת */
 const NEGLECT_RATIO = 0.6
 
+/**
+ * מכמה ימים לתוך השבוע "אפס סטים" נחשב הזנחה ולא סתם תחילת שבוע.
+ * ארבעה ימים הם מספיק זמן כדי שמי שמתאמן שלוש פעמים בשבוע כבר יגיע לקבוצה.
+ */
+const NEGLECT_MIN_DAYS = 4
+
 /** כל קבוצת שריר מופיעה גם באפס — זו כל המטרה של הלוח */
 export function emptyGroupVolumes(): GroupVolume[] {
   return MUSCLE_GROUP_ORDER.map((group) => ({
@@ -127,7 +133,12 @@ export function weeklyBreakdown(
 export function compareWeeks(
   current: WeeklyBreakdown,
   previous: WeeklyBreakdown,
-  allGroups: readonly MuscleGroup[] = MUSCLE_GROUP_ORDER
+  allGroups: readonly MuscleGroup[] = MUSCLE_GROUP_ORDER,
+  /**
+   * כמה ימים עברו מתחילת השבוע שמוצג. חסר = שבוע שהסתיים, ולכן כל יום בו
+   * כבר חלף וסימון "לא עבדת" תמיד נכון.
+   */
+  daysIntoWeek = 7
 ): GroupComparison[] {
   const cur = new Map(current.byGroup.map((g) => [g.group, g]))
   const prev = new Map(previous.byGroup.map((g) => [g.group, g]))
@@ -147,7 +158,16 @@ export function compareWeeks(
       deltaPct:
         previousVolume > 0 ? round2(((currentVolume - previousVolume) / previousVolume) * 100) : null,
       currentSets,
-      neglected: currentSets === 0 || (previousVolume > 0 && currentVolume < previousVolume * NEGLECT_RATIO),
+      /*
+        "לא עבדת את זה" נאמר רק כשעבר מספיק מהשבוע כדי שזה יהיה נכון.
+
+        בלי הסף הזה כל יום ראשון בבוקר כל תשע הקבוצות מסומנות בכתום — השבוע
+        הקלנדרי רק התחיל — וסימון שמופיע כל שבוע ותמיד שקרי מלמד להתעלם ממנו.
+        ירידה חדה מול שבוע קודם ממשיכה להיתפס בכל יום.
+      */
+      neglected:
+        (currentSets === 0 && daysIntoWeek >= NEGLECT_MIN_DAYS) ||
+        (previousVolume > 0 && currentVolume < previousVolume * NEGLECT_RATIO),
     }
   })
 }

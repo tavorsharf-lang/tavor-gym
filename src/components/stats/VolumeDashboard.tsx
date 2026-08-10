@@ -170,9 +170,16 @@ export function VolumeDashboard(): JSX.Element {
     const previous = mergeWeeks(picks.previous.map((i) => weeks[i]))
     const from = weeks[picks.current[0]].weekStart
     const to = nextWeekStart(weeks[picks.current[picks.current.length - 1]].weekStart)
+    /*
+      כמה מהחלון המוצג כבר חלף. רק "השבוע" הוא חלקי — כל שאר הטווחים הסתיימו,
+      ולכן בהם כל יום כבר נספר. בלי זה כל יום ראשון בבוקר כל תשע הקבוצות היו
+      מסומנות "לא עבדת", סימון שתמיד שקרי ולכן מלמד להתעלם.
+    */
+    const daysIntoWindow =
+      range === 'this' ? Math.floor((Date.now() - from) / MS_DAY) + 1 : 7
     return {
       current,
-      comparisons: compareWeeks(current, previous),
+      comparisons: compareWeeks(current, previous, undefined, daysIntoWindow),
       workouts: data.sessions.filter((s) => s.startedAt >= from && s.startedAt < to).length,
       spark: weeks.map((w) => ({ label: weekLabel(w.weekStart), value: w.totalVolumeKg })),
     }

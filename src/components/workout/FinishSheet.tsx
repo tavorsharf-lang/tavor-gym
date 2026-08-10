@@ -10,6 +10,10 @@ import { useWorkout } from '@/state/activeWorkoutStore'
  *
  * האפליקציה לא נותנת לסגור אימון בשקט כשנשארו תרגילים בלי אף סט. במיוחד לא
  * כשהם נדחו כי המתקן היה תפוס — אלה בדיוק אלה שהתכוונת לחזור אליהם.
+ *
+ * אימון שאין בו אף סט בכלל מקבל טיפול שלישי: הוא לא מסתיים אלא מתבטל. סגירה
+ * שלו כאימון הייתה יוצרת שורה ריקה בהיסטוריה, מקדמת את הרצף השבועי, ומאפסת
+ * את שעון ההזנחה — כלומר משנה את ההצעה של מחר על סמך משהו שלא קרה.
  */
 
 interface FinishSheetProps {
@@ -84,6 +88,11 @@ export function FinishSheet({
     onConfirm()
   }
 
+  const logged = useWorkout((s) =>
+    s.workout ? Object.values(s.workout.setsByKey).reduce((n, list) => n + list.length, 0) : 0
+  )
+  const discard = useWorkout((s) => s.discard)
+
   const deferred = openItems.filter((q) => q.status === 'deferred')
   const pending = openItems.filter((q) => q.status !== 'deferred')
   const nameOf = (item: QueueItem): string => exercisesById[item.exerciseId]?.name ?? 'תרגיל'
@@ -103,6 +112,40 @@ export function FinishSheet({
       />
     </div>
   )
+
+  if (logged === 0) {
+    return (
+      <BottomSheet open={open} onClose={close} title="לבטל את האימון?">
+        <div className="pb-4">
+          <div className="card flex items-center gap-3 p-4">
+            <TriangleAlert size={22} className="shrink-0 text-hard-400" aria-hidden="true" />
+            <div>
+              <p className="text-base font-extrabold text-bone-50">לא נרשם אף סט</p>
+              <p className="text-sm text-bone-400">
+                אין מה לשמור בהיסטוריה. ביטול לא ייספר ברצף ולא ישנה את ההצעה למחר.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            variant="danger"
+            size="hero"
+            fullWidth
+            className="mt-6"
+            onClick={() => {
+              void discard()
+              onClose()
+            }}
+          >
+            בטל את האימון
+          </Button>
+          <Button variant="ghost" size="lg" fullWidth className="mt-2" onClick={close}>
+            חזור לאימון
+          </Button>
+        </div>
+      </BottomSheet>
+    )
+  }
 
   return (
     <BottomSheet open={open} onClose={close} title="לסיים את האימון?">

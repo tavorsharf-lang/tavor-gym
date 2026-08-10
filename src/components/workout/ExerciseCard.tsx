@@ -214,6 +214,12 @@ export function ExerciseCard({
   const exercisesById = useWorkout((s) => s.exercisesById)
   const prCache = useWorkout((s) => s.prCache)
 
+  /*
+    "עכשיו" נלכד פעם אחת לכל כרטיס. ההמלצה משתמשת בו רק כדי למדוד *ימים* מאז
+    האימון האחרון בתרגיל, ולכן ערך שמתעדכן כל שנייה היה מרנדר את מסך האימון
+    בלי שום תמורה. הכרטיס ממילא מקבל key לפי פריט התור.
+  */
+  const [now] = useState(() => Date.now())
   const [isWarmup, setIsWarmup] = useState(false)
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState<DraftSet | null>(null)
@@ -232,9 +238,10 @@ export function ExerciseCard({
           ? exercise
           : { ...exercise, seedWeightKg: item.startWeightKg },
         history,
-        item.targetReps
+        item.targetReps,
+        now
       ),
-    [exercise, history, item.targetReps, item.startWeightKg]
+    [exercise, history, item.targetReps, item.startWeightKg, now]
   )
 
   // אותו סינון שמנוע ההמלצות עושה: אימון שהיה בו רק חימום אינו "פעם קודמת"
@@ -294,13 +301,19 @@ export function ExerciseCard({
   const autoRated = useRef(false)
 
   const groups = touchedGroups(workout, exercisesById)
-  const warmupSuggestion = suggestWarmup({
+  const warmupPlan = suggestWarmup({
     exercise,
     touchedGroups: groups,
     plannedWeightKg: recommendation.weightKg ?? previousTop?.weightKg ?? exercise.seedWeightKg,
     enabled: settings.autoWarmup,
     percent: settings.warmupPercent,
   })
+  /*
+    השלב הבא ברמפה. תרגיל כבד מקבל שלושה סטים עולים, וכל סט חימום שנרשם מקדם
+    את ההצעה — כך ההצעה תמיד מדברת על מה שעכשיו ולא על מה שכבר עשית.
+  */
+  const warmupDone = sets.filter((s) => s.type === 'warmup').length
+  const warmupSuggestion = warmupPlan[warmupDone] ?? null
 
   // שיא שנרשם באימון הזה מסומן לפי רגע הסט — הרשומה נשמרת עם אותה חותמת
   const prStamps = new Set(
@@ -444,6 +457,7 @@ export function ExerciseCard({
         recommendation={recommendation}
         exercise={exercise}
         onApply={(weightKg) => setEntry((e) => ({ ...e, weightKg }))}
+        onApplyCount={(reps) => setEntry((e) => ({ ...e, reps }))}
       />
 
       {/* 5 — מה כבר תועד */}
@@ -481,7 +495,8 @@ export function ExerciseCard({
               className="flex-1 border-warmup-400/40 text-warmup-400"
               disabled={busy}
               onClick={() => {
-                void markWarmupOffered(item.key)
+                // ברמפה לא מסמנים "הוצע" — השלב הבא צריך להופיע אחרי הסט הזה
+                if (warmupDone + 1 >= warmupPlan.length) void markWarmupOffered(item.key)
                 void commitSet('warmup', warmupSuggestion.weightKg, warmupSuggestion.reps)
               }}
             >

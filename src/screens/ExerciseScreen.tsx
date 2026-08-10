@@ -30,6 +30,7 @@ import {
   getExercise,
   getExerciseHistory,
   getLastPerformedMap,
+  getPlanItemFor,
   getPrsForExercise,
   getSetsForExercise,
   searchSessions,
@@ -294,11 +295,12 @@ export function ExerciseScreen(): JSX.Element {
   const data = useLiveQuery(async () => {
     const exercise = await getExercise(exerciseId)
     if (!exercise) return null
-    const [prs, history, sessions, sets] = await Promise.all([
+    const [prs, history, sessions, sets, planItem] = await Promise.all([
       getPrsForExercise(exerciseId),
       getExerciseHistory(exerciseId, HISTORY_LIMIT),
       searchSessions({ exerciseId }),
       getSetsForExercise(exerciseId),
+      getPlanItemFor(exerciseId),
     ])
     return {
       exercise,
@@ -306,7 +308,20 @@ export function ExerciseScreen(): JSX.Element {
       prs,
       history,
       trend: exerciseTrend(exercise, sessions, sets),
-      recommendation: recommendWeight(exercise, history),
+      /*
+        נמדד מול הטווח שבתוכנית הפעילה, לא מול זה שבקטלוג.
+
+        בתוכניות החזרה הטווחים באמת שונים (‎10–12 מול ‎8–12), ובלי זה המסך הזה
+        היה מציג "נשארים" בזמן שכרטיס האימון מציג "יורדים" על אותם נתונים.
+        `now` נותן את אותו ריסון אחרי הפסקה שהכרטיס מקבל.
+      */
+      planItem,
+      recommendation: recommendWeight(
+        planItem?.startWeightKg == null ? exercise : { ...exercise, seedWeightKg: planItem.startWeightKg },
+        history,
+        planItem?.targetReps ?? exercise.targetReps,
+        Date.now()
+      ),
       // יש בקטלוג זוגות שנושאים בכוונה שם זהה — הכותרת צריכה להגיד מי מהם זה
       duplicates: duplicateNames(await getAllExercises(true)),
     }
@@ -365,7 +380,16 @@ export function ExerciseScreen(): JSX.Element {
     )
   }
 
-  const { exercise, prs, history, recommendation, lastDone, duplicates } = data
+  const { exercise, prs, history, recommendation, lastDone, duplicates, planItem } = data
+  /*
+    "היעד" מציג את מה שבאמת מתאמנים לפיו. הקטלוג הוא ברירת המחדל של תרגיל חדש,
+    אבל ברגע שהתרגיל נמצא בתוכנית — המספרים שלה הם אלה שרואים באימון.
+  */
+  const target = {
+    sets: planItem?.targetSets ?? exercise.targetSets,
+    reps: planItem?.targetReps ?? exercise.targetReps,
+    rest: planItem?.restSeconds ?? exercise.defaultRestSeconds,
+  }
   const mismatch = videoMismatchNote(exercise.id)
   /*
     הקישור נקרא מהרשומה ולא מהמפה הסטטית. מגרסה 4 `Exercise.libraryId` הוא
@@ -494,9 +518,9 @@ export function ExerciseScreen(): JSX.Element {
           <div className="card grid grid-cols-2 gap-4 p-4">
             <Fact
               label={`סטים × ${countLabel(exercise.metric)}`}
-              value={`${exercise.targetSets} × ${formatRepRange(exercise.targetReps, exercise.metric)}`}
+              value={`${target.sets} × ${formatRepRange(target.reps, exercise.metric)}`}
             />
-            <Fact label="מנוחה" value={formatClock(exercise.defaultRestSeconds)} />
+            <Fact label="מנוחה" value={formatClock(target.rest)} />
             <Fact label="מצב משקל" value={WEIGHT_MODE_LABELS[exercise.weightMode]} />
             <Fact
               label="קפיצת משקל"

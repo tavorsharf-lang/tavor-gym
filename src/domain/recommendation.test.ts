@@ -88,11 +88,25 @@ const CASES: Case[] = [
     expected: { action: 'none', weightKg: null, tone: 'neutral' },
   },
   {
-    name: 'תרגיל משקל גוף — אין המלצת משקל',
+    name: 'משקל גוף שהגיע לראש הטווח — יעד קונקרטי גבוה יותר',
     exercise: makeExercise({ weightMode: 'bodyweight', weightIncrementKg: 0, seedWeightKg: null }),
     history: [makeSession('s1', 1000, [[0, 15]], rate(1))],
+    expected: { action: 'increase', weightKg: null, tone: 'up' },
+    reasonIncludes: ['13'],
+  },
+  {
+    name: 'משקל גוף מתחת לראש הטווח — היעד הוא הסט הטוב של הפעם הקודמת',
+    exercise: makeExercise({ weightMode: 'bodyweight', weightIncrementKg: 0, seedWeightKg: null }),
+    history: [makeSession('s1', 1000, [[0, 9], [0, 7]], rate(2))],
+    expected: { action: 'hold', weightKg: null, tone: 'steady' },
+    reasonIncludes: ['9'],
+  },
+  {
+    name: 'משקל גוף בלי היסטוריה — היעד הוא תחתית הטווח',
+    exercise: makeExercise({ weightMode: 'bodyweight', weightIncrementKg: 0, seedWeightKg: null }),
+    history: [],
     expected: { action: 'none', weightKg: null, tone: 'neutral' },
-    reasonIncludes: ['משקל גוף'],
+    reasonIncludes: ['8'],
   },
   {
     name: 'ראש הטווח בדירוג קל — עולים קפיצה אחת',
@@ -399,5 +413,99 @@ describe('טווח החזרות של התוכנית גובר על זה שבקט�
 
     expect(lastWorkedSession([warmupOnly, real])?.sessionId).toBe('s1')
     expect(lastWorkedSession([])).toBeNull()
+  })
+})
+
+const DAY = 86_400_000
+
+/**
+ * המנוע היה עיוור לזמן: אימון אחרון מלפני חודשיים טופל בדיוק כמו מלפני יומיים.
+ * באפליקציה שכל הרעיון שלה הוא חזרה הדרגתית אחרי הפסקה, זו בדיוק הטעות שהיא
+ * באה למנוע — "הגעת לראש הטווח, עולים ל-65" אחרי חופשה.
+ */
+describe('ריסון אחרי הפסקה', () => {
+  const exercise = makeExercise()
+  const topSets = makeSession('s1', 1000, TOP_SETS, rate(1))
+
+  it('בלי now המנוע מתנהג כמו קודם', () => {
+    expect(recommendWeight(exercise, [topSets]).action).toBe('increase')
+  })
+
+  it('שבוע אחרי — עדיין עולים', () => {
+    const now = 1000 + 7 * DAY
+    expect(recommendWeight(exercise, [topSets], undefined, now).action).toBe('increase')
+  })
+
+  it('שלושה שבועות — יורדים מדרגה במקום לעלות', () => {
+    const now = 1000 + 22 * DAY
+    const r = recommendWeight(exercise, [topSets], undefined, now)
+    expect(r.action).toBe('decrease')
+    // 60 → 90% → 54 → מעוגל כלפי מטה לקפיצה של 2.5
+    expect(r.weightKg).toBe(52.5)
+    expect(r.reason).toContain('שבועות')
+  })
+
+  it('חודשיים — יורדים הרבה יותר', () => {
+    const now = 1000 + 60 * DAY
+    const r = recommendWeight(exercise, [topSets], undefined, now)
+    expect(r.action).toBe('decrease')
+    expect(r.weightKg).toBe(45)
+  })
+
+  it('לא יורד מתחת לקפיצה אחת', () => {
+    const light = makeExercise({ weightIncrementKg: 5 })
+    const session = makeSession('s1', 1000, [[5, 12], [5, 12], [5, 12]], rate(1))
+    const r = recommendWeight(light, [session], undefined, 1000 + 90 * DAY)
+    expect(r.weightKg).toBe(5)
+  })
+})
+
+/**
+ * האפליקציה עצמה מעודדת ניסיון שיא — היא חוגגת maxWeight בקונפטי באמצע הסט.
+ * הסינגל הזה נרשם כסט עבודה (אין סוג אחר), והוא היה מוריד את "הסט הנמוך"
+ * מתחת לטווח: המלצת עלייה הפכה להקפאה, ופעמיים ברצף להורדת 10%.
+ */
+describe('סטים חריגים לא שוברים את ההמלצה', () => {
+  const exercise = makeExercise({ targetReps: { min: 8, max: 12 } })
+
+  it('ניסיון שיא כבד בסוף לא מבטל עלייה', () => {
+    const session = makeSession(
+      's1',
+      1000,
+      [
+        [60, 12],
+        [60, 12],
+        [60, 12],
+        [70, 3],
+      ],
+      rate(1)
+    )
+    const r = recommendWeight(exercise, [session])
+    expect(r.action).toBe('increase')
+  })
+
+  it('דרופסט קל בסוף לא מבטל עלייה', () => {
+    const session = makeSession(
+      's1',
+      1000,
+      [
+        [60, 12],
+        [60, 12],
+        [40, 8],
+      ],
+      rate(1)
+    )
+    expect(recommendWeight(exercise, [session]).action).toBe('increase')
+  })
+
+  it('שני אימונים עם סינגל שיא לא מייצרים הורדת 10%', () => {
+    const older = makeSession('s1', 1000, [[60, 12], [60, 12], [80, 2]], rate(1))
+    const newer = makeSession('s2', 2000, [[60, 12], [60, 12], [80, 2]], rate(1))
+    expect(recommendWeight(exercise, [older, newer]).action).toBe('increase')
+  })
+
+  it('נפילה אמיתית במשקל העבודה עדיין נתפסת', () => {
+    const session = makeSession('s1', 1000, [[60, 12], [60, 6], [70, 3]], rate(2))
+    expect(recommendWeight(exercise, [session]).action).toBe('hold')
   })
 })

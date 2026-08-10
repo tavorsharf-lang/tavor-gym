@@ -38,7 +38,7 @@ function makeContext(over: Partial<WarmupContext> = {}): WarmupContext {
 }
 
 describe('suggestWarmup — מתי לא מציעים', () => {
-  const NULL_CASES: { name: string; ctx: WarmupContext }[] = [
+  const EMPTY_CASES: { name: string; ctx: WarmupContext }[] = [
     { name: 'ההגדרה כבויה', ctx: makeContext({ enabled: false }) },
     {
       name: 'כבר עבדנו על קבוצת השריר הזו באימון',
@@ -54,66 +54,127 @@ describe('suggestWarmup — מתי לא מציעים', () => {
     { name: 'משקל עבודה אפס', ctx: makeContext({ plannedWeightKg: 0 }) },
   ]
 
-  for (const c of NULL_CASES) {
+  for (const c of EMPTY_CASES) {
     it(c.name, () => {
-      expect(suggestWarmup(c.ctx)).toBeNull()
+      expect(suggestWarmup(c.ctx)).toEqual([])
     })
   }
 
   it('קבוצת שריר אחרת שכבר נגענו בה לא חוסמת', () => {
     const ctx = makeContext({ touchedGroups: new Set<MuscleGroup>(['back', 'biceps']) })
-    expect(suggestWarmup(ctx)).not.toBeNull()
+    expect(suggestWarmup(ctx).length).toBeGreaterThan(0)
   })
 })
 
-describe('suggestWarmup — ההצעה עצמה', () => {
+/** תרגיל שאינו כבד מספיק לרמפה — סט אחד, כמו שהיה תמיד */
+function lightContext(over: Partial<WarmupContext> = {}): WarmupContext {
+  return makeContext({ exercise: makeExercise({ muscleGroup: 'shoulders' }), ...over })
+}
+
+describe('suggestWarmup — סט אחד לתרגיל שאינו כבד', () => {
   it('55% מ-60 מתעגל למטה לקפיצה של 2.5', () => {
-    const s = suggestWarmup(makeContext())
-    expect(s).not.toBeNull()
-    expect(s?.weightKg).toBe(32.5) // 33 → 32.5
-    expect(s?.reps).toBe(12)
-    expect(s?.reason).toContain('לחזה')
-    expect(s?.reason).toContain('55%')
+    const [s, ...rest] = suggestWarmup(lightContext())
+    expect(rest).toEqual([])
+    expect(s.weightKg).toBe(32.5) // 33 → 32.5
+    expect(s.reps).toBe(12)
+    expect(s.reason).toContain('לכתפיים')
+    expect(s.reason).toContain('55%')
   })
 
   it('לא יורדים מתחת לקפיצה אחת', () => {
-    const s = suggestWarmup(makeContext({ plannedWeightKg: 2.5, percent: 10 }))
-    expect(s?.weightKg).toBe(2.5)
+    const [s] = suggestWarmup(lightContext({ plannedWeightKg: 2.5, percent: 10 }))
+    expect(s.weightKg).toBe(2.5)
   })
 
   it('חזרות מוגבלות לתקרה של 15', () => {
-    const s = suggestWarmup(
-      makeContext({ exercise: makeExercise({ targetReps: { min: 12, max: 20 } }) })
+    const [s] = suggestWarmup(
+      lightContext({
+        exercise: makeExercise({ muscleGroup: 'shoulders', targetReps: { min: 12, max: 20 } }),
+      })
     )
-    expect(s?.reps).toBe(15)
+    expect(s.reps).toBe(15)
   })
 
   it('חזרות מוגבלות לרצפה של 8', () => {
-    const s = suggestWarmup(
-      makeContext({ exercise: makeExercise({ targetReps: { min: 3, max: 5 } }) })
+    const [s] = suggestWarmup(
+      lightContext({
+        exercise: makeExercise({ muscleGroup: 'shoulders', targetReps: { min: 3, max: 5 } }),
+      })
     )
-    expect(s?.reps).toBe(8)
+    expect(s.reps).toBe(8)
   })
 
   it('perSide — המשקל נשאר ביחידות המכונה', () => {
-    const s = suggestWarmup(
+    const [s] = suggestWarmup(
       makeContext({
         exercise: makeExercise({ muscleGroup: 'back', weightMode: 'perSide' }),
         plannedWeightKg: 22.5,
       })
     )
-    expect(s?.weightKg).toBe(10) // 12.375 → 10 כלפי מטה על רשת 2.5
-    expect(s?.reason).toContain('לגב')
+    expect(s.weightKg).toBe(10) // 12.375 → 10 כלפי מטה על רשת 2.5
+    expect(s.reason).toContain('לגב')
   })
 
-  it('קפיצות של 5 ק״ג נוחתות על הרשת', () => {
-    const s = suggestWarmup(
+  it('תרגיל כבד בקבוצה קטנה עדיין מקבל סט אחד', () => {
+    const plan = suggestWarmup(
       makeContext({
-        exercise: makeExercise({ weightIncrementKg: 5 }),
-        plannedWeightKg: 100,
+        exercise: makeExercise({ muscleGroup: 'calves', weightIncrementKg: 5 }),
+        plannedWeightKg: 180,
       })
     )
-    expect(s?.weightKg).toBe(55)
+    expect(plan.length).toBe(1)
+  })
+
+  it('כבלים לא מקבלים רמפה', () => {
+    const plan = suggestWarmup(
+      makeContext({
+        exercise: makeExercise({ muscleGroup: 'back', equipment: 'cables', weightIncrementKg: 5 }),
+        plannedWeightKg: 150,
+      })
+    )
+    expect(plan.length).toBe(1)
+  })
+})
+
+/**
+ * לחיצת רגליים ב-160: קפיצה מסט חימום בודד ישר למשקל העבודה דלה מקצועית —
+ * מה שצריך הכנה שם הוא המפרק ומערכת העצבים, לא השריר.
+ */
+describe('suggestWarmup — רמפה לתרגיל מורכב כבד', () => {
+  const legPress = makeContext({
+    exercise: makeExercise({ muscleGroup: 'legs', weightIncrementKg: 5 }),
+    plannedWeightKg: 160,
+  })
+
+  it('שלושה סטים עולים במשקל ויורדים בחזרות', () => {
+    const plan = suggestWarmup(legPress)
+    // 40/60/80 אחוז מ-160, כל אחד מעוגל כלפי מטה לרשת של 5
+    expect(plan.map((s) => s.weightKg)).toEqual([60, 95, 125])
+    expect(plan.map((s) => s.reps)).toEqual([10, 6, 3])
+  })
+
+  it('כל שלב כבד מקודמו, והאחרון עדיין קל ממשקל העבודה', () => {
+    const plan = suggestWarmup(legPress)
+    for (let i = 1; i < plan.length; i++) {
+      expect(plan[i].weightKg).toBeGreaterThan(plan[i - 1].weightKg)
+    }
+    expect(plan[plan.length - 1].weightKg).toBeLessThan(160)
+  })
+
+  it('הנימוק של הראשון מסביר שזו רמפה ולאיזה שריר', () => {
+    const plan = suggestWarmup(legPress)
+    expect(plan[0].reason).toContain('רמפ')
+    expect(plan[0].reason).toContain('לרגליים')
+  })
+
+  it('ציוד עם קפיצה גסה לא מייצר שני שלבים באותו משקל', () => {
+    const plan = suggestWarmup(
+      makeContext({
+        exercise: makeExercise({ muscleGroup: 'legs', weightIncrementKg: 20 }),
+        plannedWeightKg: 400,
+      })
+    )
+    expect(new Set(plan.map((s) => s.weightKg)).size).toBe(plan.length)
   })
 })
 
@@ -123,19 +184,22 @@ describe('groupsTouchedFrom', () => {
     'lat-pulldown': 'back',
     'db-curl': 'biceps',
   }
-  const lookup = (id: string): MuscleGroup | undefined => GROUP_OF[id]
+  const groupOf = (id: string): MuscleGroup | undefined => GROUP_OF[id]
 
-  it('אוסף קבוצות ייחודיות ומתעלם ממזהים לא מוכרים', () => {
+  it('אוסף את הקבוצות של הסטים שתועדו, בלי כפילות', () => {
     const sets = [
       { exerciseId: 'bench-press' },
       { exerciseId: 'bench-press' },
-      { exerciseId: 'db-curl' },
-      { exerciseId: 'unknown-exercise' },
+      { exerciseId: 'lat-pulldown' },
     ]
-    expect(groupsTouchedFrom(sets, lookup)).toEqual(new Set<MuscleGroup>(['chest', 'biceps']))
+    expect(groupsTouchedFrom(sets, groupOf)).toEqual(new Set(['chest', 'back']))
   })
 
-  it('רשימה ריקה מחזירה קבוצה ריקה', () => {
-    expect(groupsTouchedFrom([], lookup).size).toBe(0)
+  it('מתעלם מתרגיל שאינו בקטלוג', () => {
+    expect(groupsTouchedFrom([{ exerciseId: 'אין-כזה' }], groupOf)).toEqual(new Set())
+  })
+
+  it('בלי סטים — קבוצה ריקה', () => {
+    expect(groupsTouchedFrom([], groupOf)).toEqual(new Set())
   })
 })

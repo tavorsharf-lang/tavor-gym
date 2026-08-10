@@ -8,7 +8,13 @@ import type {
   WeightMode,
 } from '@/db/types'
 import { RATING_LABELS, RIR_LABELS } from '@/db/types'
-import { formatSetShort, formatWeight, roundToIncrement, weightStep } from '@/domain/units'
+import {
+  formatClock,
+  formatSetShort,
+  formatWeight,
+  roundToIncrement,
+  weightStep,
+} from '@/domain/units'
 import { workSets, workingWeight } from '@/domain/volume'
 
 /**
@@ -38,10 +44,46 @@ export interface WeightRecommendation {
   action: RecommendationAction
   /** ביחידות המכונה — לעולם לא מוכפל */
   weightKg: number | null
+  /**
+   * היעד לשדה הספירה, כשההמלצה יודעת לנקוב בו.
+   *
+   * קיים בשביל תרגילי משקל גוף, שבהם אין משקל להציע אבל כן יש מה לכוון אליו —
+   * "פעם קודמת 20, נסה 22". בתרגיל זמן זה מספר שניות.
+   */
+  targetCount?: number | null
   /** משפט עברי אחד עם המספרים האמיתיים */
   reason: string
   /** להדגשה ויזואלית */
   tone: 'up' | 'steady' | 'down' | 'neutral'
+}
+
+/**
+ * מעל כמה ימים בלי לגעת בתרגיל ההמלצה מתרסנת.
+ *
+ * הגידים והרצועות מאבדים הסתגלות מהר יותר מהשריר, ולכן חזרה למשקל שהיה היא
+ * הרגע המסוכן ביותר. אחרי שלושה שבועות יורדים מדרגה, ואחרי חודשיים יורדים
+ * הרבה — שני המספרים הם נוהג מקובל ולא נוסחה.
+ */
+const LAYOFF_DAYS = 21
+const LONG_LAYOFF_DAYS = 56
+const DAY_MS = 86_400_000
+
+function daysBetween(from: number, to: number): number {
+  return Math.floor((to - from) / DAY_MS)
+}
+
+/**
+ * הסטים שבוצעו במשקל העבודה בלבד.
+ *
+ * `workingWeight` כבר עמיד לחריגים (הוא המשקל השכיח), אבל בדיקת הטווח רצה על
+ * *כל* הסטים — ולכן ניסיון שיא של סינגל כבד, או דרופסט קל בסוף, נראו כמו
+ * "הסט הנמוך היה 3 חזרות" והפכו המלצת עלייה להקפאה. פעמיים ברצף זה הוריד
+ * 10% דווקא כשהמתאמן מתחזק. סט נחשב רק אם הוא בטווח קפיצה אחת ממשקל העבודה.
+ */
+function atWorkingWeight(sets: readonly SetLog[], ref: number, increment: number): SetLog[] {
+  const tolerance = (increment > 0 ? increment : 2.5) + 1e-9
+  const kept = sets.filter((s) => Math.abs(s.weightKg - ref) <= tolerance)
+  return kept.length > 0 ? kept : [...sets]
 }
 
 /**
@@ -67,30 +109,82 @@ export function lastWorkedSession(
   return usableHistory(history)[0] ?? null
 }
 
-function belowBottom(summary: ExerciseSessionSummary, min: number): boolean {
-  return workSets(summary.sets).some((s) => s.reps < min)
+function belowBottom(summary: ExerciseSessionSummary, min: number, increment: number): boolean {
+  const sets = workSets(summary.sets)
+  const ref = workingWeight(sets)
+  if (ref === null) return false
+  return atWorkingWeight(sets, ref, increment).some((s) => s.reps < min)
+}
+
+/**
+ * מה לכוון אליו בתרגיל משקל גוף.
+ *
+ * אין כאן משקל להציע, ולכן המנוע שתק — ובפול-באדי זה אומר ששני תרגילים בכל
+ * אימון (שכיבות סמיכה ופלאנק) לא מקבלים שום כיוון. יעד קונקרטי מהפעם הקודמת
+ * הוא בדיוק מה שהופך "עוד חזרות" מסיסמה למספר.
+ */
+function bodyweightGoal(
+  exercise: Exercise,
+  history: readonly ExerciseSessionSummary[],
+  targetReps: RepRange
+): WeightRecommendation {
+  const timed = exercise.metric === 'seconds'
+  const unit = (n: number): string => (timed ? formatClock(n) : String(n))
+  const verb = timed ? 'להחזיק' : 'לעשות'
+
+  const last = lastWorkedSession(history)
+  const sets = last ? workSets(last.sets) : []
+  if (sets.length === 0) {
+    return {
+      action: 'none',
+      weightKg: null,
+      targetCount: targetReps.min,
+      reason: timed
+        ? `אין עדיין היסטוריה — היעד הוא ${unit(targetReps.min)}`
+        : `אין עדיין היסטוריה — היעד הוא ${targetReps.min} חזרות`,
+      tone: 'neutral',
+    }
+  }
+
+  const best = sets.reduce((m, s) => Math.max(m, s.reps), 0)
+  const step = timed ? 5 : 1
+
+  // כל הסטים הגיעו לראש הטווח — מותר לבקש יותר
+  if (sets.every((s) => s.reps >= targetReps.max)) {
+    const next = targetReps.max + step
+    return {
+      action: 'increase',
+      weightKg: null,
+      targetCount: next,
+      reason: `הגעת ל-${unit(targetReps.max)} בכל הסטים — נסה ${verb} ${unit(next)}`,
+      tone: 'up',
+    }
+  }
+
+  return {
+    action: 'hold',
+    weightKg: null,
+    targetCount: best,
+    reason: `פעם קודמת ${unit(best)} בסט הטוב — היעד היום ${verb} לפחות כמו זה`,
+    tone: 'steady',
+  }
 }
 
 /**
  * @param targetReps טווח החזרות שבאמת עובדים לפיו. במסך האימון זה הטווח
  *   שבתוכנית, שיכול להיות שונה מזה שבקטלוג — בלי הפרמטר הזה ההמלצה הייתה
  *   מודדת מול טווח אחר מזה שמוצג על המסך.
+ * @param now חותמת הזמן של עכשיו, לריסון אחרי הפסקה. בלעדיה המנוע עיוור לזמן
+ *   ויציע לעלות במשקל גם אחרי חודשיים בלי לגעת בתרגיל.
  */
 export function recommendWeight(
   exercise: Exercise,
   history: readonly ExerciseSessionSummary[],
-  targetReps: RepRange = exercise.targetReps
+  targetReps: RepRange = exercise.targetReps,
+  now?: number
 ): WeightRecommendation {
   if (exercise.weightMode === 'bodyweight') {
-    return {
-      action: 'none',
-      weightKg: null,
-      reason:
-        exercise.metric === 'seconds'
-          ? 'תרגיל זמן — המטרה היא להחזיק עוד'
-          : 'תרגיל משקל גוף — המטרה היא עוד חזרות',
-      tone: 'neutral',
-    }
+    return bodyweightGoal(exercise, history, targetReps)
   }
 
   const mode: WeightMode = exercise.weightMode
@@ -114,8 +208,36 @@ export function recommendWeight(
     }
   }
 
+  /*
+    הפסקה גוברת על כל השאר.
+
+    זה נבדק לפני החזרות והדירוג בכוונה: מה שקרה לפני חודשיים תיאר את הגוף של
+    אז. באפליקציה שכל הרעיון שלה הוא חזרה הדרגתית אחרי הפסקה, המלצה לעלות
+    במשקל אחרי חופשה היא בדיוק הטעות שהיא באה למנוע.
+  */
+  if (now !== undefined) {
+    const days = daysBetween(last.startedAt, now)
+    if (days >= LAYOFF_DAYS) {
+      const long = days >= LONG_LAYOFF_DAYS
+      const eased = Math.max(
+        increment,
+        roundToIncrement(ref * (long ? 0.75 : 0.9), increment, 'down')
+      )
+      const weeks = Math.round(days / 7)
+      return {
+        action: 'decrease',
+        weightKg: eased,
+        reason: long
+          ? `לא עשית את זה כבר ${weeks} שבועות — מתחילים מ-${formatWeight(eased, mode)} ובונים בחזרה`
+          : `עברו ${weeks} שבועות מאז — יורדים ל-${formatWeight(eased, mode)} ובודקים איך זה מרגיש`,
+        tone: 'down',
+      }
+    }
+  }
+
   const holdWeight = roundToIncrement(ref, increment)
-  const sets = workSets(last.sets)
+  // הטווח נמדד רק על סטי משקל העבודה — ראה atWorkingWeight
+  const sets = atWorkingWeight(workSets(last.sets), ref, increment)
   const lowestReps = sets.reduce((m, s) => Math.min(m, s.reps), Infinity)
   const hitTopAll = sets.every((s) => s.reps >= max)
   const missedBottom = lowestReps < min
@@ -130,7 +252,7 @@ export function recommendWeight(
       : null
 
   const previous = sessions[1]
-  if (missedBottom && previous && belowBottom(previous, min)) {
+  if (missedBottom && previous && belowBottom(previous, min, increment)) {
     // לא נותנים לשבוע גרוע להפוך לחודש גרוע — דלוד של 10%
     const dropped = Math.max(increment, roundToIncrement(ref * 0.9, increment, 'down'))
     return {

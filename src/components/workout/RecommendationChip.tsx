@@ -28,14 +28,25 @@ export function RecommendationChip({
   recommendation,
   exercise,
   onApply,
+  onApplyCount,
 }: {
   recommendation: WeightRecommendation
   exercise: Exercise
   onApply: (weightKg: number) => void
+  /** מילוי היעד בשדה הספירה — תרגילי משקל גוף, שאין להם משקל להציע */
+  onApplyCount?: (count: number) => void
 }): JSX.Element {
   const weight = recommendation.weightKg
-  // בלי משקל אין מה למלא — נשארת רק המשפט עצמו
-  const canApply = weight !== null && exercise.weightMode !== 'bodyweight'
+  const count = recommendation.targetCount ?? null
+  const bodyweight = exercise.weightMode === 'bodyweight'
+  // מה בדיוק ימולא בלחיצה. בלי אף אחד מהם נשאר רק המשפט עצמו.
+  const fill: (() => void) | null =
+    !bodyweight && weight !== null
+      ? () => onApply(weight)
+      : bodyweight && count !== null && onApplyCount
+        ? () => onApplyCount(count)
+        : null
+  const canApply = fill !== null
 
   const body = (
     <>
@@ -59,7 +70,7 @@ export function RecommendationChip({
   return (
     <button
       type="button"
-      onClick={() => onApply(weight)}
+      onClick={fill}
       className="btn-ghost mt-3 flex min-h-14 w-full items-center gap-2.5 rounded-card px-3 py-2"
     >
       {body}

@@ -7,6 +7,7 @@ import type {
   ExerciseRating,
   MuscleGroup,
   PersonalRecord,
+  PlanItem,
   Routine,
   RoutineId,
   Session,
@@ -109,6 +110,22 @@ export async function getRoutines(): Promise<Routine[]> {
  * רק התוכניות שפעילות עכשיו — זה מה שמסך הבית ובחירת האימון עובדים איתו.
  * בלי הסינון הזה, "מה מתאמנים היום" היה מערבב פול-באדי עם פיצול.
  */
+/**
+ * פריט התוכנית הפעילה שמתאר את התרגיל הזה, אם הוא נמצא באחת מהן.
+ *
+ * מסך התרגיל מציג "המלצה להיום" ו"היעד", ובלי זה הוא מדד אותם מול הטווח
+ * שבקטלוג בזמן שכרטיס האימון מודד מול הטווח שבתוכנית — שני מסכים שאומרים
+ * דברים שונים על אותם נתונים. הבלוקים נכללים כי גם הם מגדירים יעד לתרגיל.
+ */
+export async function getPlanItemFor(exerciseId: string): Promise<PlanItem | null> {
+  const [routines, blocks] = await Promise.all([getActiveRoutines(), getBlocks()])
+  for (const plan of [...routines, ...blocks]) {
+    const item = plan.items.find((i) => i.exerciseId === exerciseId)
+    if (item) return item
+  }
+  return null
+}
+
 export async function getActiveRoutines(): Promise<Routine[]> {
   const all = await db.routines.orderBy('order').toArray()
   const active = all.filter((r) => r.isActive)
