@@ -29,7 +29,7 @@ import {
   getAllExercises,
   getExercise,
   getExerciseHistory,
-  getLastPerformedMap,
+  lastPerformedFrom,
   getPlanItemFor,
   getPrsForExercise,
   getSetsForExercise,
@@ -66,6 +66,15 @@ import { TrendChart } from '@/components/charts/lazy'
 
 /** מספיק גדול כדי לכסות כל היסטוריה סבירה, בלי לשלוף הכל בלי גבול */
 const HISTORY_LIMIT = 200
+
+/**
+ * כמה שורות היסטוריה מרונדרות לפני "הצג הכל".
+ *
+ * השליפה נשארת מלאה — הגרפים והשיאים צריכים אותה — אבל ה-DOM לא: תרגיל ותיק
+ * ייצר עד 200 שורות שכל אחת מרנדרת שבבי סטים, מאות אלמנטים מתחת לקפל, בזמן
+ * שנכנסים למסך בשביל "כמה אני עושה בזה" שנמצא למעלה.
+ */
+const HISTORY_PAGE = 15
 
 const PR_ORDER: PrKind[] = ['maxWeight', 'repsAtMaxWeight', 'maxReps', 'maxSessionVolume']
 
@@ -290,6 +299,7 @@ export function ExerciseScreen(): JSX.Element {
   const { exerciseId = '' } = useParams<{ exerciseId: string }>()
   const navigate = useNavigate()
   const [playerOpen, setPlayerOpen] = useState(false)
+  const [showAllHistory, setShowAllHistory] = useState(false)
 
   // null = התרגיל לא קיים · undefined = עוד נטען
   const data = useLiveQuery(async () => {
@@ -304,7 +314,8 @@ export function ExerciseScreen(): JSX.Element {
     ])
     return {
       exercise,
-      lastDone: (await getLastPerformedMap()).get(exerciseId) ?? null,
+      // מהסטים שכבר נשלפו, במקום סריקה של כל טבלת הסטים בשביל שורה אחת
+      lastDone: lastPerformedFrom(sets),
       prs,
       history,
       trend: exerciseTrend(exercise, sessions, sets),
@@ -637,7 +648,7 @@ export function ExerciseScreen(): JSX.Element {
             {/* 7 · היסטוריה מלאה */}
             <Section title="היסטוריה מלאה">
               <div className="space-y-2.5">
-                {history.map((entry) => (
+                {(showAllHistory ? history : history.slice(0, HISTORY_PAGE)).map((entry) => (
                   <HistoryRow
                     key={entry.sessionId}
                     entry={entry}
@@ -645,6 +656,15 @@ export function ExerciseScreen(): JSX.Element {
                     onOpen={() => navigate(`/history/${entry.sessionId}`)}
                   />
                 ))}
+                {!showAllHistory && history.length > HISTORY_PAGE ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllHistory(true)}
+                    className="btn-ghost flex min-h-14 w-full items-center justify-center rounded-card text-sm font-bold"
+                  >
+                    <span className="tnum">הצג את כל {history.length} האימונים</span>
+                  </button>
+                ) : null}
               </div>
             </Section>
           </>

@@ -2,8 +2,7 @@ import { useMemo, useState } from 'react'
 import type { JSX } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ArrowDown, ArrowUp, Flame, Minus } from 'lucide-react'
-import { db } from '@/db/db'
-import { getAllExercises, getFinishedSessions } from '@/db/queries'
+import { getAllExercises, getSessionsSince } from '@/db/queries'
 import type { GroupVolume, WeeklyBreakdown } from '@/domain/stats'
 import { compareWeeks, emptyGroupVolumes, weeklyBreakdown } from '@/domain/stats'
 import { formatVolume } from '@/domain/units'
@@ -147,9 +146,16 @@ export function VolumeDashboard(): JSX.Element {
   const [range, setRange] = useState<RangeKey>('this')
 
   const data = useLiveQuery(async () => {
-    const [sessions, sets, exercises] = await Promise.all([
-      getFinishedSessions(),
-      db.setLogs.toArray(),
+    /*
+      רק החלון שמוצג, ולא כל ההיסטוריה.
+
+      הלוח מסתכל שמונה שבועות אחורה, אבל קודם נטענה כל טבלת הסטים לזיכרון —
+      אחרי שלוש שנות אימון אלה אלפי רשומות בכל כניסה למסך, וזה גדל ליניארית.
+      שבוע נוסף אחורה כי `previousWeekStart` צריך בסיס להשוואה.
+    */
+    const from = weekChain(startOfWeek(Date.now()), WEEKS_BACK + 1)[0]
+    const [{ sessions, sets }, exercises] = await Promise.all([
+      getSessionsSince(from),
       // כולל תרגילים שהוצאו מהקטלוג — אחרת נפח היסטורי היה נעלם מהקבוצה שלו
       getAllExercises(true),
     ])

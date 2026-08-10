@@ -84,19 +84,33 @@ export async function getLastPerformedMap(): Promise<Map<string, LastPerformed>>
 
   const out = new Map<string, LastPerformed>()
   for (const [exerciseId, sets] of byExercise) {
-    const latest = sets.reduce((a, b) => (b.completedAt > a.completedAt ? b : a))
-    // רק הסטים מאותו אימון — "כמה אני עושה" זה המשקל של הפעם האחרונה, לא שיא
-    const sameSession = sets.filter((s) => s.sessionId === latest.sessionId)
-    const weightKg = workingWeight(sameSession) ?? latest.weightKg
-    const atWeight = sameSession.filter((s) => s.weightKg === weightKg)
-    out.set(exerciseId, {
-      weightKg,
-      reps: atWeight.length ? Math.max(...atWeight.map((s) => s.reps)) : latest.reps,
-      at: latest.completedAt,
-      sets: sameSession.length,
-    })
+    const summary = lastPerformedFrom(sets)
+    if (summary) out.set(exerciseId, summary)
   }
   return out
+}
+
+/**
+ * אותו חישוב, על סטים של תרגיל אחד שכבר נשלפו.
+ *
+ * מסך התרגיל קרא ל-`getLastPerformedMap` — סריקה של *כל* טבלת הסטים — רק כדי
+ * לשלוף ממנה שורה אחת, בתוך useLiveQuery שרץ מחדש על כל כתיבה. אחרי שלוש שנות
+ * אימון זו סריקה של אלפי רשומות בכל פתיחת מסך, וכל המידע ממילא כבר ביד.
+ */
+export function lastPerformedFrom(sets: readonly SetLog[]): LastPerformed | null {
+  const work = sets.filter((s) => s.type === 'work')
+  if (!work.length) return null
+  const latest = work.reduce((a, b) => (b.completedAt > a.completedAt ? b : a))
+  // רק הסטים מאותו אימון — "כמה אני עושה" זה המשקל של הפעם האחרונה, לא שיא
+  const sameSession = work.filter((s) => s.sessionId === latest.sessionId)
+  const weightKg = workingWeight(sameSession) ?? latest.weightKg
+  const atWeight = sameSession.filter((s) => s.weightKg === weightKg)
+  return {
+    weightKg,
+    reps: atWeight.length ? Math.max(...atWeight.map((s) => s.reps)) : latest.reps,
+    at: latest.completedAt,
+    sets: sameSession.length,
+  }
 }
 
 // ─── תוכניות ובלוקים ───────────────────────────────────────────────────────
@@ -155,6 +169,27 @@ export async function getFinishedSessions(limit?: number): Promise<Session[]> {
   const all = await db.sessions.orderBy('startedAt').reverse().toArray()
   const finished = all.filter((s) => s.endedAt > 0)
   return limit === undefined ? finished : finished.slice(0, limit)
+}
+
+/**
+ * אימונים שנסגרו מתאריך מסוים והלאה, עם הסטים שלהם — בשאילתה ממוקדת.
+ *
+ * לוח הנפח מסתכל על שמונה שבועות אחורה, אבל טען את *כל* טבלת הסטים לזיכרון
+ * ואת כל האימונים כדי לחשב אותם. אחרי שלוש שנות אימון אלה אלפי רשומות שנקראות
+ * בכל כניסה למסך הנתונים, וזה גדל ליניארית לנצח. האינדקס על startedAt כבר קיים.
+ */
+export async function getSessionsSince(
+  from: number
+): Promise<{ sessions: Session[]; sets: SetLog[] }> {
+  const sessions = (await db.sessions.where('startedAt').aboveOrEqual(from).toArray()).filter(
+    (s) => s.endedAt > 0
+  )
+  if (!sessions.length) return { sessions, sets: [] }
+  const sets = await db.setLogs
+    .where('sessionId')
+    .anyOf(sessions.map((s) => s.id))
+    .toArray()
+  return { sessions, sets }
 }
 
 export async function getSession(id: string): Promise<Session | undefined> {

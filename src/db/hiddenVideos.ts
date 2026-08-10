@@ -28,6 +28,16 @@ function publish(next: ReadonlySet<string>): void {
   for (const listener of listeners) listener()
 }
 
+/**
+ * הרשימה כפי שהיא כרגע בזיכרון, בלי להמתין. null = עוד לא נטענה.
+ *
+ * קיים בשביל רינדור סינכרוני: `VideoThumb` מציג את הפוסטר מהמניפסט מיד, ובלי
+ * הצצה כזו הוא היה מבליח לרגע סרטון שנמחק לפני שהקריאה האסינכרונית מתקנת.
+ */
+export function peekHiddenVideoIds(): ReadonlySet<string> | null {
+  return cache
+}
+
 /** קריאה אסינכרונית עם מטמון. שתי קריאות במקביל חולקות את אותה הבטחה. */
 export async function loadHiddenVideoIds(): Promise<ReadonlySet<string>> {
   if (cache) return cache

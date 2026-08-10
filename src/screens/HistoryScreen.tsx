@@ -19,6 +19,9 @@ import { SessionCard } from '@/components/history/SessionCard'
  */
 
 /** גובה כותרת המסך: safe-area + ריפוד + כפתור 44px */
+/** כמה אימונים מרונדרים בכל פעם. גדול מספיק שרוב הפעמים לא צריך "הצג עוד". */
+const PAGE_SIZE = 50
+
 const HEADER_BOTTOM = 'calc(var(--safe-t) + 4.25rem)'
 /** תחתית שורת החיפוש הנעוצה — משם מתחילות כותרות החודשים */
 const SEARCH_BOTTOM = 'calc(var(--safe-t) + 8rem)'
@@ -98,16 +101,35 @@ export function HistoryScreen(): JSX.Element {
   const blockNames = useMemo(() => new Map(blocks.map((b) => [b.id, b.name])), [blocks])
   const selectedExercise = exercises.find((e) => e.id === exerciseId) ?? null
 
+  /*
+    רינדור מדורג.
+
+    הסטטיסטיקה למעלה צריכה את *כל* האימונים, אבל ה-DOM לא: אחרי שלוש שנים אלה
+    כ-470 כרטיסים בפתיחה אחת של הטאב, כל אחד עם כותרת דביקה ו-backdrop-blur.
+    ההרחבה היא append בלבד, ולכן `useScrollMemory` ממשיך לעבוד כרגיל.
+  */
+  const [visible, setVisible] = useState(PAGE_SIZE)
+  const shown = useMemo(() => (sessions ?? []).slice(0, visible), [sessions, visible])
+  const hiddenCount = (sessions?.length ?? 0) - shown.length
+
+  // סינון או חיפוש חדש מתחילים מהתחלה — אחרת החלון של החיפוש הקודם נשאר פתוח
+  const filterKey = `${query}|${exerciseId ?? ''}|${routineId ?? ''}|${blockId ?? ''}`
+  const [seenFilter, setSeenFilter] = useState(filterKey)
+  if (seenFilter !== filterKey) {
+    setSeenFilter(filterKey)
+    setVisible(PAGE_SIZE)
+  }
+
   const months = useMemo(() => {
     const out: { key: string; label: string; items: Session[] }[] = []
-    for (const s of sessions ?? []) {
+    for (const s of shown) {
       const key = monthKey(s.startedAt)
       const last = out[out.length - 1]
       if (last && last.key === key) last.items.push(s)
       else out.push({ key, label: monthLabel(s.startedAt), items: [s] })
     }
     return out
-  }, [sessions])
+  }, [shown])
 
   const totals = useMemo(() => {
     let sets = 0
@@ -297,6 +319,17 @@ export function HistoryScreen(): JSX.Element {
           </section>
         ))
       )}
+
+      {hiddenCount > 0 ? (
+        <button
+          type="button"
+          onClick={() => setVisible((n) => n + PAGE_SIZE)}
+          className="btn-ghost mt-2 flex min-h-14 w-full items-center justify-center rounded-card text-sm font-bold"
+        >
+          <span className="tnum">הצג עוד {Math.min(hiddenCount, PAGE_SIZE)}</span>
+          <span className="meta ms-2">מתוך {hiddenCount} שנותרו</span>
+        </button>
+      ) : null}
 
       <BottomSheet open={pickerOpen} onClose={() => setPickerOpen(false)} title="סינון לפי תרגיל">
         <div className="sticky top-0 z-10 -mx-5 bg-ink-900 px-5 pb-3">

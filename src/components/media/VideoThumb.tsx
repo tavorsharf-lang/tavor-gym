@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Play } from 'lucide-react'
-import { loadThumbnailFor } from '@/db/mediaDb'
-import { useHiddenVideosVersion } from '@/db/hiddenVideos'
+import { assetUrl, bundledVideosFor, loadThumbnailFor } from '@/db/mediaDb'
+import { peekHiddenVideoIds, useHiddenVideosVersion } from '@/db/hiddenVideos'
 
 /**
  * התמונה הממוזערת של סרטון ההדגמה, כפי שהיא מופיעה בכרטיס התרגיל.
@@ -25,13 +25,31 @@ export function VideoThumb({
   onOpen?: () => void
   size?: 'sm' | 'md'
 }) {
-  const [url, setUrl] = useState<string | null>(null)
+  /*
+    הפוסטר מהמניפסט מוצג *מיד*, בלי להמתין ל-IndexedDB.
+
+    כל שורה ברשימה הריצה שאילתה נפרדת ורנדרה ריק עד שהיא חזרה — בספריית המאגר
+    אלה עשרות שאילתות מקבילות, וכל תשובה שחוזרת קופצת פנימה ומזיזה את הגובה.
+    זו בדיוק קפיצת הגובה ש-useScrollMemory נאלץ להילחם בה בלולאת settle.
+    הנתיב ידוע סינכרונית, והתמונה ממילא ב-precache — אין סיבה להמתין.
+  */
+  const staticPoster = (id: string, libId?: string): string | null => {
+    // ההצצה מונעת הבלחה של סרטון שנמחק; לפני שהרשימה נטענה מוותרים על הקיצור
+    const hidden = peekHiddenVideoIds()
+    if (hidden === null) return null
+    const first = bundledVideosFor(id, libId, hidden)[0]
+    return first ? assetUrl(first.poster) : null
+  }
+
+  const [url, setUrl] = useState<string | null>(() => staticPoster(exerciseId, libraryId))
   // מחיקת הסרטון האחרון של תרגיל צריכה להעלים את התמונה מיד, בלי רענון מסך
   const hiddenVersion = useHiddenVideosVersion()
 
   useEffect(() => {
     let created: string | null = null
     let cancelled = false
+    // תרגיל אחר — קודם הפוסטר שלו, ורק אחר כך ה-blob המקומי אם הותקן
+    setUrl(staticPoster(exerciseId, libraryId))
     loadThumbnailFor(exerciseId, libraryId).then((u) => {
       if (cancelled) {
         if (u?.startsWith('blob:')) URL.revokeObjectURL(u)
@@ -43,7 +61,6 @@ export function VideoThumb({
     return () => {
       cancelled = true
       if (created?.startsWith('blob:')) URL.revokeObjectURL(created)
-      setUrl(null)
     }
   }, [exerciseId, libraryId, hiddenVersion])
 
