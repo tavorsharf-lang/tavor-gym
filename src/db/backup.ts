@@ -12,6 +12,7 @@ import type {
   SetLog,
   VideoAsset,
 } from '@/db/types'
+import { withLibraryLink } from '@/db/libraryLinks'
 import { rebuildPrs } from '@/domain/prs'
 import { toISODate } from '@/lib/dates'
 
@@ -132,7 +133,9 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
     }
   }
 
-  const exercises = data.exercises ?? []
+  // גיבוי שנוצר לפני גרסה 4 לא מכיר את הקישור למאגר. בלי השתילה כאן, שחזור
+  // היה מוחק את הקישורים במקום להשאיר אותם כמו שהיו לפני הייבוא.
+  const exercises = (data.exercises ?? []).map(withLibraryLink)
   const setLogs = data.setLogs ?? []
 
   try {

@@ -1,7 +1,7 @@
 import Dexie, { type Table } from 'dexie'
 import type { PlayableVideo, VideoAsset } from './types'
 import { VIDEO_MANIFEST, type BundledVideo } from './videoManifest'
-import { LIBRARY_MANIFEST } from './libraryManifest'
+import { LIBRARY_CATALOG, LIBRARY_MANIFEST } from './libraryManifest'
 
 /**
  * מסד המדיה — סרטוני הדגמה בלבד, כ-Blob.
@@ -73,15 +73,63 @@ export function assetUrl(relativePath: string): string {
   return `${import.meta.env.BASE_URL}${relativePath}`
 }
 
+/** נושאי הסרטונים של תרגיל במאגר, מקבילים למניפסט שלו */
+const LIBRARY_TOPICS = new Map(
+  LIBRARY_CATALOG.map((e) => [e.id, e.videos.map((v) => v.topic)])
+)
+
+/*
+  אין כאן נפילה לאחור ל-LIBRARY_LINKS בכוונה.
+
+  הקישור חי על רשומת התרגיל (`Exercise.libraryId`) ונזרע משם, ולכן כל קורא שיש
+  לו את הרשומה כבר מחזיק אותו. נפילה לאחור הייתה הופכת את הצירוף לבלתי ניתן
+  לכיבוי — ומסך הסרטונים, שמנהל רק את ההדגמות של התוכנית, לא היה יכול לבקש
+  לספור אותן בלבד.
+*/
+
 /**
- * הסרטונים המצורפים של תרגיל — מהתוכנית או מהמאגר הלימודי.
+ * כל הסרטונים המצורפים של תרגיל.
  *
- * שני המניפסטים חולקים מבנה ומרחב מזהים זר: מזהי המאגר תמיד בתחילית `lib-`,
- * ולכן חיפוש בשניהם לא יכול להתנגש. בזכות זה כל מה שמעל — הנגן, ההתקנה
- * ל-IndexedDB, שחרור ה-objectURL — עובד על המאגר בלי שינוי.
+ * לתרגיל בתוכנית זה ההדגמות שלו ואחריהן כל סרטוני ההסבר של המקבילה שלו במאגר.
+ * ההדגמות ראשונות בכוונה: הן תבור מבצע את התרגיל על המכונה שלו, וזה מה שהוא בא
+ * לראות באמצע סט. ההסברים הם עומק שמגיע אחריו.
+ *
+ * שני המניפסטים חולקים מבנה ומרחב מזהים זר — מזהי המאגר תמיד בתחילית `lib-` —
+ * ולכן איחוד ביניהם לא יכול להתנגש, וכל מה שמעל עובד על שניהם בלי שינוי.
  */
-export function bundledVideosFor(exerciseId: string): BundledVideo[] {
-  return VIDEO_MANIFEST[exerciseId] ?? LIBRARY_MANIFEST[exerciseId] ?? []
+export function bundledVideosFor(exerciseId: string, libraryId?: string): BundledVideo[] {
+  // תרגיל מהמאגר עצמו: אין לו הדגמות משלו, רק סרטוני הסבר
+  if (LIBRARY_MANIFEST[exerciseId]) return LIBRARY_MANIFEST[exerciseId]
+
+  const own = VIDEO_MANIFEST[exerciseId] ?? []
+  const fromLibrary = libraryId ? (LIBRARY_MANIFEST[libraryId] ?? []) : []
+  if (!fromLibrary.length) return own
+
+  // הגנה מפני כפילות אם אי פעם יופיע אותו קובץ בשני המניפסטים
+  const seen = new Set(own.map((v) => v.src))
+  return [...own, ...fromLibrary.filter((v) => !seen.has(v.src))]
+}
+
+/**
+ * כותרת לכל סרטון, מקבילה ל-`bundledVideosFor` באותם ארגומנטים.
+ *
+ * הדגמה מקבלת מספר סידורי, כי כולן מראות את אותו דבר. סרטון מהמאגר מקבל את
+ * הנושא שלו, כי כל אחד מלמד משהו אחר — ובלי זה רשימה של עשרים סרטונים על אותו
+ * תרגיל היא רשימת מספרים שאי אפשר לבחור מתוכה.
+ */
+export function videoLabelsFor(exerciseId: string, libraryId?: string): string[] {
+  if (LIBRARY_MANIFEST[exerciseId]) return LIBRARY_TOPICS.get(exerciseId) ?? []
+
+  const own = VIDEO_MANIFEST[exerciseId] ?? []
+  const labels = own.map((_, i) => `הדגמה ${i + 1}`)
+  if (!libraryId) return labels
+
+  const seen = new Set(own.map((v) => v.src))
+  const topics = LIBRARY_TOPICS.get(libraryId) ?? []
+  ;(LIBRARY_MANIFEST[libraryId] ?? []).forEach((v, i) => {
+    if (!seen.has(v.src)) labels.push(topics[i] ?? `הסבר ${i + 1}`)
+  })
+  return labels
 }
 
 /**
@@ -94,39 +142,58 @@ export function bundledVideosFor(exerciseId: string): BundledVideo[] {
  * חשוב: מי שקורא לפונקציה חייב לקרוא ל-releaseVideos בסיום, אחרת
  * ה-objectURL-ים דולפים.
  */
-export async function loadVideosFor(exerciseId: string): Promise<PlayableVideo[]> {
-  const local = await mediaDb.videos.where('exerciseId').equals(exerciseId).toArray()
-  const localById = new Map(local.map((v) => [v.id, v]))
-  const out: PlayableVideo[] = []
+export async function loadVideosFor(
+  exerciseId: string,
+  libraryId?: string
+): Promise<PlayableVideo[]> {
+  const clips = bundledVideosFor(exerciseId, libraryId)
+  const labels = videoLabelsFor(exerciseId, libraryId)
 
-  bundledVideosFor(exerciseId).forEach((b, i) => {
+  /*
+    החיפוש המקומי לפי מזהה הנכס ולא לפי exerciseId, וזה הכרחי מאז שתרגיל בתוכנית
+    מושך גם את סרטוני המאגר: נכס מהמאגר נשמר תחת מזהה התרגיל במאגר, ושאילתה לפי
+    מזהה התרגיל בתוכנית לא הייתה מוצאת אותו. התוצאה הייתה סרטון שכבר יושב במכשיר
+    ובכל זאת נמשך מהרשת בכל פתיחה — ולא עובד אופליין.
+    מזהה הנכס הוא הנתיב שלו, ולכן הוא ייחודי גלובלית ומתאים לחיפוש הזה.
+  */
+  const ids = clips.map((b) => bundledId(b.src))
+  const cachedList = ids.length ? await mediaDb.videos.bulkGet(ids) : []
+  const cachedById = new Map(
+    cachedList.filter((v): v is VideoAsset => Boolean(v)).map((v) => [v.id, v])
+  )
+
+  const out: PlayableVideo[] = clips.map((b, i) => {
     const id = bundledId(b.src)
-    const cached = localById.get(id)
+    const cached = cachedById.get(id)
+    const label = labels[i] ?? `הדגמה ${i + 1}`
     if (cached) {
-      localById.delete(id)
-      out.push({
+      return {
         id,
-        label: `הדגמה ${i + 1}`,
+        label,
         url: URL.createObjectURL(cached.blob),
-        posterUrl: cached.thumbnailBlob ? URL.createObjectURL(cached.thumbnailBlob) : assetUrl(b.poster),
+        posterUrl: cached.thumbnailBlob
+          ? URL.createObjectURL(cached.thumbnailBlob)
+          : assetUrl(b.poster),
         durationSec: cached.durationSec,
         sizeBytes: cached.sizeBytes,
         isLocal: true,
-      })
-    } else {
-      out.push({
-        id,
-        label: `הדגמה ${i + 1}`,
-        url: assetUrl(b.src),
-        posterUrl: assetUrl(b.poster),
-        durationSec: b.durationSec,
-        sizeBytes: b.sizeBytes,
-        isLocal: false,
-      })
+      }
+    }
+    return {
+      id,
+      label,
+      url: assetUrl(b.src),
+      posterUrl: assetUrl(b.poster),
+      durationSec: b.durationSec,
+      sizeBytes: b.sizeBytes,
+      isLocal: false,
     }
   })
 
-  for (const v of localById.values()) {
+  // הסרטונים שהמשתמש ייבא בעצמו, אחרי המצורפים
+  const own = await mediaDb.videos.where('exerciseId').equals(exerciseId).toArray()
+  for (const v of own) {
+    if (v.origin !== 'imported') continue
     out.push({
       id: v.id,
       label: v.label || 'סרטון שלי',
@@ -142,8 +209,11 @@ export async function loadVideosFor(exerciseId: string): Promise<PlayableVideo[]
 }
 
 /** התמונה הממוזערת הראשונה של תרגיל, לתצוגה במסך האימון */
-export async function loadThumbnailFor(exerciseId: string): Promise<string | null> {
-  const bundled = bundledVideosFor(exerciseId)
+export async function loadThumbnailFor(
+  exerciseId: string,
+  libraryId?: string
+): Promise<string | null> {
+  const bundled = bundledVideosFor(exerciseId, libraryId)
   if (bundled.length) {
     const cached = await mediaDb.videos.get(bundledId(bundled[0].src))
     if (cached?.thumbnailBlob) return URL.createObjectURL(cached.thumbnailBlob)

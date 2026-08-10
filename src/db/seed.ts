@@ -1,4 +1,5 @@
 import type { AppSettings, Block, Exercise, PlanItem, RepRange, Routine } from './types'
+import { withLibraryLink } from './libraryLinks'
 
 /**
  * נתוני ההתחלה — הקטלוג, שלוש התוכניות והבלוקים הנלווים.
@@ -642,13 +643,17 @@ const RAW: ExerciseSeed[] = [
   },
 ]
 
-export const SEED_EXERCISES: Exercise[] = RAW.map((e, i) => ({
-  ...e,
-  isActive: true,
-  order: i,
-  createdAt: now(),
-  updatedAt: now(),
-}))
+// withLibraryLink כאן ולא ב-populate: SEED_EXERCISES נכתב גם בהשלמת זריעה
+// שנכשלה וגם באיפוס יזום, ובשלושת המסלולים הקישור צריך להיות זהה
+export const SEED_EXERCISES: Exercise[] = RAW.map((e, i) =>
+  withLibraryLink({
+    ...e,
+    isActive: true,
+    order: i,
+    createdAt: now(),
+    updatedAt: now(),
+  })
+)
 
 /** בונה פריט תוכנית מברירות המחדל של התרגיל */
 function item(exerciseId: string, order: number): PlanItem {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { JSX } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ExternalLink, Play, SearchX } from 'lucide-react'
@@ -8,6 +8,7 @@ import { LIBRARY_MAX_PER_EXERCISE } from '@/db/libraryManifest'
 import { MUSCLE_GROUPS } from '@/db/types'
 import { formatBytes } from '@/domain/units'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
+import { useBack } from '@/hooks/useBack'
 import { EmptyState } from '@/components/ui'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 
@@ -27,19 +28,16 @@ function programIdFor(libId: string): string | null {
 export function LibraryExerciseScreen(): JSX.Element {
   const { libId = '' } = useParams()
   const navigate = useNavigate()
+  const back = useBack('/library')
   const [playing, setPlaying] = useState<number | null>(null)
 
   const exercise = libraryExercise(libId)
   const clips = bundledVideosFor(libId)
 
-  useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [libId])
-
   if (!exercise) {
     return (
       <Screen>
-        <ScreenHeader title="תרגיל לא נמצא" onBack={() => navigate('/library')} />
+        <ScreenHeader title="תרגיל לא נמצא" onBack={back} />
         <EmptyState
           icon={<SearchX size={26} />}
           title="התרגיל לא במאגר"
@@ -58,7 +56,7 @@ export function LibraryExerciseScreen(): JSX.Element {
       <ScreenHeader
         title={exercise.nameHe}
         subtitle={`${MUSCLE_GROUPS[exercise.muscleGroup].label} · ${clips.length} סרטונים`}
-        onBack={() => navigate('/library')}
+        onBack={back}
       />
 
       <p dir="ltr" className="mb-5 text-end text-sm font-semibold text-bone-400">
@@ -128,8 +126,11 @@ export function LibraryExerciseScreen(): JSX.Element {
       */}
       {omitted > 0 ? (
         <p className="mt-4 rounded-xl border border-ink-800 bg-ink-900/60 px-3 py-2.5 text-xs leading-relaxed text-bone-500">
-          יש עוד {omitted} סרטונים על התרגיל הזה שלא נכללו באפליקציה — נכנסים עד{' '}
-          {LIBRARY_MAX_PER_EXERCISE} לתרגיל, הנצפים ביותר. אפשר לראות את השאר במקור.
+          יש עוד {omitted} סרטונים על התרגיל הזה שלא נכללו באפליקציה
+          {LIBRARY_MAX_PER_EXERCISE !== null
+            ? ` — נכנסים עד ${LIBRARY_MAX_PER_EXERCISE} לתרגיל, הנצפים ביותר`
+            : ''}
+          . אפשר לראות את השאר במקור.
         </p>
       ) : null}
 
@@ -141,7 +142,6 @@ export function LibraryExerciseScreen(): JSX.Element {
           exerciseName={exercise.nameHe}
           open
           startIndex={playing}
-          labels={exercise.videos.map((v) => v.topic)}
           onClose={() => setPlaying(null)}
         />
       ) : null}

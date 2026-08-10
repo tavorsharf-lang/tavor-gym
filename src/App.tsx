@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-d
 import { ensureReady } from '@/db/db'
 import { repairReplacedBundled } from '@/db/mediaDb'
 import { useWorkout } from '@/state/activeWorkoutStore'
+import { useScrollMemory } from '@/hooks/useScrollMemory'
 import { ToastHost } from '@/components/ui'
 import { TabBar } from '@/components/shell/TabBar'
 import { UpdateBanner } from '@/components/shell/UpdateBanner'
@@ -30,10 +31,8 @@ function Shell() {
   const { pathname } = useLocation()
   const showTabs = TAB_ROUTES.includes(pathname)
 
-  // גלילה לראש בכל מעבר מסך — בלי זה חוזרים לאמצע הרשימה
-  useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [pathname])
+  // מסך חדש נפתח מלמעלה, חזרה אחורה חוזרת למקום שבו היינו
+  useScrollMemory()
 
   return (
     <>

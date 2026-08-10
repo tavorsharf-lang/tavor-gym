@@ -14,6 +14,7 @@ import type {
 } from './types'
 import { DEFAULT_SETTINGS, SEED_BLOCKS, SEED_EXERCISES, SEED_ROUTINES } from './seed'
 import { applyCatalogFix } from './catalogFix'
+import { withLibraryLink } from './libraryLinks'
 
 /**
  * מסד הנתונים המובנה.
@@ -104,6 +105,28 @@ class GymDatabase extends Dexie {
         for (const exercise of await table.toArray()) {
           const fixed = applyCatalogFix(exercise)
           if (fixed) await table.put(fixed)
+        }
+      })
+
+    /**
+     * גרסה 4 — הקישור למאגר הלימודי עובר להיות נתון.
+     *
+     * עד כאן הקישור בין תרגיל בקטלוג לתרגיל במאגר חי רק ב-LIBRARY_LINKS,
+     * טבלה בקוד שמישהו צריך לערוך. משם והלאה הוא שדה על התרגיל: כך אפשר
+     * לאחד את שני הקטלוגים למסך אחד, וכך הוספת תרגיל מהמאגר לקטלוג יוצרת את
+     * הקישור בעצמה במקום לדרוש שינוי קוד.
+     *
+     * המיגרציה שותלת את 12 הקישורים הקיימים ולא נוגעת ברשומה שכבר נושאת
+     * קישור. libraryId נכנס גם לאינדקס — הוא מפתח חיפוש: מסך התרגיל המאוחד
+     * מגיע ממזהה מאגר וצריך למצוא ממנו את התרגיל הקנוני.
+     */
+    this.version(4)
+      .stores({ exercises: 'id, muscleGroup, isActive, order, libraryId' })
+      .upgrade(async (tx) => {
+        const table = tx.table<Exercise, string>('exercises')
+        for (const exercise of await table.toArray()) {
+          const linked = withLibraryLink(exercise)
+          if (linked !== exercise) await table.put(linked)
         }
       })
 

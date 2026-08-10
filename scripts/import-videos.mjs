@@ -34,8 +34,14 @@ const LIB_OUT_DIR = join(OUT_DIR, 'lib')
 const MANIFEST = join(ROOT, 'src', 'db', 'videoManifest.ts')
 const LIB_MANIFEST = join(ROOT, 'src', 'db', 'libraryManifest.ts')
 
-/** כמה סרטונים לכל תרגיל במאגר נכנסים לבנייה */
-const LIB_MAX = 3
+/**
+ * כמה סרטונים לכל תרגיל במאגר נכנסים לבנייה. Infinity = הכל.
+ *
+ * היה כאן 3 מטעמי משקל, ותבור ביקש במפורש את כל החומר. המחיר מודע: 487 סרטונים
+ * במקום 155, כ-184MB במקום 57MB בבנייה ובהיסטוריית git. אם צריך לחזור אחורה —
+ * זה המספר היחיד שצריך לשנות, והייבוא בונה הכל מחדש.
+ */
+const LIB_MAX = Number.POSITIVE_INFINITY
 
 /** קבוצת שריר במאגר (עברית) → הערך ב-MuscleGroup */
 const MUSCLE_MAP = {
@@ -355,7 +361,7 @@ export interface LibraryExercise {
   muscleGroup: MuscleGroup
   /** מקביל אחד-לאחד ל-LIBRARY_MANIFEST[id] */
   videos: LibraryVideoNote[]
-  /** כמה סרטונים קיימים במקור, לפני התקרה של ${LIB_MAX} */
+  /** כמה סרטונים קיימים במקור. שווה לאורך videos כשאין תקרה. */
   totalAvailable: number
 }
 
@@ -370,8 +376,10 @@ export const LIBRARY_TOTAL_BYTES = ${lib.totalOut}
 /** מספר סרטוני המאגר שנכנסו לבנייה */
 export const LIBRARY_COUNT = ${libCount}
 
-/** התקרה שהופעלה בייבוא — כמה סרטונים לכל תרגיל */
-export const LIBRARY_MAX_PER_EXERCISE = ${LIB_MAX}
+/** התקרה שהופעלה בייבוא, או null כשהכל נכנס */
+export const LIBRARY_MAX_PER_EXERCISE: number | null = ${
+      Number.isFinite(LIB_MAX) ? LIB_MAX : 'null'
+    }
 
 /** כמה סרטונים קיימים במקור ולא נכנסו לבנייה */
 export const LIBRARY_OMITTED = ${lib.capped}
@@ -393,7 +401,11 @@ export const LIBRARY_OMITTED = ${lib.capped}
         `(-${Math.round((1 - lib.totalOut / lib.totalIn) * 100)}%)`
     )
     // קיצוץ שקט נקרא ככיסוי מלא — לכן הוא נאמר במפורש
-    console.log(`  ${lib.capped} סרטונים נוספים קיימים במקור ולא נכנסו (תקרה של ${LIB_MAX} לתרגיל)`)
+    console.log(
+      lib.capped > 0
+        ? `  ${lib.capped} סרטונים נוספים קיימים במקור ולא נכנסו (תקרה של ${LIB_MAX} לתרגיל)`
+        : '  בלי תקרה — כל הסרטונים שבמקור נכנסו'
+    )
     console.log(`✓ סך הכל בבנייה: ${((totalOut + lib.totalOut) / 1e6).toFixed(0)}MB`)
   }
   console.log(`✓ manifest: ${MANIFEST}`)

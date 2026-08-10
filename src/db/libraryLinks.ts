@@ -2,7 +2,7 @@ import { LIBRARY_CATALOG } from './libraryManifest'
 import type { LibraryExercise } from './libraryManifest'
 
 /**
- * קישור בין תרגיל בתוכנית לתרגיל המקביל במאגר הלימודי.
+ * הקישור ההתחלתי בין תרגיל בקטלוג לתרגיל המקביל במאגר הלימודי.
  *
  * הרשימה כתובה ביד בכוונה. התאמה אוטומטית לפי שם נראית מפתה — היא גם עובדת
  * ברוב המקרים — אבל היא שוגה בדיוק במקומות שכואבים: `seated-row-heavy` ו-
@@ -10,6 +10,9 @@ import type { LibraryExercise } from './libraryManifest'
  * לאותה "חתירה" במאגר. עדיף שלא יהיה קישור מאשר קישור שמוביל לתרגיל אחר.
  *
  * מה שלא מופיע כאן פשוט לא מקבל קישור. זה תקין ומכוון.
+ *
+ * מגרסה 4 של המסד זו זריעה בלבד ולא מקור האמת: הקישור חי ב-`Exercise.libraryId`,
+ * ומשם והלאה הוא נוצר מהוספת תרגיל מהמאגר לקטלוג ולא מעריכת הקובץ הזה.
  */
 export const LIBRARY_LINKS: Readonly<Record<string, string>> = {
   pushup: 'lib-push_up',
@@ -58,4 +61,17 @@ export function libraryFor(exerciseId: string): LibraryExercise | null {
 /** תרגיל מהמאגר לפי מזהה */
 export function libraryExercise(id: string): LibraryExercise | null {
   return BY_ID.get(id) ?? null
+}
+
+/**
+ * שותל את הקישור ההתחלתי על רשומת תרגיל, אם היא עוד לא נושאת אחד.
+ *
+ * אותה פונקציה משמשת גם בזריעה, גם במיגרציה לגרסה 4 וגם בייבוא גיבוי ישן —
+ * שלושת המסלולים שבהם רשומה יכולה להגיע למסד בלי `libraryId`. קישור שכבר קיים
+ * לא נדרס: הוא יכול להיות תוצאה של הוספת תרגיל מהמאגר, וזה גובר על הזריעה.
+ */
+export function withLibraryLink<T extends { id: string; libraryId?: string }>(exercise: T): T {
+  if (exercise.libraryId !== undefined) return exercise
+  const libId = LIBRARY_LINKS[exercise.id]
+  return libId ? { ...exercise, libraryId: libId } : exercise
 }

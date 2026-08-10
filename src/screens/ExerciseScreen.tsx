@@ -120,7 +120,15 @@ function VideoMismatchNote({ note }: { note: string }): JSX.Element {
 }
 
 /** שורת הדגמות. loadVideosFor מייצר objectURL-ים ולכן חייבים לשחרר אותם ביציאה. */
-function MediaRow({ exerciseId, onOpen }: { exerciseId: string; onOpen: () => void }): JSX.Element {
+function MediaRow({
+  exerciseId,
+  libraryId,
+  onOpen,
+}: {
+  exerciseId: string
+  libraryId?: string
+  onOpen: () => void
+}): JSX.Element {
   const [videos, setVideos] = useState<PlayableVideo[]>([])
   const [loaded, setLoaded] = useState(false)
 
@@ -128,7 +136,7 @@ function MediaRow({ exerciseId, onOpen }: { exerciseId: string; onOpen: () => vo
     let created: PlayableVideo[] = []
     let cancelled = false
     setLoaded(false)
-    loadVideosFor(exerciseId).then((list) => {
+    loadVideosFor(exerciseId, libraryId).then((list) => {
       if (cancelled) {
         releaseVideos(list)
         return
@@ -142,7 +150,7 @@ function MediaRow({ exerciseId, onOpen }: { exerciseId: string; onOpen: () => vo
       releaseVideos(created)
       setVideos([])
     }
-  }, [exerciseId])
+  }, [exerciseId, libraryId])
 
   if (!loaded) return <div className="h-24 rounded-card bg-ink-900/60" />
 
@@ -412,7 +420,11 @@ export function ExerciseScreen(): JSX.Element {
       <div className="space-y-7">
         {/* 1 · הדגמה */}
         <Section title="הדגמה">
-          <MediaRow exerciseId={exercise.id} onOpen={() => setPlayerOpen(true)} />
+          <MediaRow
+            exerciseId={exercise.id}
+            libraryId={exercise.libraryId}
+            onOpen={() => setPlayerOpen(true)}
+          />
           {mismatch ? <VideoMismatchNote note={mismatch} /> : null}
           {/*
             ההדגמה למעלה היא תבור מבצע את התרגיל. הקישור הזה מוביל להסבר של יוצר
@@ -595,6 +607,7 @@ export function ExerciseScreen(): JSX.Element {
 
       <VideoPlayer
         exerciseId={exercise.id}
+        libraryId={exercise.libraryId}
         exerciseName={exercise.name}
         open={playerOpen}
         onClose={() => setPlayerOpen(false)}

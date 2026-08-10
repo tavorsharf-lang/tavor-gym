@@ -76,6 +76,14 @@ export interface Exercise {
   barWeightKg: number | null
   /** משקל התחלתי, בשימוש רק כשאין היסטוריה */
   seedWeightKg: number | null
+  /**
+   * התרגיל המקביל במאגר הלימודי, אם יש — מזהה מתוך LIBRARY_CATALOG.
+   *
+   * זה כל מה שצריך כדי לאחד את שני הקטלוגים: תרגיל לימוד אינו סוג ישות אחר
+   * אלא תרגיל שיש לו רק חומר הסבר, ולכן הקשר ביניהם הוא שדה ולא טבלה. השדה
+   * נזרע מ-LIBRARY_LINKS ומכאן והלאה נכתב מהוספת תרגיל מהמאגר לקטלוג.
+   */
+  libraryId?: string
   isActive: boolean
   /** סדר תצוגה בקטלוג */
   order: number

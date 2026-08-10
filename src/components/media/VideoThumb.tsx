@@ -8,10 +8,13 @@ import { loadThumbnailFor } from '@/db/mediaDb'
  */
 export function VideoThumb({
   exerciseId,
+  libraryId,
   onOpen,
   size = 'md',
 }: {
   exerciseId: string
+  /** התרגיל המקביל במאגר — כדי שגם תרגיל בלי הדגמה משלו יציג תמונה */
+  libraryId?: string
   onOpen: () => void
   size?: 'sm' | 'md'
 }) {
@@ -20,7 +23,7 @@ export function VideoThumb({
   useEffect(() => {
     let created: string | null = null
     let cancelled = false
-    loadThumbnailFor(exerciseId).then((u) => {
+    loadThumbnailFor(exerciseId, libraryId).then((u) => {
       if (cancelled) {
         if (u?.startsWith('blob:')) URL.revokeObjectURL(u)
         return
@@ -33,7 +36,7 @@ export function VideoThumb({
       if (created?.startsWith('blob:')) URL.revokeObjectURL(created)
       setUrl(null)
     }
-  }, [exerciseId])
+  }, [exerciseId, libraryId])
 
   if (!url) return null
 
