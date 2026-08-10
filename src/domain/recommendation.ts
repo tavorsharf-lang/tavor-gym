@@ -1,4 +1,12 @@
-import type { Exercise, Rating, RepRange, Rir, SetLog, WeightMode } from '@/db/types'
+import type {
+  Exercise,
+  ExerciseMetric,
+  Rating,
+  RepRange,
+  Rir,
+  SetLog,
+  WeightMode,
+} from '@/db/types'
 import { RATING_LABELS, RIR_LABELS } from '@/db/types'
 import { formatSetShort, formatWeight, roundToIncrement, weightStep } from '@/domain/units'
 import { workSets, workingWeight } from '@/domain/volume'
@@ -77,7 +85,10 @@ export function recommendWeight(
     return {
       action: 'none',
       weightKg: null,
-      reason: 'תרגיל משקל גוף — המטרה היא עוד חזרות',
+      reason:
+        exercise.metric === 'seconds'
+          ? 'תרגיל זמן — המטרה היא להחזיק עוד'
+          : 'תרגיל משקל גוף — המטרה היא עוד חזרות',
       tone: 'neutral',
     }
   }
@@ -179,8 +190,12 @@ export function recommendWeight(
 }
 
 /** "60×10 · 60×9 · 55×8" — סטי עבודה בלבד, לפי סדר הביצוע */
-export function lastSessionSetsText(summary: ExerciseSessionSummary, mode: WeightMode): string {
+export function lastSessionSetsText(
+  summary: ExerciseSessionSummary,
+  mode: WeightMode,
+  metric: ExerciseMetric = 'reps'
+): string {
   return workSets(summary.sets)
-    .map((s) => formatSetShort(s.weightKg, s.reps, mode))
+    .map((s) => formatSetShort(s.weightKg, s.reps, mode, metric))
     .join(' · ')
 }

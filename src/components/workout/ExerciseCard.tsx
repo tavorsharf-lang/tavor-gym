@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
-import { Check, ChevronDown, Clock, Repeat } from 'lucide-react'
+import { Check, ChevronDown, Clock, Minus, Plus, Repeat, Timer } from 'lucide-react'
 import type {
   AppSettings,
   DraftSet,
@@ -18,13 +18,23 @@ import { touchedGroups, useWorkout } from '@/state/activeWorkoutStore'
 import type { ExerciseSessionSummary } from '@/domain/recommendation'
 import { lastSessionSetsText, lastWorkedSession, recommendWeight } from '@/domain/recommendation'
 import { suggestWarmup } from '@/domain/warmup'
-import { formatRatingText, formatRepRange, formatWeight, weightStep } from '@/domain/units'
+import {
+  countLabel,
+  countStep,
+  formatClock,
+  formatRatingText,
+  formatRepRange,
+  formatWeight,
+  round2,
+  weightStep,
+} from '@/domain/units'
 import { workSets } from '@/domain/volume'
 import { formatRelativeDay } from '@/lib/dates'
 import type { AudioCue } from '@/hooks/useAudioCue'
 import { SetRow } from './SetRow'
 import { RecommendationChip } from './RecommendationChip'
 import { PlateHint } from './PlateHint'
+import { PlateChips } from './PlateChips'
 
 /**
  * הכרטיס של התרגיל הפעיל — המסך שבו נמצאים באמת באמצע אימון.
@@ -76,10 +86,103 @@ function SetEditor({
           min={0}
         />
       )}
-      <Stepper label="חזרות" value={reps} onChange={setReps} step={1} min={0} />
+      <Stepper
+        label={countLabel(exercise.metric)}
+        suffix={exercise.metric === 'seconds' ? 'שניות' : undefined}
+        value={reps}
+        onChange={setReps}
+        step={countStep(exercise.metric)}
+        min={0}
+      />
       <Button variant="flame" size="lg" fullWidth onClick={() => onSave(weightKg, reps)}>
         שמור שינוי
       </Button>
+    </div>
+  )
+}
+
+/**
+ * כוונון היעד באמצע אימון — כמה סטים וכמה מנוחה.
+ *
+ * שני מספרים שהתשובה עליהם משתנה בתוך האימון עצמו ("היום יש לי כוח לעוד סט",
+ * "המכונה תפוסה, אני מקצר מנוחה"), ולכן הם צריכים להיות במרחק נגיעה מהכפתור
+ * הכתום ולא בעורך התוכניות. השינוי חל על האימון הזה בלבד.
+ */
+function TuneRow({
+  targetSets,
+  restSeconds,
+  doneWorkSets,
+  onSets,
+  onRest,
+}: {
+  targetSets: number
+  restSeconds: number
+  /** אי אפשר לרדת מתחת למה שכבר בוצע — זה היה מוחק את הסטים מהמסך */
+  doneWorkSets: number
+  onSets: (next: number) => void
+  onRest: (next: number) => void
+}): JSX.Element {
+  const cell =
+    'flex flex-1 items-center justify-between gap-1 rounded-xl border border-ink-700 bg-ink-900/50 px-1.5 py-1.5'
+  const nudge =
+    'flex size-11 shrink-0 items-center justify-center rounded-lg text-bone-300 active:bg-ink-700 disabled:opacity-30'
+
+  return (
+    <div className="mt-3 flex gap-2">
+      <div className={cell}>
+        {/* dir=ltr על צמד הכפתורים בלבד — מינוס משמאל ופלוס מימין, כמו בכל
+            שאר הפקדים באפליקציה, כדי שהאצבע לא תצטרך ללמוד שני כיוונים */}
+        <button
+          type="button"
+          aria-label="סט אחד פחות"
+          disabled={targetSets <= Math.max(1, doneWorkSets)}
+          onClick={() => onSets(targetSets - 1)}
+          className={nudge}
+        >
+          <Minus size={16} strokeWidth={3} />
+        </button>
+        <span className="flex min-w-0 flex-col items-center leading-tight">
+          <span className="tnum text-sm font-extrabold text-bone-100">{targetSets}</span>
+          <span className="text-[0.625rem] font-medium text-bone-500">סטים</span>
+        </span>
+        <button
+          type="button"
+          aria-label="סט אחד יותר"
+          onClick={() => onSets(targetSets + 1)}
+          className={nudge}
+        >
+          <Plus size={16} strokeWidth={3} />
+        </button>
+      </div>
+
+      <div className={cell}>
+        <button
+          type="button"
+          aria-label="פחות 15 שניות מנוחה"
+          disabled={restSeconds <= 0}
+          onClick={() => onRest(restSeconds - 15)}
+          className={nudge}
+        >
+          <Minus size={16} strokeWidth={3} />
+        </button>
+        <span className="flex min-w-0 flex-col items-center leading-tight">
+          <span dir="ltr" className="tnum text-sm font-extrabold text-bone-100">
+            {restSeconds > 0 ? formatClock(restSeconds) : '—'}
+          </span>
+          <span className="flex items-center gap-0.5 text-[0.625rem] font-medium text-bone-500">
+            <Timer size={9} aria-hidden="true" />
+            מנוחה
+          </span>
+        </span>
+        <button
+          type="button"
+          aria-label="עוד 15 שניות מנוחה"
+          onClick={() => onRest(restSeconds + 15)}
+          className={nudge}
+        >
+          <Plus size={16} strokeWidth={3} />
+        </button>
+      </div>
     </div>
   )
 }
@@ -105,6 +208,8 @@ export function ExerciseCard({
   const deferItem = useWorkout((s) => s.deferItem)
   const completeCurrent = useWorkout((s) => s.completeCurrent)
   const markWarmupOffered = useWorkout((s) => s.markWarmupOffered)
+  const setTargetSets = useWorkout((s) => s.setTargetSets)
+  const setItemRest = useWorkout((s) => s.setItemRest)
   const workout = useWorkout((s) => s.workout)
   const exercisesById = useWorkout((s) => s.exercisesById)
   const prCache = useWorkout((s) => s.prCache)
@@ -114,6 +219,7 @@ export function ExerciseCard({
   const [editing, setEditing] = useState<DraftSet | null>(null)
 
   const bodyweight = exercise.weightMode === 'bodyweight'
+  const timed = exercise.metric === 'seconds'
   const workCount = sets.filter((s) => s.type === 'work').length
   const lastWork = [...sets].reverse().find((s) => s.type === 'work') ?? null
 
@@ -134,9 +240,13 @@ export function ExerciseCard({
   // אותו סינון שמנוע ההמלצות עושה: אימון שהיה בו רק חימום אינו "פעם קודמת"
   const previous = lastWorkedSession(history)
   const previousWork = previous ? workSets(previous.sets) : []
+  // בתרגיל זמן כל הסטים נשמרים במשקל אפס, ולכן השוואת משקל הייתה מחזירה תמיד
+  // את הסט הראשון — והשדה היה נפתח על 0:45 כשהפעם הקודמת הסתיימה ב-1:15
   const previousTop =
     previousWork.length > 0
-      ? previousWork.reduce((best, s) => (s.weightKg > best.weightKg ? s : best))
+      ? previousWork.reduce((best, s) =>
+          timed ? (s.reps > best.reps ? s : best) : s.weightKg > best.weightKg ? s : best
+        )
       : null
 
   // סדר ההעדפות למספרים שבשדות: מה שהרמתי לפני רגע, אחר כך ההמלצה,
@@ -149,14 +259,23 @@ export function ExerciseCard({
     item.startWeightKg ??
     exercise.seedWeightKg ??
     0
-  const seedReps = lastWork?.reps ?? previousTop?.reps ?? exercise.targetReps.max
+  /*
+    כשאין שום נתון קודם, מאיפה מגיע המספר בשדה הספירה:
+      • תרגיל זמן — מהיעד עצמו. פלאנק נכנסים אליו מול שעון, ו"6 שניות" זו לא
+        הצעה אלא טעות.
+      • תרגיל חזרות — מברירת המחדל שבהגדרות, ולא מראש הטווח שבקטלוג. ראש
+        הטווח הוא לאן רוצים להגיע, וזו נקודת פתיחה.
+    היעד עצמו נמדד תמיד מול הטווח של *התוכנית* (item), לא של הקטלוג.
+  */
+  const fallbackCount = timed ? item.targetReps.min : settings.defaultReps
+  const seedReps = lastWork?.reps ?? previousTop?.reps ?? fallbackCount
 
   const [entry, setEntry] = useState(() => ({ weightKg: seedWeight, reps: seedReps }))
   // חתימה של מקורות ברירת המחדל. משתנה כשנרשם סט או כשההיסטוריה הגיעה מהמסד,
   // ואז השדות נטענים מחדש — אבל עריכה ידנית בין לבין נשמרת.
   const seedSig = `${item.key}|${sets.length}|${lastWork?.logId ?? 0}|${lastWork?.weightKg ?? 0}|${
     lastWork?.reps ?? 0
-  }|${recommendation.weightKg ?? 0}|${previousTop?.weightKg ?? 0}`
+  }|${recommendation.weightKg ?? 0}|${previousTop?.weightKg ?? 0}|${fallbackCount}`
   const [seenSig, setSeenSig] = useState(seedSig)
   if (seenSig !== seedSig) {
     setSeenSig(seedSig)
@@ -196,9 +315,14 @@ export function ExerciseCard({
     try {
       await logSet(item.key, type, weightKg, reps)
       audio.keepAlive()
-      const base = item.restSeconds || settings.defaultRestSeconds
+      // 0 הוא בחירה מפורשת של "בלי מנוחה" (סופרסט, תרגיל סיום) ולא ערך חסר,
+      // ולכן ההשוואה היא מול undefined ולא מול falsy
+      const base = Number.isFinite(item.restSeconds)
+        ? item.restSeconds
+        : settings.defaultRestSeconds
       // חימום הוא לא סט כבד — חצי מנוחה מספיקה ושומרת על קצב
-      await startRest(item.key, type === 'warmup' ? Math.round(base * 0.5) : base)
+      const rest = type === 'warmup' ? Math.round(base * 0.5) : base
+      if (rest > 0) await startRest(item.key, rest)
       setIsWarmup(false)
       onLogged()
       if (type === 'work' && workCount + 1 >= item.targetSets && !rating && !autoRated.current) {
@@ -243,15 +367,23 @@ export function ExerciseCard({
             <span className="ms-2 text-xs font-medium text-bone-500">
               {/* אי LTR: בלי זה "8–12" מוצג כ-"12–8" ונקרא כטווח יורד */}
               <span dir="ltr" className="tnum">
-                {formatRepRange(item.targetReps)}
+                {formatRepRange(item.targetReps, exercise.metric)}
               </span>{' '}
-              חזרות
+              {timed ? 'להחזיק' : 'חזרות'}
             </span>
           </p>
         </div>
       </div>
 
       <PlateProgress className="mt-3" total={item.targetSets} states={segments} />
+
+      <TuneRow
+        targetSets={item.targetSets}
+        restSeconds={item.restSeconds}
+        doneWorkSets={workCount}
+        onSets={(next) => void setTargetSets(item.key, next)}
+        onRest={(next) => void setItemRest(item.key, next)}
+      />
 
       {item.status === 'deferred' && (
         <p className="mt-3 inline-flex rounded-pill border border-dashed border-flame-500/45 px-3 py-1 text-[0.6875rem] font-bold text-flame-400">
@@ -293,7 +425,7 @@ export function ExerciseCard({
         {previous && previousWork.length > 0 ? (
           <p className="mt-1 text-sm font-semibold text-bone-200">
             <span dir="ltr" className="tnum">
-              {lastSessionSetsText(previous, exercise.weightMode)}
+              {lastSessionSetsText(previous, exercise.weightMode, exercise.metric)}
             </span>
             <span className="text-bone-500">
               {previous.rating ? ` · ${RATING_LABELS[previous.rating.rating]}` : ''}
@@ -340,7 +472,8 @@ export function ExerciseCard({
         <div className="mt-3 rounded-card border border-dashed border-warmup-400/45 bg-warmup-400/[0.06] p-3">
           <p className="text-[0.8125rem] font-bold text-warmup-400">{warmupSuggestion.reason}</p>
           <p className="tnum mt-0.5 text-sm font-semibold text-bone-200">
-            {formatWeight(warmupSuggestion.weightKg, exercise.weightMode)} × {warmupSuggestion.reps}
+            {formatWeight(warmupSuggestion.weightKg, exercise.weightMode)} ×{' '}
+            {timed ? formatClock(warmupSuggestion.reps) : warmupSuggestion.reps}
           </p>
           <div className="mt-2.5 flex gap-2">
             <Button
@@ -388,6 +521,11 @@ export function ExerciseCard({
           )}
         </div>
 
+        {/*
+          שני מסלולי הזנה שונים לשני סוגי ציוד. במכונת פינים המספר על המדבקה
+          הוא האמת ומקלידים אותו; במוט ובמזחלת סופרים פלטות בזמן שמעמיסים.
+          שדה המשקל זהה בשניהם — מה שמשתנה זה מה עומד לידו.
+        */}
         <div className={`mt-3 grid gap-3 ${bodyweight ? 'grid-cols-1' : 'grid-cols-2'}`}>
           {!bodyweight && (
             <div>
@@ -398,17 +536,42 @@ export function ExerciseCard({
                 onChange={(weightKg) => setEntry((e) => ({ ...e, weightKg }))}
                 step={weightStep(exercise)}
                 min={0}
+                hint={
+                  exercise.usesPlates
+                    ? undefined
+                    : 'אפשר להקליד בדיוק את המספר שכתוב על המכונה'
+                }
               />
+              {exercise.usesPlates ? (
+                <PlateChips
+                  exercise={exercise}
+                  plates={settings.plates}
+                  onAdd={(deltaKg) =>
+                    setEntry((e) => ({ ...e, weightKg: round2(e.weightKg + deltaKg) }))
+                  }
+                  onReset={() =>
+                    setEntry((e) => ({
+                      ...e,
+                      weightKg:
+                        exercise.weightMode === 'perSide'
+                          ? 0
+                          : (exercise.barWeightKg ?? settings.plates.barWeightKg),
+                    }))
+                  }
+                />
+              ) : null}
               {/* 8 — מה להעמיס על כל צד */}
               <PlateHint targetKg={entry.weightKg} exercise={exercise} plates={settings.plates} />
             </div>
           )}
           <Stepper
-            label="חזרות"
+            label={countLabel(exercise.metric)}
+            suffix={timed ? 'שניות' : undefined}
             value={entry.reps}
             onChange={(reps) => setEntry((e) => ({ ...e, reps }))}
-            step={1}
+            step={countStep(exercise.metric)}
             min={0}
+            hint={timed ? `היעד ${formatClock(item.targetReps.min)}` : undefined}
           />
         </div>
       </div>

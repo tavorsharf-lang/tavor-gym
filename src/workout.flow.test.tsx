@@ -44,19 +44,21 @@ describe('זרימת אימון', () => {
     const start = await screen.findByRole('button', { name: /^התחל$/ }, { timeout: 5000 })
     await user.click(start)
 
-    // מסך האימון: התרגיל הראשון של פול באדי א׳ הוא חימום שכיבות סמיכה
-    await waitFor(() => expect(screen.getByText('שכיבות סמיכה (חימום)')).toBeTruthy(), {
+    // מסך האימון. אין תרגיל חימום קבוע בראש התוכנית — החימום מוצע לפי השריר
+    // שנפתח — ולכן הראשון הוא התרגיל הכבד של הרגליים.
+    await waitFor(() => expect(screen.getByText('לחיצת רגליים')).toBeTruthy(), {
       timeout: 5000,
     })
 
     const workout = useWorkout.getState().workout
     expect(workout).not.toBeNull()
-    // 9 בפול באדי א׳, ועוד 4+2+1 מהבלוקים — כשאף בלוק לא בוצע מעולם כולם
-    // מוצעים מראש, וזו בדיוק ההתנהגות שהצעת הבלוקים אמורה לתת
     expect(workout?.routineId).toBe('F1')
     // פול באדי מכסה את כל הגוף, ולכן הבלוקים לא מוצעים אוטומטית
-    expect(workout?.queue.length).toBe(9)
+    expect(workout?.queue.length).toBe(8)
     expect(workout?.blockIds).toEqual([])
+    // ברירת המחדל האחידה: שני סטים ושתי דקות מנוחה בכל תרגיל
+    expect(workout?.queue[0].targetSets).toBe(2)
+    expect(workout?.queue[0].restSeconds).toBe(120)
 
     // תיעוד סט
     const finishSet = await screen.findByRole('button', { name: /סיים סט/ })
@@ -72,7 +74,7 @@ describe('זרימת אימון', () => {
     const sessionId = useWorkout.getState().workout?.sessionId
     const logged = await db.setLogs.where('sessionId').equals(sessionId ?? '').toArray()
     expect(logged.length).toBe(1)
-    expect(logged[0].exerciseId).toBe('pushup')
+    expect(logged[0].exerciseId).toBe('leg-press')
 
     // טיימר המנוחה התחיל
     expect(useWorkout.getState().workout?.restEndsAt).not.toBeNull()
@@ -85,10 +87,9 @@ describe('זרימת אימון', () => {
     const session = await db.sessions.get(finishedId ?? '')
     expect(session).toBeTruthy()
     expect(session?.routineId).toBe('F1')
-    expect(session?.actualOrder).toEqual(['pushup'])
-    // שכיבות סמיכה הן משקל גוף, ולכן נפח 0 — אבל הסט נספר
+    expect(session?.actualOrder).toEqual(['leg-press'])
     expect(session?.totalSets).toBe(1)
-    expect(session?.skippedExerciseIds.length).toBe(8)
+    expect(session?.skippedExerciseIds.length).toBe(7)
     // האימון הפעיל נוקה
     expect(await db.activeWorkout.get('current')).toBeUndefined()
   }, 30000)
@@ -115,6 +116,50 @@ describe('זרימת אימון', () => {
     expect(after?.setsByKey[key]?.length).toBe(1)
     expect(after?.setsByKey[key]?.[0].weightKg).toBe(80)
     expect(after?.ratingsByKey[key]).toEqual({ rating: 2, rir: 1 })
+  }, 20000)
+
+  /**
+   * כמה סטים וכמה מנוחה הם שתי שאלות שהתשובה עליהן משתנה *בתוך* האימון.
+   * השינוי חייב לשרוד קריסה, ואסור לו לזלוג לתוכנית הקבועה — שתי תוכניות
+   * שונות שמשתמשות באותו תרגיל לא אמורות להשתנות בגלל יום אחד.
+   */
+  it('שינוי סטים ומנוחה תוך כדי אימון נשמר לדיסק ולא נוגע בתוכנית', async () => {
+    await useWorkout.getState().start('F1', [])
+    const key = useWorkout.getState().workout?.currentKey ?? ''
+    const routineBefore = await db.routines.get('F1')
+
+    await useWorkout.getState().setTargetSets(key, 4)
+    await useWorkout.getState().setItemRest(key, 45)
+
+    const item = () => useWorkout.getState().workout?.queue.find((q) => q.key === key)
+    expect(item()?.targetSets).toBe(4)
+    expect(item()?.restSeconds).toBe(45)
+
+    // התוכנית הקבועה לא זזה
+    expect(await db.routines.get('F1')).toEqual(routineBefore)
+
+    // ושורד קריסה
+    useWorkout.setState({ workout: null, hydrated: false, exercisesById: {}, prCache: [] })
+    await useWorkout.getState().hydrate()
+    expect(item()?.targetSets).toBe(4)
+    expect(item()?.restSeconds).toBe(45)
+  }, 20000)
+
+  it('מספר הסטים והמנוחה חסומים לתחום שפוי', async () => {
+    await useWorkout.getState().start('F1', [])
+    const key = useWorkout.getState().workout?.currentKey ?? ''
+    const item = () => useWorkout.getState().workout?.queue.find((q) => q.key === key)
+
+    await useWorkout.getState().setTargetSets(key, 0)
+    expect(item()?.targetSets).toBe(1)
+    await useWorkout.getState().setTargetSets(key, 99)
+    expect(item()?.targetSets).toBe(12)
+
+    // אפס מנוחה הוא בחירה חוקית — סופרסט או תרגיל סיום
+    await useWorkout.getState().setItemRest(key, -30)
+    expect(item()?.restSeconds).toBe(0)
+    await useWorkout.getState().setItemRest(key, 10_000)
+    expect(item()?.restSeconds).toBe(600)
   }, 20000)
 
   it('"המתקן תפוס" דוחף את התרגיל לסוף התור ולא נותן לסיים בשקט', async () => {

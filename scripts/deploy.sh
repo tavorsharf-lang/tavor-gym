@@ -32,8 +32,14 @@ trap cleanup EXIT
 # ── שער 1: מה בדיוק נפרס ──
 # הסקריפט בונה מהדיסק, לא מ-HEAD. עץ מלוכלך פירושו שהאתר מקבל קוד שלא נמצא
 # בשום קומיט, והתווית על הפריסה תשקר.
-if [ "$ALLOW_DIRTY" -eq 0 ] && ! git diff --quiet HEAD 2>/dev/null; then
-  echo "✗ יש שינויים לא מקובעים. עשה commit, או הרץ: npm run deploy -- --allow-dirty" >&2
+#
+# git status --porcelain ולא git diff: האחרון משווה רק קבצים *מנוטרים*, ולכן
+# מסך חדש שלא עבר git add היה נבנה מהדיסק, נפרס, ומתויג ב-SHA שלא מכיל אותו —
+# בדיוק התרחיש שהשער הזה קיים כדי למנוע. .deploy כבר ב-gitignore.
+if [ "$ALLOW_DIRTY" -eq 0 ] && [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+  echo "✗ יש שינויים לא מקובעים (כולל קבצים חדשים שלא נוספו)." >&2
+  echo "  עשה commit, או הרץ: npm run deploy -- --allow-dirty" >&2
+  git status --short >&2
   exit 1
 fi
 

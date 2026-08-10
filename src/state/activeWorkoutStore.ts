@@ -95,6 +95,9 @@ interface WorkoutState {
   removeSet: (key: string, logId: number) => Promise<void>
   rate: (key: string, rating: Rating, rir: Rir | null) => Promise<void>
   markWarmupOffered: (key: string) => Promise<void>
+  /** שינוי היעד של התרגיל תוך כדי אימון — נשאר בתור ולא נוגע בתוכנית הקבועה */
+  setTargetSets: (key: string, targetSets: number) => Promise<void>
+  setItemRest: (key: string, seconds: number) => Promise<void>
 
   // ניווט ותור
   setCurrent: (key: string) => Promise<void>
@@ -539,6 +542,30 @@ export const useWorkout = create<WorkoutState>((set, get) => {
       await mutate((w) => ({
         ...w,
         queue: w.queue.map((q) => (q.key === key ? { ...q, warmupOffered: true } : q)),
+      }))
+    },
+
+    /*
+      שני השינויים הבאים חיים בתור בלבד ולא נכתבים לתוכנית.
+
+      "היום אני עושה עוד סט" ו"היום התוכנית שלי היא שלושה סטים" הן שתי כוונות
+      שונות, וערבוב ביניהן היה גורם לכל אימון לשכתב בשקט את התוכנית הקבועה.
+      השינוי הקבוע נעשה בעורך התוכניות, במקום שבו רואים את כל התוכנית ביחד.
+    */
+    async setTargetSets(key, targetSets) {
+      const next = Math.min(12, Math.max(1, Math.round(targetSets)))
+      await mutate((w) => ({
+        ...w,
+        queue: w.queue.map((q) => (q.key === key ? { ...q, targetSets: next } : q)),
+      }))
+    },
+
+    async setItemRest(key, seconds) {
+      // 0 הוא ערך חוקי ומשמעותו "בלי מנוחה" — סופרסט או תרגיל סיום
+      const next = Math.min(600, Math.max(0, Math.round(seconds / 15) * 15))
+      await mutate((w) => ({
+        ...w,
+        queue: w.queue.map((q) => (q.key === key ? { ...q, restSeconds: next } : q)),
       }))
     },
 

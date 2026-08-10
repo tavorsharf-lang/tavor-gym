@@ -6,7 +6,7 @@ import { db } from '@/db/db'
 import { activateRoutines, getAllExercises, getBlocks, getRoutines } from '@/db/queries'
 import type { Exercise, MuscleGroup, PlanItem, RoutineId } from '@/db/types'
 import { MUSCLE_GROUPS, MUSCLE_GROUP_ORDER } from '@/db/types'
-import { formatClock, formatRepRange } from '@/domain/units'
+import { countLabel, countMax, countStep, formatClock, formatRepRange } from '@/domain/units'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { BottomSheet, Button, EmptyState, toast } from '@/components/ui'
 import { SettingNumber } from '@/components/settings/SettingRow'
@@ -329,7 +329,7 @@ export function PlanEditorScreen(): JSX.Element {
                             {exercise?.name ?? 'תרגיל שנמחק'}
                           </span>
                           <span className="meta tnum mt-1">
-                            {item.targetSets} × {formatRepRange(item.targetReps)} ·{' '}
+                            {item.targetSets} × {formatRepRange(item.targetReps, exercise?.metric)} ·{' '}
                             {formatClock(item.restSeconds)}
                           </span>
                         </button>
@@ -378,31 +378,33 @@ export function PlanEditorScreen(): JSX.Element {
                               max={600}
                               format={formatClock}
                             />
-                            <SettingNumber
+<SettingNumber
                               compact
-                              label="חזרות — מ"
+                              label={`${countLabel(exercise?.metric)} — מ`}
                               value={item.targetReps.min}
                               onChange={(v) =>
                                 updateItem(index, {
                                   targetReps: { min: v, max: Math.max(v, item.targetReps.max) },
                                 })
                               }
-                              step={1}
+                              step={countStep(exercise?.metric)}
                               min={1}
-                              max={50}
+                              max={countMax(exercise?.metric)}
+                              format={exercise?.metric === 'seconds' ? formatClock : undefined}
                             />
                             <SettingNumber
                               compact
-                              label="חזרות — עד"
+                              label={`${countLabel(exercise?.metric)} — עד`}
                               value={item.targetReps.max}
                               onChange={(v) =>
                                 updateItem(index, {
                                   targetReps: { min: Math.min(v, item.targetReps.min), max: v },
                                 })
                               }
-                              step={1}
+                              step={countStep(exercise?.metric)}
                               min={1}
-                              max={50}
+                              max={countMax(exercise?.metric)}
+                              format={exercise?.metric === 'seconds' ? formatClock : undefined}
                             />
                           </div>
                         </div>

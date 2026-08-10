@@ -150,7 +150,7 @@ export function HistoryScreen(): JSX.Element {
 
   return (
     <Screen>
-      <ScreenHeader title="היסטוריה" onBack={() => navigate('/')} />
+      <ScreenHeader title="היסטוריה" />
 
       <div
         className="sticky z-20 -mx-4 bg-ink-950/95 px-4 pb-3 backdrop-blur-xl"

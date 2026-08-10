@@ -83,7 +83,7 @@ export function QueueRow({
           </>
         ) : (
           <span dir="ltr" className="tnum inline-block">
-            {item.targetSets}×{formatRepRange(item.targetReps)}
+            {item.targetSets}×{formatRepRange(item.targetReps, exercise.metric)}
           </span>
         )}
       </span>

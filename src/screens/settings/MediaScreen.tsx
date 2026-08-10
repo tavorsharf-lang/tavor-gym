@@ -5,6 +5,7 @@ import { Film, GraduationCap, Plus, Trash2, TriangleAlert, Video, X } from 'luci
 import { saveSettings } from '@/db/db'
 import { getAllExercises } from '@/db/queries'
 import { assetUrl, bundledId, bundledVideosFor, mediaDb, mediaUsage } from '@/db/mediaDb'
+import { restoreHiddenVideos, useHiddenVideoIds } from '@/db/hiddenVideos'
 import { videoMismatchNote } from '@/db/videoIssues'
 import { VIDEO_COUNT, VIDEO_MANIFEST, VIDEO_TOTAL_BYTES } from '@/db/videoManifest'
 import {
@@ -39,12 +40,33 @@ interface InstallJob {
   video: BundledVideo
 }
 
-function jobsFrom(manifest: Record<string, BundledVideo[]>): InstallJob[] {
+function jobsFrom(
+  manifest: Record<string, BundledVideo[]>,
+  hidden: ReadonlySet<string>
+): InstallJob[] {
   const jobs: InstallJob[] = []
   for (const [exerciseId, list] of Object.entries(manifest)) {
-    list.forEach((video, index) => jobs.push({ exerciseId, index, video }))
+    list.forEach((video, index) => {
+      // סרטון שנמחק לא מותקן מחדש. בלי זה כל התקנה הייתה מחזירה אותו למכשיר,
+      // וההחלטה למחוק אותו הייתה נמחקת בשקט על ידי הכפתור שממול.
+      if (hidden.has(bundledId(video.src))) return
+      jobs.push({ exerciseId, index, video })
+    })
   }
   return jobs
+}
+
+/** כמה סרטונים במניפסט הזה נמחקו — כדי שהמונים יימדדו מול מה שבאמת אמור להיות */
+function hiddenIn(
+  manifest: Record<string, BundledVideo[]>,
+  hidden: ReadonlySet<string>
+): number {
+  if (hidden.size === 0) return 0
+  let n = 0
+  for (const list of Object.values(manifest)) {
+    for (const video of list) if (hidden.has(bundledId(video.src))) n += 1
+  }
+  return n
 }
 
 /**
@@ -139,6 +161,7 @@ async function readVideoMeta(file: Blob): Promise<VideoMeta> {
 
 export function MediaScreen(): JSX.Element {
   const storage = useStorageStatus()
+  const hidden = useHiddenVideoIds()
 
   const exercises = useLiveQuery(() => getAllExercises(true), [], [])
   const usage = useLiveQuery(() => mediaUsage(), [], { count: 0, bytes: 0 })
@@ -179,8 +202,11 @@ export function MediaScreen(): JSX.Element {
   const abortRef = useRef<AbortController | null>(null)
 
   const installing = progress !== null
-  const missing = VIDEO_COUNT - installedBundled
-  const missingLibrary = LIBRARY_COUNT - installedLibrary
+  // המונים נמדדים מול מה שאמור להיות במכשיר — כלומר בלי מה שנמחק
+  const programTotal = VIDEO_COUNT - hiddenIn(VIDEO_MANIFEST, hidden)
+  const libraryTotal = LIBRARY_COUNT - hiddenIn(LIBRARY_MANIFEST, hidden)
+  const missing = programTotal - installedBundled
+  const missingLibrary = libraryTotal - installedLibrary
 
   // יציאה מהמסך עוצרת את ההורדה. בלי זה היא הייתה ממשיכה ברקע בלי מד התקדמות
   // ובלי כפתור עצירה, וחזרה למסך הייתה מתחילה התקנה שנייה במקביל על אותו מסד.
@@ -196,7 +222,7 @@ export function MediaScreen(): JSX.Element {
     // ולחיצה כפולה מהירה הייתה מספיקה כדי להפעיל שתי לולאות במקביל.
     if (abortRef.current) return
 
-    const jobs = jobsFrom(source === 'program' ? VIDEO_MANIFEST : LIBRARY_MANIFEST)
+    const jobs = jobsFrom(source === 'program' ? VIDEO_MANIFEST : LIBRARY_MANIFEST, hidden)
     const controller = new AbortController()
     abortRef.current = controller
     cancelRef.current = false
@@ -370,7 +396,7 @@ export function MediaScreen(): JSX.Element {
         <p className="tnum mt-3 text-sm font-bold text-bone-200">
           {installedBundled === 0
             ? 'עוד לא הותקן אף סרטון'
-            : `מותקנים ${installedBundled} מתוך ${VIDEO_COUNT}`}
+            : `מותקנים ${installedBundled} מתוך ${programTotal}`}
         </p>
 
         {progress?.source === 'program' ? (
@@ -448,7 +474,7 @@ export function MediaScreen(): JSX.Element {
           <p className="tnum mt-3 text-sm font-bold text-bone-200">
             {installedLibrary === 0
               ? 'עוד לא הותקן אף סרטון'
-              : `מותקנים ${installedLibrary} מתוך ${LIBRARY_COUNT}`}
+              : `מותקנים ${installedLibrary} מתוך ${libraryTotal}`}
           </p>
 
           {progress?.source === 'library' ? (
@@ -501,6 +527,32 @@ export function MediaScreen(): JSX.Element {
         </section>
       ) : null}
 
+      {/*
+        המחיקה נעשית מתוך הנגן, באמצע אימון, בלחיצה אחת ואישור. זה המקום היחיד
+        שבו אפשר לחזור ממנה — ולכן הוא קיים, ומופיע רק כשיש ממה לחזור.
+      */}
+      {hidden.size > 0 ? (
+        <section className="card mb-5 p-4">
+          <h2 className="text-sm font-extrabold text-bone-100">סרטונים שמחקת</h2>
+          <p className="tnum mt-1 text-xs leading-relaxed text-bone-400">
+            {hidden.size} סרטונים לא מוצגים בשום מקום באפליקציה. שחזור מחזיר אותם לרשימות —
+            סרטון מצורף ינוגן שוב מהרשת, ואפשר להתקין אותו מחדש מכאן.
+          </p>
+          <Button
+            size="md"
+            fullWidth
+            className="mt-3"
+            onClick={() => {
+              void restoreHiddenVideos().then((n) => {
+                if (n > 0) toast(`${n} סרטונים חזרו`, { tone: 'success' })
+              })
+            }}
+          >
+            שחזר את כל מה שנמחק
+          </Button>
+        </section>
+      ) : null}
+
       <section className="mb-5">
         <h2 className="meta mb-2 px-1">סרטונים לפי תרגיל</h2>
         <div className="card divide-y divide-ink-800/70 overflow-hidden">
@@ -508,7 +560,7 @@ export function MediaScreen(): JSX.Element {
             <EmptyState title="הקטלוג ריק" hint="הוסף תרגיל בקטלוג, ואז אפשר לצרף לו סרטון." />
           ) : (
             exercises.map((ex) => {
-              const bundled = bundledVideosFor(ex.id).length
+              const bundled = bundledVideosFor(ex.id, undefined, hidden).length
               const own = importedByExercise.get(ex.id) ?? []
               const mismatch = videoMismatchNote(ex.id)
               return (

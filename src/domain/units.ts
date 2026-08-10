@@ -1,4 +1,4 @@
-import type { Exercise, RepRange, WeightMode } from '@/db/types'
+import type { Exercise, ExerciseMetric, RepRange, WeightMode } from '@/db/types'
 import { RATING_LABELS } from '@/db/types'
 
 /**
@@ -48,14 +48,51 @@ export function formatWeight(kg: number | null, mode: WeightMode): string {
   return mode === 'perSide' ? `${formatKg(kg)} ק״ג כל צד` : `${formatKg(kg)} ק״ג`
 }
 
-/** גרסה קצרה לרשימות צפופות: "22.5×10" */
-export function formatSetShort(kg: number, reps: number, mode: WeightMode): string {
+/** גרסה קצרה לרשימות צפופות: "22.5×10" · "1:15" בתרגיל זמן */
+export function formatSetShort(
+  kg: number,
+  reps: number,
+  mode: WeightMode,
+  metric: ExerciseMetric = 'reps'
+): string {
+  if (metric === 'seconds') {
+    // תרגיל זמן במשקל חיצוני (פלאנק עם צלחת) עדיין צריך להראות את המשקל
+    return mode === 'bodyweight' ? formatClock(reps) : `${formatKg(kg)}×${formatClock(reps)}`
+  }
   if (mode === 'bodyweight') return `${reps} חזרות`
   return `${formatKg(kg)}×${reps}`
 }
 
-export function formatRepRange(r: RepRange): string {
-  return r.min === r.max ? String(r.min) : `${r.min}–${r.max}`
+export function formatRepRange(r: RepRange, metric: ExerciseMetric = 'reps'): string {
+  const one = (n: number) => (metric === 'seconds' ? formatClock(n) : String(n))
+  return r.min === r.max ? one(r.min) : `${one(r.min)}–${one(r.max)}`
+}
+
+/**
+ * המילה שמתארת את מה שסופרים בתרגיל — "חזרות" או "זמן".
+ * מרוכזת כאן כי היא מופיעה בתווית השדה, בשורת היעד ובכל מסך שמציג טווח.
+ */
+export function countLabel(metric: ExerciseMetric = 'reps'): string {
+  return metric === 'seconds' ? 'זמן' : 'חזרות'
+}
+
+/**
+ * הקפיצה של כפתורי ה-+/- בשדה שסופר.
+ * בזמן קופצים ב-5 שניות: פלאנק נמדד בפועל בקפיצות כאלה, וקפיצה של שנייה
+ * הייתה דורשת שבעים לחיצות כדי להגיע ליעד.
+ */
+export function countStep(metric: ExerciseMetric = 'reps'): number {
+  return metric === 'seconds' ? 5 : 1
+}
+
+/**
+ * התקרה של שדה היעד בעורכים.
+ *
+ * חשוב שהיא תהיה מודעת ליחידה ולא קבועה: תקרה של 50 מול יעד פלאנק של 75 שניות
+ * הייתה חותכת אותו ל-0:50 בלחיצה אחת על מינוס, בלי להגיד כלום.
+ */
+export function countMax(metric: ExerciseMetric = 'reps'): number {
+  return metric === 'seconds' ? 600 : 50
 }
 
 /** שניות → "1:30" · "12:05" · "1:02:30" */

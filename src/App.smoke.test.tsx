@@ -64,7 +64,9 @@ describe('App', () => {
     const legPress = f1?.items.find((i) => i.exerciseId === 'leg-press')
     // 160 בקטלוג, 60% מזה מעוגל לקפיצה של 5
     expect(legPress?.startWeightKg).toBe(95)
-    expect(legPress?.targetSets).toBe(3)
+    // ברירת המחדל אחידה לכל תרגיל — שני סטים ושתי דקות מנוחה
+    expect(legPress?.targetSets).toBe(2)
+    expect(legPress?.restSeconds).toBe(120)
   })
 
   it('כל פריט בתוכניות ובבלוקים מצביע על תרגיל שקיים בקטלוג', async () => {

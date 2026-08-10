@@ -72,7 +72,7 @@ export function ExerciseLibraryScreen(): JSX.Element {
       <ScreenHeader
         title="כל התרגילים"
         subtitle={`${exercises.length} תרגילים · לפי קבוצת שריר`}
-        onBack={() => navigate('/')}
+        
       />
 
       <div className="relative mb-5">
@@ -131,12 +131,8 @@ export function ExerciseLibraryScreen(): JSX.Element {
                         ex.isActive ? '' : 'opacity-45'
                       }`}
                     >
-                      <VideoThumb
-                        exerciseId={ex.id}
-                        libraryId={ex.libraryId}
-                        size="sm"
-                        onOpen={() => navigate(`/exercise/${ex.id}`)}
-                      />
+                      {/* השורה כולה נלחצת — התמונה דקורטיבית ולא כפתור בתוך כפתור */}
+                      <VideoThumb exerciseId={ex.id} libraryId={ex.libraryId} size="sm" />
 
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[0.9375rem] font-bold text-bone-50">
@@ -176,7 +172,7 @@ export function ExerciseLibraryScreen(): JSX.Element {
                               dir="ltr"
                               className="tnum block text-sm font-extrabold text-bone-200"
                             >
-                              {formatSetShort(last.weightKg, last.reps, ex.weightMode)}
+                              {formatSetShort(last.weightKg, last.reps, ex.weightMode, ex.metric)}
                             </span>
                             <span className="meta mt-0.5 block">{formatRelativeDay(last.at)}</span>
                           </>

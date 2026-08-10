@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Download, FileDown, FileUp, HardDrive, Upload } from 'lucide-react'
 import { getSettings, resetDatabase, saveSettings } from '@/db/db'
+import { invalidateHiddenVideos } from '@/db/hiddenVideos'
 import {
   backupFilename,
   exportData,
@@ -155,6 +156,8 @@ export function BackupScreen(): JSX.Element {
     setResetOpen(false)
     try {
       await resetDatabase()
+      // ההגדרות נמחקו יחד עם המסד, ואיתן רשימת הסרטונים שנמחקו
+      invalidateHiddenVideos()
       toast('הכל אופס. האפליקציה חוזרת לנתוני ההתחלה')
       window.setTimeout(() => navigate(0), 1600)
     } catch {

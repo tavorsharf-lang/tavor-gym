@@ -7,13 +7,23 @@ import type {
   Exercise,
   ExerciseRating,
   PersonalRecord,
+  PlanItem,
   Routine,
   Session,
   SetLog,
   SettingsRow,
 } from './types'
-import { DEFAULT_SETTINGS, SEED_BLOCKS, SEED_EXERCISES, SEED_ROUTINES } from './seed'
-import { applyCatalogFix } from './catalogFix'
+import {
+  DEFAULT_REPS,
+  DEFAULT_REST_SECONDS,
+  DEFAULT_SETTINGS,
+  DEFAULT_TARGET_SETS,
+  PLANK_RANGE,
+  SEED_BLOCKS,
+  SEED_EXERCISES,
+  SEED_ROUTINES,
+} from './seed'
+import { CATALOG_FIXES_V5, applyCatalogFix } from './catalogFix'
 import { withLibraryLink } from './libraryLinks'
 
 /**
@@ -127,6 +137,104 @@ class GymDatabase extends Dexie {
         for (const exercise of await table.toArray()) {
           const linked = withLibraryLink(exercise)
           if (linked !== exercise) await table.put(linked)
+        }
+      })
+
+    /**
+     * גרסה 5 — שני סטים, שתי דקות מנוחה, פלאנק בזמן, וחימום שנגזר מהשריר.
+     *
+     * ארבעה שינויים שכולם מכוונים לאותו דבר — שהמספרים באפליקציה יהיו מה
+     * שתבור באמת עושה, ולא מה שהוצע לו פעם:
+     *
+     *  1. `targetSets` ו-`restSeconds` נכפים על הקטלוג, על התוכניות ועל
+     *     הבלוקים. הם היו מפוזרים בין 2 ל-4 סטים ובין 45 ל-120 שניות, וזה
+     *     דרש לזכור מה מצפה בכל תרגיל. עכשיו אחיד, וניתן לשינוי בכל שלוש
+     *     הרמות — כולל תוך כדי אימון על הכרטיס.
+     *  2. הפלאנק עובר להימדד בזמן. הערך נשאר באותו שדה, ולכן כל ההיסטוריה
+     *     שלו נשארת תקפה — רק היחידה שמוצגת משתנה.
+     *  3. שכיבות הסמיכה יוצאות מראש שתי תוכניות הפול-באדי. חימום נקשר לשריר
+     *     ולא לאימון, ו-`domain/warmup` כבר מציע אותו נכון בכל פתיחת קבוצת
+     *     שריר. התרגיל עצמו נשאר בקטלוג ואפשר להחזיר אותו בעורך התוכניות.
+     *  4. ההגדרות הגלובליות מיושרות. `mergeSettings` משלים רק שדות *חסרים*,
+     *     ולכן משתמש קיים היה נשאר עם 90 שניות בלי הכתיבה המפורשת כאן.
+     */
+    this.version(5)
+      .stores({})
+      .upgrade(async (tx) => {
+        const normalizeItems = (items: PlanItem[]): PlanItem[] =>
+          items.map((it) => ({
+            ...it,
+            targetSets: DEFAULT_TARGET_SETS,
+            restSeconds: DEFAULT_REST_SECONDS,
+            targetReps: it.exerciseId === 'abs' ? { ...PLANK_RANGE } : it.targetReps,
+          }))
+
+        const exercises = tx.table<Exercise, string>('exercises')
+        for (const exercise of await exercises.toArray()) {
+          const renamed = applyCatalogFix(exercise, CATALOG_FIXES_V5) ?? exercise
+          await exercises.put({
+            ...renamed,
+            targetSets: DEFAULT_TARGET_SETS,
+            defaultRestSeconds: DEFAULT_REST_SECONDS,
+            ...(renamed.id === 'abs'
+              ? { metric: 'seconds' as const, targetReps: { ...PLANK_RANGE } }
+              : {}),
+            updatedAt: Date.now(),
+          })
+        }
+
+        const routines = tx.table<Routine, string>('routines')
+        for (const routine of await routines.toArray()) {
+          // רק מתוכניות הפול-באדי הפעילות. הפיצול כבוי, ומחיקת תרגיל מתוכנית
+          // שהמשתמש לא מסתכל עליה כרגע היא הפתעה ולא תיקון.
+          const items =
+            routine.id === 'F1' || routine.id === 'F2'
+              ? routine.items.filter((it) => it.exerciseId !== 'pushup')
+              : routine.items
+          await routines.put({
+            ...routine,
+            items: normalizeItems(items).map((it, i) => ({ ...it, order: i })),
+          })
+        }
+
+        const blocks = tx.table<Block, string>('blocks')
+        for (const block of await blocks.toArray()) {
+          await blocks.put({ ...block, items: normalizeItems(block.items) })
+        }
+
+        /*
+          גם אימון שהיה פתוח כשהעדכון נחת.
+
+          `hydrate` משחזרת את התור מהדיסק כמו שהוא ובונה מחדש רק את הסטים, ולכן
+          פריט תור שנשמר לפני העדכון שומר את היעד הישן. לרוב זה נכון — התוכנית
+          כפי שהייתה כשהאימון התחיל — אבל לפלאנק זה מייצר שקר גלוי: הקטלוג כבר
+          אומר שהוא נמדד בשניות, והתור עדיין נושא טווח חזרות, אז הכרטיס מציג
+          "0:12–0:20 להחזיק" ופותח את השדה על 12 שניות. רק היחידה מתוקנת כאן;
+          מספר הסטים והמנוחה נשארים מה שתוכנן, כי שינוי שלהם באמצע אימון פתוח
+          הוא הפתעה ולא תיקון.
+        */
+        const active = tx.table<ActiveWorkout, string>('activeWorkout')
+        for (const workout of await active.toArray()) {
+          const queue = workout.queue.map((q) =>
+            q.exerciseId === 'abs' ? { ...q, targetReps: { ...PLANK_RANGE } } : q
+          )
+          if (queue.some((q, i) => q !== workout.queue[i])) {
+            await active.put({ ...workout, queue })
+          }
+        }
+
+        const settings = tx.table<SettingsRow, string>('settings')
+        const row = await settings.get('app')
+        if (row) {
+          await settings.put({
+            key: 'app',
+            value: {
+              ...row.value,
+              defaultRestSeconds: DEFAULT_REST_SECONDS,
+              defaultReps: DEFAULT_REPS,
+              hiddenVideoIds: row.value.hiddenVideoIds ?? [],
+            },
+          })
         }
       })
 

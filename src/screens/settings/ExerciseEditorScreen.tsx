@@ -13,7 +13,7 @@ import {
   WEIGHT_MODE_LABELS,
 } from '@/db/types'
 import { rebuildPrs } from '@/domain/prs'
-import { formatClock, formatKg } from '@/domain/units'
+import { countLabel, countMax, countStep, formatClock, formatKg } from '@/domain/units'
 import { summarize, weightModeLookup } from '@/domain/volume'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { BottomSheet, Button, EmptyState, toast } from '@/components/ui'
@@ -555,28 +555,34 @@ export function ExerciseEditorScreen(): JSX.Element {
           min={1}
           max={10}
         />
+{/*
+          תרגיל שנמדד בזמן עורך שניות ולא חזרות. התקרה חייבת להיגזר מהיחידה —
+          פלאנק של 1:15 מול תקרה של 50 היה נחתך ל-0:50 בלחיצה אחת על מינוס.
+        */}
         <div className="grid grid-cols-2 gap-3 px-4 py-3">
           <SettingNumber
             compact
-            label="חזרות — מ"
+            label={`${countLabel(draft.metric)} — מ`}
             value={draft.targetReps.min}
             onChange={(v) =>
               patch({ targetReps: { min: v, max: Math.max(v, draft.targetReps.max) } })
             }
-            step={1}
+            step={countStep(draft.metric)}
             min={1}
-            max={50}
+            max={countMax(draft.metric)}
+            format={draft.metric === 'seconds' ? formatClock : undefined}
           />
           <SettingNumber
             compact
-            label="חזרות — עד"
+            label={`${countLabel(draft.metric)} — עד`}
             value={draft.targetReps.max}
             onChange={(v) =>
               patch({ targetReps: { min: Math.min(v, draft.targetReps.min), max: v } })
             }
-            step={1}
+            step={countStep(draft.metric)}
             min={1}
-            max={50}
+            max={countMax(draft.metric)}
+            format={draft.metric === 'seconds' ? formatClock : undefined}
           />
         </div>
         {problems.reps && (

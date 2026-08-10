@@ -2,6 +2,7 @@ import Dexie, { type Table } from 'dexie'
 import type { PlayableVideo, VideoAsset } from './types'
 import { VIDEO_MANIFEST, type BundledVideo } from './videoManifest'
 import { LIBRARY_CATALOG, LIBRARY_MANIFEST } from './libraryManifest'
+import { hideVideo, loadHiddenVideoIds, notifyVideosChanged } from './hiddenVideos'
 
 /**
  * מסד המדיה — סרטוני הדגמה בלבד, כ-Blob.
@@ -97,17 +98,63 @@ const LIBRARY_TOPICS = new Map(
  * שני המניפסטים חולקים מבנה ומרחב מזהים זר — מזהי המאגר תמיד בתחילית `lib-` —
  * ולכן איחוד ביניהם לא יכול להתנגש, וכל מה שמעל עובד על שניהם בלי שינוי.
  */
-export function bundledVideosFor(exerciseId: string, libraryId?: string): BundledVideo[] {
+interface LabelledClip {
+  clip: BundledVideo
+  label: string
+}
+
+/**
+ * המקור היחיד לזוג (סרטון, כותרת).
+ *
+ * שתי הפונקציות הציבוריות נגזרות מכאן ולא מחשבות כל אחת בנפרד, כי הן חייבות
+ * להישאר מיושרות באינדקס: `loadVideosFor` מצמיד את הכותרת ה-i לסרטון ה-i,
+ * וכל סינון שקורה רק באחת מהן היה מדביק לסרטון אחד את הכותרת של אחר.
+ */
+function labelledClips(
+  exerciseId: string,
+  libraryId?: string,
+  hidden?: ReadonlySet<string>
+): LabelledClip[] {
+  const fromLibraryManifest = LIBRARY_MANIFEST[exerciseId]
   // תרגיל מהמאגר עצמו: אין לו הדגמות משלו, רק סרטוני הסבר
-  if (LIBRARY_MANIFEST[exerciseId]) return LIBRARY_MANIFEST[exerciseId]
+  if (fromLibraryManifest) {
+    const topics = LIBRARY_TOPICS.get(exerciseId) ?? []
+    return withoutHidden(
+      fromLibraryManifest.map((clip, i) => ({ clip, label: topics[i] ?? `הסבר ${i + 1}` })),
+      hidden
+    )
+  }
 
   const own = VIDEO_MANIFEST[exerciseId] ?? []
-  const fromLibrary = libraryId ? (LIBRARY_MANIFEST[libraryId] ?? []) : []
-  if (!fromLibrary.length) return own
-
-  // הגנה מפני כפילות אם אי פעם יופיע אותו קובץ בשני המניפסטים
   const seen = new Set(own.map((v) => v.src))
-  return [...own, ...fromLibrary.filter((v) => !seen.has(v.src))]
+  const topics = libraryId ? (LIBRARY_TOPICS.get(libraryId) ?? []) : []
+  // הגנה מפני כפילות אם אי פעם יופיע אותו קובץ בשני המניפסטים
+  const explainers = (libraryId ? (LIBRARY_MANIFEST[libraryId] ?? []) : [])
+    .map((clip, i) => ({ clip, label: topics[i] ?? `הסבר ${i + 1}` }))
+    .filter(({ clip }) => !seen.has(clip.src))
+
+  // המספור של ההדגמות נגזר *אחרי* הסינון: "הדגמה 2" כשאין הדגמה 1 היא חור
+  // שנראה כמו תקלה, והמספר הזה הוא מיקום ברשימה ולא זהות של הסרטון.
+  const visibleOwn = withoutHidden(
+    own.map((clip) => ({ clip, label: '' })),
+    hidden
+  ).map(({ clip }, i) => ({ clip, label: `הדגמה ${i + 1}` }))
+
+  return [...visibleOwn, ...withoutHidden(explainers, hidden)]
+}
+
+function withoutHidden(list: LabelledClip[], hidden?: ReadonlySet<string>): LabelledClip[] {
+  if (!hidden?.size) return list
+  return list.filter(({ clip }) => !hidden.has(bundledId(clip.src)))
+}
+
+export function bundledVideosFor(
+  exerciseId: string,
+  libraryId?: string,
+  /** מזהי נכסים שהמשתמש מחק. ראה db/hiddenVideos.ts */
+  hidden?: ReadonlySet<string>
+): BundledVideo[] {
+  return labelledClips(exerciseId, libraryId, hidden).map(({ clip }) => clip)
 }
 
 /**
@@ -117,19 +164,12 @@ export function bundledVideosFor(exerciseId: string, libraryId?: string): Bundle
  * הנושא שלו, כי כל אחד מלמד משהו אחר — ובלי זה רשימה של עשרים סרטונים על אותו
  * תרגיל היא רשימת מספרים שאי אפשר לבחור מתוכה.
  */
-export function videoLabelsFor(exerciseId: string, libraryId?: string): string[] {
-  if (LIBRARY_MANIFEST[exerciseId]) return LIBRARY_TOPICS.get(exerciseId) ?? []
-
-  const own = VIDEO_MANIFEST[exerciseId] ?? []
-  const labels = own.map((_, i) => `הדגמה ${i + 1}`)
-  if (!libraryId) return labels
-
-  const seen = new Set(own.map((v) => v.src))
-  const topics = LIBRARY_TOPICS.get(libraryId) ?? []
-  ;(LIBRARY_MANIFEST[libraryId] ?? []).forEach((v, i) => {
-    if (!seen.has(v.src)) labels.push(topics[i] ?? `הסבר ${i + 1}`)
-  })
-  return labels
+export function videoLabelsFor(
+  exerciseId: string,
+  libraryId?: string,
+  hidden?: ReadonlySet<string>
+): string[] {
+  return labelledClips(exerciseId, libraryId, hidden).map(({ label }) => label)
 }
 
 /**
@@ -146,8 +186,9 @@ export async function loadVideosFor(
   exerciseId: string,
   libraryId?: string
 ): Promise<PlayableVideo[]> {
-  const clips = bundledVideosFor(exerciseId, libraryId)
-  const labels = videoLabelsFor(exerciseId, libraryId)
+  const hidden = await loadHiddenVideoIds()
+  const clips = bundledVideosFor(exerciseId, libraryId, hidden)
+  const labels = videoLabelsFor(exerciseId, libraryId, hidden)
 
   /*
     החיפוש המקומי לפי מזהה הנכס ולא לפי exerciseId, וזה הכרחי מאז שתרגיל בתוכנית
@@ -193,7 +234,7 @@ export async function loadVideosFor(
   // הסרטונים שהמשתמש ייבא בעצמו, אחרי המצורפים
   const own = await mediaDb.videos.where('exerciseId').equals(exerciseId).toArray()
   for (const v of own) {
-    if (v.origin !== 'imported') continue
+    if (v.origin !== 'imported' || hidden.has(v.id)) continue
     out.push({
       id: v.id,
       label: v.label || 'סרטון שלי',
@@ -213,15 +254,42 @@ export async function loadThumbnailFor(
   exerciseId: string,
   libraryId?: string
 ): Promise<string | null> {
-  const bundled = bundledVideosFor(exerciseId, libraryId)
+  const hidden = await loadHiddenVideoIds()
+  const bundled = bundledVideosFor(exerciseId, libraryId, hidden)
   if (bundled.length) {
     const cached = await mediaDb.videos.get(bundledId(bundled[0].src))
     if (cached?.thumbnailBlob) return URL.createObjectURL(cached.thumbnailBlob)
     return assetUrl(bundled[0].poster)
   }
-  const own = await mediaDb.videos.where('exerciseId').equals(exerciseId).first()
+  // תרגיל שכל ההדגמות שלו נמחקו לא חוזר להציג תמונה דרך הדלת האחורית
+  const own = (await mediaDb.videos.where('exerciseId').equals(exerciseId).toArray()).find(
+    (v) => !hidden.has(v.id)
+  )
   if (own?.thumbnailBlob) return URL.createObjectURL(own.thumbnailBlob)
   return null
+}
+
+/**
+ * מוחק סרטון מהמכשיר ומסמן שלא להציג אותו שוב.
+ *
+ * שני הצדדים הכרחיים: מחיקת ה-Blob מפנה מקום, וההסתרה היא מה שמונע מסרטון
+ * *מצורף* לחזור מהרשת בפתיחה הבאה או מההתקנה הבאה.
+ */
+export async function deleteVideo(id: string): Promise<void> {
+  /*
+    סרטון שהמשתמש ייבא בעצמו נמחק ונגמר: המזהה שלו אקראי, הוא לא קיים בשום
+    מניפסט, ושום התקנה לא תיצור אותו מחדש. רישום שלו ברשימת המוסתרים היה
+    מוסיף מזהה מת שאי אפשר לשחזר — ומסך הסרטונים היה מבטיח עליו החזרה שלא
+    תקרה. רק נכס מצורף צריך זיכרון להחלטה.
+  */
+  if (!id.startsWith('bundled:')) {
+    await mediaDb.videos.delete(id)
+    notifyVideosChanged()
+    return
+  }
+  await hideVideo(id, async (assetId) => {
+    await mediaDb.videos.delete(assetId)
+  })
 }
 
 /** משחרר objectURL-ים שנוצרו ב-loadVideosFor */

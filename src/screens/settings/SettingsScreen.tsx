@@ -137,13 +137,22 @@ export function SettingsScreen(): JSX.Element {
           <Section title="אימון">
             <SettingNumber
               label="זמן מנוחה ברירת מחדל"
-              description="בתרגיל שיש לו זמן משלו, הזמן שלו מנצח"
+              description="בתרגיל שיש לו זמן משלו, הזמן שלו מנצח. אפשר לשנות גם תוך כדי אימון"
               value={settings.defaultRestSeconds}
               onChange={(v) => update({ defaultRestSeconds: v })}
               step={15}
               min={15}
               max={600}
               format={formatClock}
+            />
+            <SettingNumber
+              label="חזרות ברירת מחדל"
+              description="מה מוצע בשדה כשאין עדיין היסטוריה. ברגע שיש, היא מנצחת"
+              value={settings.defaultReps}
+              onChange={(v) => update({ defaultReps: v })}
+              step={1}
+              min={1}
+              max={50}
             />
             <SettingToggle
               label="צליל בסיום מנוחה"

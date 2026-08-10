@@ -20,6 +20,8 @@ export interface StepperProps {
   label: string
   /** הבהרה קטנה לצד התווית, למשל 'ק״ג כל צד' */
   suffix?: string
+  /** שורה מתחת לפקד — למה הכפתורים קופצים בקפיצה הזו, או מה אפשר להקליד */
+  hint?: string
   decimals?: 0 | 1 | 2
   size?: 'md' | 'hero'
   disabled?: boolean
@@ -36,11 +38,26 @@ function decimalsForStep(step: number): 0 | 1 | 2 {
   return Number.isInteger(round2(step * 10)) ? 1 : 2
 }
 
-/** '60' ולא '60.0', אבל '22.5' נשאר מדויק */
+/** כמה ספרות אחרי הנקודה יש בערך עצמו */
+function decimalsOf(value: number): 0 | 1 | 2 {
+  const r = round2(value)
+  if (Number.isInteger(r)) return 0
+  return Math.abs(r * 10 - Math.round(r * 10)) < 1e-9 ? 1 : 2
+}
+
+/**
+ * '60' ולא '60.0', אבל '22.5' נשאר מדויק.
+ *
+ * הדיוק נגזר מהצעד *ומהערך גם יחד*, ולא מהצעד לבדו. מאז שהקלדה כבר לא נצמדת
+ * לרשת, ערך יכול להיות מדויק יותר ממנה: במכונה שקופצת ב-5 אפשר להקליד 97.5,
+ * ועיגול בתצוגה בלבד היה מצייר "98" מעל סט שנרשם כ-97.5 — בדיוק השקר שהקומיט
+ * החי בא לחסל, רק בכיוון ההפוך.
+ */
 function display(value: number, decimals: 0 | 1 | 2): string {
   if (!Number.isFinite(value)) return '0'
-  const fixed = value.toFixed(decimals)
-  return decimals === 0 ? fixed : fixed.replace(/\.?0+$/, '')
+  const places = Math.max(decimals, decimalsOf(value)) as 0 | 1 | 2
+  const fixed = value.toFixed(places)
+  return places === 0 ? fixed : fixed.replace(/\.?0+$/, '')
 }
 
 interface StepButtonProps {
@@ -98,6 +115,7 @@ export function Stepper({
   max,
   label,
   suffix,
+  hint,
   decimals,
   size = 'md',
   disabled = false,
@@ -116,11 +134,18 @@ export function Stepper({
 
   const timerRef = useRef<number | null>(null)
 
-  /** מעגל לצעד, חוסם לתחום, ולעולם לא פולט NaN */
-  const commitNumber = useCallback((n: number) => {
+  /**
+   * חוסם לתחום, ולעולם לא פולט NaN.
+   *
+   * `snap` מפריד בין שני מקורות שונים לגמרי לערך. כפתורי ה-+/- נעים על רשת
+   * הקפיצות של התרגיל ולכן מצמידים אליה. מספר שהוקלד ביד הוא *מדידה* — זה מה
+   * שכתוב על המכונה — ואסור לעגל אותו: מכונה עם קפיצות של 2.5 שמסומנת 62
+   * הייתה קופצת ל-62.5, כלומר האפליקציה מתקנת את המציאות.
+   */
+  const commitNumber = useCallback((n: number, snap: boolean) => {
     const s = latest.current
     if (!Number.isFinite(n)) return
-    let next = s.step > 0 ? roundToIncrement(n, s.step) : round2(n)
+    let next = snap && s.step > 0 ? roundToIncrement(n, s.step) : round2(n)
     if (s.min !== undefined) next = Math.max(s.min, next)
     if (s.max !== undefined) next = Math.min(s.max, next)
     next = round2(next)
@@ -138,7 +163,8 @@ export function Stepper({
       commitNumber(
         onGrid
           ? round2(s.value + dir * s.step)
-          : roundToIncrement(s.value, s.step, dir === 1 ? 'up' : 'down')
+          : roundToIncrement(s.value, s.step, dir === 1 ? 'up' : 'down'),
+        true
       )
     },
     [commitNumber]
@@ -175,12 +201,32 @@ export function Stepper({
   // ניקוי אחרון — פירוק הרכיב באמצע לחיצה לא משאיר טיימר רץ
   useEffect(() => stopHold, [stopHold])
 
+  /**
+   * כל הקשה מדווחת מיד כלפי מעלה, ולא רק ב-blur.
+   *
+   * זה תיקון של באג אמיתי באמצע סט: `pointerdown` על "סיים סט" קודם ל-blur של
+   * השדה, ולכן ערך שהוקלד ולא אושר נבלע — הסט נרשם עם המספר הישן, והמשתמש
+   * רואה שההקלדה שלו "לא נתפסה". מה שמופיע על המסך הוא מה שנרשם, נקודה.
+   *
+   * ה-draft נשאר כדי שהטקסט לא יילחם באצבע תוך כדי הקלדה ("6" בדרך ל-"60"
+   * לא מקפיץ את השדה), אבל הערך שמאחוריו כבר מעודכן.
+   */
+  const typeDraft = useCallback(
+    (raw: string) => {
+      setDraft(raw)
+      const normalized = raw.replace(',', '.').trim()
+      const n = Number(normalized)
+      if (normalized !== '' && Number.isFinite(n)) commitNumber(n, false)
+    },
+    [commitNumber]
+  )
+
   const commitDraft = useCallback(
     (raw: string) => {
       const normalized = raw.replace(',', '.').trim()
-      const n = Number(normalized)
       // קלט לא תקין נזרק בשקט והערך האחרון הטוב חוזר לתצוגה
-      if (normalized !== '' && Number.isFinite(n)) commitNumber(n)
+      const n = Number(normalized)
+      if (normalized !== '' && Number.isFinite(n)) commitNumber(n, false)
       setDraft(null)
     },
     [commitNumber]
@@ -228,13 +274,19 @@ export function Stepper({
               hero ? 'text-[2.75rem]' : 'text-3xl',
             ].join(' ')}
             value={draft ?? display(value, dec)}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => typeDraft(e.target.value)}
             onFocus={(e) => {
               // בחירת הכל כדי שהקלדה תחליף במקום להוסיף. ספארי מאבד את
               // הבחירה בפריים הראשון של הפוקוס, ולכן חוזרים עליה ב-rAF.
               const el = e.currentTarget
+              const atFocus = el.value
               el.select()
-              requestAnimationFrame(() => el.select())
+              requestAnimationFrame(() => {
+                // רק אם המשתמש עוד לא הספיק להקליד. במכשיר עמוס הפריים הבא
+                // יכול לנחות *אחרי* ההקשה הראשונה, ובחירה חוזרת אז הייתה בולעת
+                // אותה — בדיוק תחושת "הקלדתי ולא נתפס" שהפקד הזה נועד למנוע.
+                if (el.value === atFocus) el.select()
+              })
             }}
             onBlur={(e) => commitDraft(e.currentTarget.value)}
             onKeyDown={(e) => {
@@ -258,6 +310,8 @@ export function Stepper({
           onStop={stopHold}
         />
       </div>
+
+      {hint ? <p className="mt-1.5 text-[0.6875rem] font-medium text-bone-500">{hint}</p> : null}
     </div>
   )
 }

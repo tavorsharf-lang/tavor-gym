@@ -15,6 +15,7 @@ import {
 } from '@/db/queries'
 import type {
   Exercise,
+  ExerciseMetric,
   ExerciseRating,
   PersonalRecord,
   PrKind,
@@ -65,6 +66,8 @@ interface ExerciseBlock {
   subTitle: string
   exists: boolean
   weightMode: WeightMode
+  /** חסר = חזרות. פלאנק מוצג בשניות. */
+  metric?: ExerciseMetric
   warmups: SetRow[]
   work: SetRow[]
   volumeKg: number
@@ -116,6 +119,7 @@ function buildBlocks(detail: Detail): ExerciseBlock[] {
   return order.map((exerciseId, index) => {
     const exercise = byId.get(exerciseId)
     const weightMode = exercise?.weightMode ?? 'total'
+    const metric = exercise?.metric
     // מיון לפי זמן הביצוע בלבד. setIndex ממוספר לכל פריט בתור בנפרד, ולכן
     // תרגיל שהופיע פעמיים באימון (אחרי החלפה, או שנוסף שוב מהתור) מייצר שתי
     // סדרות 0,1,2 — ומיון לפיו היה משזר אותן לסדר שלא קרה מעולם.
@@ -162,6 +166,7 @@ function buildBlocks(detail: Detail): ExerciseBlock[] {
         .join(' · '),
       exists: exercise !== undefined,
       weightMode,
+      metric,
       warmups: toRow(mine.filter((s) => s.type === 'warmup')),
       work: toRow(mine.filter((s) => s.type === 'work')),
       volumeKg,
@@ -273,7 +278,7 @@ export function SessionDetailScreen(): JSX.Element {
       <ScreenHeader
         title={routineName}
         subtitle={formatDateLong(session.startedAt)}
-        onBack={() => navigate('/history')}
+        fallback="/history"
       />
 
       {blockNames.length > 0 && (
@@ -339,7 +344,7 @@ export function SessionDetailScreen(): JSX.Element {
                           className="tnum text-[0.9375rem] font-semibold"
                           dir={block.weightMode === 'bodyweight' ? undefined : 'ltr'}
                         >
-                          {formatSetShort(row.set.weightKg, row.set.reps, block.weightMode)}
+                          {formatSetShort(row.set.weightKg, row.set.reps, block.weightMode, block.metric)}
                         </span>
                         <span className="ms-auto rounded-pill border border-warmup-400/25 bg-warmup-400/10 px-2 py-0.5 text-[0.625rem] font-bold">
                           חימום
@@ -364,13 +369,13 @@ export function SessionDetailScreen(): JSX.Element {
                           className="tnum text-[0.9375rem] font-bold text-bone-50"
                           dir={block.weightMode === 'bodyweight' ? undefined : 'ltr'}
                         >
-                          {formatSetShort(row.set.weightKg, row.set.reps, block.weightMode)}
+                          {formatSetShort(row.set.weightKg, row.set.reps, block.weightMode, block.metric)}
                         </span>
                         {row.prKinds.length > 0 && (
                           <span className="animate-stamp ms-auto flex items-center gap-1 text-pr-400">
                             <Star size={13} fill="currentColor" aria-hidden="true" />
                             <span className="text-[0.6875rem] font-bold">
-                              {prLabel(row.prKinds[0])}
+                              {prLabel(row.prKinds[0], block.metric)}
                             </span>
                           </span>
                         )}

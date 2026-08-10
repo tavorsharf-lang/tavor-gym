@@ -6,8 +6,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
  * שלושה מכשולים ב-iOS שהקוד הזה קיים בשבילם:
  *   1. Safari לא מנגן כלום עד שהקשר האודיו נפתח *בתוך* מחוות משתמש. לכן
  *      `unlock` נקרא מהלחיצה על "התחל אימון", ומשמיע באפר שקט של דגימה אחת.
- *   2. מתג ההשתקה החומרי משתיק WebAudio. `navigator.audioSession.type` = 'playback'
- *      (Safari 17+) מסמן שזו השמעה ולא צליל ממשק, ואז המתג לא משתיק.
+ *   2. המוזיקה של המשתמש חייבת להמשיך לנגן. `navigator.audioSession.type`
+ *      (Safari 17+) הוא מה שקובע את זה, וזו החלטת מוצר ולא פרט טכני:
+ *      'playback' אומר ל-iOS "אני נגן" — הוא *מפסיק* אודיו של אפליקציות אחרות
+ *      בכל פעם שההקשר מתעורר, כלומר בכל חזרה לאפליקציה. 'ambient' מתערבב עם
+ *      המוזיקה במקום להשתלט עליה. המחיר: מתג ההשתקה החומרי משתיק את הצפצוף.
+ *      ההבזק הכתום על כל המסך בסיום המנוחה הוא מה שמכסה את המקרה הזה, והוא
+ *      עובד ממילא — ולכן העסקה הזו משתלמת.
  *   3. ההקשר עובר ל-suspended כשהמסך נכבה. מחזירים אותו בכל חזרה לאפליקציה
  *      ובכל קריאה ל-keepAlive.
  *
@@ -15,7 +20,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
  * באמצע אימון.
  */
 
-export type AudioCuePattern = 'done' | 'tick' | 'pr'
+export type AudioCuePattern = 'done' | 'pr'
 
 /** Safari 17+. לא קיים בטיפוסי ה-DOM, ולכן הצהרה מקומית וצרה במקום any */
 interface AudioSessionLike {
@@ -41,10 +46,13 @@ interface Note {
 }
 
 /**
- * התבניות. 'done' עולה בשלושה צעדים ומסתיים בצליל ארוך ובולט — נשמע גם
- * מהתיק ומעל מוזיקה של חדר כושר. 'tick' חייב להישאר שקט, הוא מתנגן בכל שנייה
- * של ספירה לאחור. 'pr' בהיר יותר וכולל קפיצה לאוקטבה, כדי שיהיה ברור שקרה
- * משהו טוב ולא שהטיימר נגמר.
+ * שתי התבניות. 'done' עולה בשלושה צעדים ומסתיים בצליל ארוך ובולט — נשמע גם
+ * מהתיק ומעל מוזיקה של חדר כושר. 'pr' בהיר יותר וכולל קפיצה לאוקטבה, כדי
+ * שיהיה ברור שקרה משהו טוב ולא שהטיימר נגמר.
+ *
+ * אין תבנית טיק-טוק לספירה לאחור בכוונה: מאז שהאפליקציה מתערבבת עם המוזיקה
+ * של המשתמש במקום להשתלט עליה, צליל שחוזר כל שנייה היה מזמזם מעליה לאורך כל
+ * המנוחה. שלוש השניות האחרונות מסומנות ויזואלית בלבד (`urgent` ב-RestOverlay).
  */
 const PATTERNS: Record<AudioCuePattern, Note[]> = {
   done: [
@@ -52,7 +60,6 @@ const PATTERNS: Record<AudioCuePattern, Note[]> = {
     { freq: 880, at: 0.2, dur: 0.16, gain: 0.9 },
     { freq: 1320, at: 0.4, dur: 0.38, gain: 1 },
   ],
-  tick: [{ freq: 1100, at: 0, dur: 0.05, gain: 0.18 }],
   pr: [
     { freq: 880, at: 0, dur: 0.12, gain: 0.8 },
     { freq: 1108, at: 0.11, dur: 0.12, gain: 0.85 },
@@ -103,9 +110,10 @@ export function useAudioCue(enabled: boolean, volume: number): AudioCue {
       const Ctor = window.AudioContext ?? (window as WindowWithWebkitAudio).webkitAudioContext
       if (!Ctor) return
 
-      // חייב לקרות לפני יצירת ההקשר, אחרת ההקשר כבר נקבע כ'סאונד ממשק'
+      // חייב לקרות לפני יצירת ההקשר — אחרי היצירה iOS כבר קיבע את הסוג.
+      // 'ambient' = להתערבב עם המוזיקה של המשתמש ולא להשתלט עליה. ראה למעלה.
       const nav = navigator as NavigatorWithAudioSession
-      if (nav.audioSession) nav.audioSession.type = 'playback'
+      if (nav.audioSession) nav.audioSession.type = 'ambient'
 
       let ctx = ctxRef.current
       if (!ctx) {

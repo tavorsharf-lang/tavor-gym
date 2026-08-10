@@ -1,15 +1,30 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft, ChevronRight, Loader2, TriangleAlert, WifiOff, X } from 'lucide-react'
-import { loadVideosFor, releaseVideos } from '@/db/mediaDb'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Trash2,
+  TriangleAlert,
+  WifiOff,
+  X,
+} from 'lucide-react'
+import { deleteVideo, loadVideosFor, releaseVideos } from '@/db/mediaDb'
+import { useHiddenVideosVersion } from '@/db/hiddenVideos'
 import { videoMismatchNote } from '@/db/videoIssues'
 import type { PlayableVideo } from '@/db/types'
+import { Button, toast } from '@/components/ui'
 
 /**
  * נגן ההדגמות.
  *
  * מנגן בלולאה, מושתק ו-playsInline — שלושתם חובה כדי ש-iOS ינגן בתוך הדף
- * ולא יקפוץ למסך מלא של המערכת. הסרטונים ממילא בלי אודיו.
+ * ולא יקפוץ למסך מלא של המערכת.
+ *
+ * ההשתקה נאכפת ולא רק מוצהרת: לכל הסרטונים אין בכלל רצועת אודיו (הם נדחסים
+ * עם ‎-an), אבל ברגע שסרטון ב-iOS מפסיק להיות mute הוא תופס את מושב האודיו
+ * של המערכת — והמוזיקה שהמשתמש מנגן ברקע נעצרת. פקדי הנגן המובנים מציעים
+ * כפתור השתקה, ולחיצה מקרית עליו הייתה עולה במוזיקה בלי להוסיף שום צליל.
  */
 export function VideoPlayer({
   exerciseId,
@@ -32,7 +47,14 @@ export function VideoPlayer({
   const [index, setIndex] = useState(startIndex)
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
+  // אחרי מחיקה נשארים באותו מקום ברשימה במקום לקפוץ לסרטון הראשון
+  const resumeAt = useRef<number | null>(null)
+
+  // מחיקת סרטון משנה את הרשימה מתחת לרגליים של המסך הזה — הגרסה היא מה
+  // שמחזיר אותו לטעון מחדש, בלי שהמחיקה תצטרך להכיר את מי שמציג
+  const hiddenVersion = useHiddenVideosVersion()
 
   useEffect(() => {
     if (!open) return
@@ -40,7 +62,8 @@ export function VideoPlayer({
     let cancelled = false
     setLoading(true)
     setFailed(false)
-    setIndex(startIndex)
+    setIndex(resumeAt.current ?? startIndex)
+    resumeAt.current = null
 
     loadVideosFor(exerciseId, libraryId).then((loaded) => {
       if (cancelled) {
@@ -49,6 +72,7 @@ export function VideoPlayer({
       }
       list = loaded
       setVideos(loaded)
+      setIndex((i) => Math.max(0, Math.min(i, loaded.length - 1)))
       setLoading(false)
     })
 
@@ -60,7 +84,12 @@ export function VideoPlayer({
     // startIndex לא ברשימת התלויות: הוא נקרא פעם אחת בפתיחה, וכל שינוי שלו
     // בזמן שהנגן פתוח היה קופץ למשתמש מהסרטון שהוא צופה בו לסרטון אחר
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exerciseId, libraryId, open])
+  }, [exerciseId, libraryId, open, hiddenVersion])
+
+  // הגיליון נסגר יחד עם הנגן, אחרת הוא היה ממתין פתוח לפתיחה הבאה
+  useEffect(() => {
+    if (!open) setConfirmingDelete(false)
+  }, [open])
 
   // נעילת גלילת הרקע כל עוד הנגן פתוח
   useEffect(() => {
@@ -80,10 +109,46 @@ export function VideoPlayer({
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  // ההשתקה חוזרת ונאכפת גם אחרי שהמשתמש נגע בכפתור ההשתקה של הפקדים — אחרת
+  // הסרטון תופס את מושב האודיו ועוצר את המוזיקה, בלי להשמיע כלום בתמורה
+  useEffect(() => {
+    const el = videoRef.current
+    if (!el) return
+    const enforce = () => {
+      if (!el.muted || el.volume !== 0) {
+        el.muted = true
+        el.volume = 0
+      }
+    }
+    enforce()
+    el.addEventListener('volumechange', enforce)
+    el.addEventListener('play', enforce)
+    return () => {
+      el.removeEventListener('volumechange', enforce)
+      el.removeEventListener('play', enforce)
+    }
+  })
+
   if (!open) return null
 
   const current = videos[index]
   const mismatch = videoMismatchNote(exerciseId)
+
+  const confirmDelete = async (): Promise<void> => {
+    if (!current) return
+    const label = current.label
+    resumeAt.current = Math.max(0, Math.min(index, videos.length - 2))
+    setConfirmingDelete(false)
+    try {
+      await deleteVideo(current.id)
+      toast(`${label} נמחק`, { tone: 'warn' })
+    } catch {
+      // המחיקה לא קרתה, ולכן גם אין למה לחזור — בלי האיפוס הזה הפתיחה הבאה
+      // של הנגן הייתה נוחתת על סרטון אחר מזה שביקשו
+      resumeAt.current = null
+      toast('לא הצלחתי למחוק את הסרטון', { tone: 'warn' })
+    }
+  }
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-ink-950/97 backdrop-blur-xl animate-fade">
@@ -110,6 +175,15 @@ export function VideoPlayer({
             </p>
           ) : null}
         </div>
+        {current ? (
+          <button
+            onClick={() => setConfirmingDelete(true)}
+            aria-label="מחק את הסרטון הזה"
+            className="flex size-11 items-center justify-center rounded-full text-bone-500 active:bg-ink-800"
+          >
+            <Trash2 size={20} />
+          </button>
+        ) : null}
         <button
           onClick={onClose}
           aria-label="סגור"
@@ -198,6 +272,50 @@ export function VideoPlayer({
           >
             <ChevronLeft size={22} />
           </button>
+        </div>
+      )}
+
+      {/*
+        האישור יושב בתוך הנגן ולא ב-BottomSheet: הנגן כבר תופס את המסך כולו
+        ב-portal משלו, וגיליון נוסף מעליו היה נפתח מאחוריו בחלק מהמצבים.
+      */}
+      {confirmingDelete && current && (
+        <div className="animate-fade absolute inset-0 z-10 flex items-end bg-ink-950/85 backdrop-blur-sm">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-video-title"
+            className="w-full rounded-t-3xl border-t border-ink-700 bg-ink-900 p-5 pb-safe"
+          >
+            <h3 id="delete-video-title" className="text-lg font-extrabold text-bone-50">
+              למחוק את הסרטון?
+            </h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-bone-400">
+              <span dir="ltr" className="font-semibold text-bone-200">
+                {current.label}
+              </span>{' '}
+              לא יופיע יותר — לא כאן, לא בכרטיס התרגיל ולא במאגר. אפשר להחזיר את
+              כל הסרטונים שנמחקו בהגדרות ← סרטונים.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <Button
+                variant="quiet"
+                size="lg"
+                className="flex-1"
+                onClick={() => setConfirmingDelete(false)}
+              >
+                ביטול
+              </Button>
+              <button
+                type="button"
+                onClick={() => void confirmDelete()}
+                className="flex min-h-14 flex-1 items-center justify-center gap-2 rounded-card border border-hard-400/40 bg-hard-400/15 text-base font-extrabold text-hard-400"
+              >
+                <Trash2 size={18} />
+                מחק
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>,

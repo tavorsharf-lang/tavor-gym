@@ -7,12 +7,16 @@ import type {
   Exercise,
   ExerciseRating,
   PersonalRecord,
+  PlanItem,
+  RepRange,
   Routine,
   Session,
   SetLog,
   VideoAsset,
 } from '@/db/types'
 import { withLibraryLink } from '@/db/libraryLinks'
+import { PLANK_RANGE } from '@/db/seed'
+import { invalidateHiddenVideos } from '@/db/hiddenVideos'
 import { rebuildPrs } from '@/domain/prs'
 import { toISODate } from '@/lib/dates'
 
@@ -135,7 +139,9 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
 
   // גיבוי שנוצר לפני גרסה 4 לא מכיר את הקישור למאגר. בלי השתילה כאן, שחזור
   // היה מוחק את הקישורים במקום להשאיר אותם כמו שהיו לפני הייבוא.
-  const exercises = (data.exercises ?? []).map(withLibraryLink)
+  const exercises = (data.exercises ?? []).map(withLibraryLink).map(withTimedMetric)
+  const routines = (data.routines ?? []).map(withTimedPlanItems)
+  const blocks = (data.blocks ?? []).map(withTimedPlanItems)
   const setLogs = data.setLogs ?? []
 
   try {
@@ -167,8 +173,8 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
           db.activeWorkout.clear(),
         ])
         await db.exercises.bulkPut(exercises)
-        await db.routines.bulkPut(data.routines ?? [])
-        await db.blocks.bulkPut(data.blocks ?? [])
+        await db.routines.bulkPut(routines)
+        await db.blocks.bulkPut(blocks)
         await db.sessions.bulkPut(data.sessions ?? [])
         await db.setLogs.bulkPut(setLogs)
         await db.ratings.bulkPut(data.ratings ?? [])
@@ -183,11 +189,40 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
     return { ok: false, error: `הייבוא נכשל — ${errorText(err)}` }
   }
 
+  // ההגדרות הוחלפו, ואיתן רשימת הסרטונים שנמחקו — המטמון שבזיכרון כבר לא נכון
+  invalidateHiddenVideos()
+
   const counts: Record<string, number> = {}
   for (const key of Object.keys(TABLE_LABELS) as TableKey[]) {
     counts[TABLE_LABELS[key]] = (data[key] as unknown[]).length
   }
   return { ok: true, counts }
+}
+
+/**
+ * תרגילים שנמדדים בזמן, ומה היעד שלהם.
+ *
+ * גיבוי שנוצר לפני גרסה 5 מחזיק את הפלאנק כטווח *חזרות* ובלי `metric`. בלי
+ * התיקון כאן, שחזור שלו במכשיר מעודכן היה מחזיר אותו למצב הישן לצמיתות —
+ * גרסת ה-Dexie כבר 5, ולכן המיגרציה שמתקנת את זה לא תרוץ שוב לעולם. זה בדיוק
+ * הדפוס של `withLibraryLink` שכבר קיים כאן, רק לגרסה הבאה.
+ */
+const TIMED_SEED: Record<string, RepRange> = { abs: PLANK_RANGE }
+
+function withTimedMetric(exercise: Exercise): Exercise {
+  const range = TIMED_SEED[exercise.id]
+  if (!range || exercise.metric) return exercise
+  return { ...exercise, metric: 'seconds', targetReps: { ...range } }
+}
+
+function withTimedPlanItems<T extends { items: PlanItem[] }>(plan: T): T {
+  if (!plan.items?.some((it) => TIMED_SEED[it.exerciseId])) return plan
+  return {
+    ...plan,
+    items: plan.items.map((it) =>
+      TIMED_SEED[it.exerciseId] ? { ...it, targetReps: { ...TIMED_SEED[it.exerciseId] } } : it
+    ),
+  }
 }
 
 function errorText(err: unknown): string {

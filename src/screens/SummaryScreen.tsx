@@ -27,6 +27,7 @@ import {
 } from '@/db/queries'
 import type {
   Exercise,
+  ExerciseMetric,
   ExerciseRating,
   MuscleGroup,
   PersonalRecord,
@@ -37,7 +38,13 @@ import type {
   WeightMode,
 } from '@/db/types'
 import { MUSCLE_GROUPS, RATING_LABELS, RIR_LABELS } from '@/db/types'
-import { formatDuration, formatSetShort, formatVolume, formatWeight } from '@/domain/units'
+import {
+  formatClock,
+  formatDuration,
+  formatSetShort,
+  formatVolume,
+  formatWeight,
+} from '@/domain/units'
 import { summarize, weightModeLookup, workSets, workingWeight } from '@/domain/volume'
 import type { PrEvent } from '@/domain/prs'
 import { prHeadline, prLabel } from '@/domain/prs'
@@ -53,7 +60,9 @@ import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 
 // ─── עזרי ניסוח ────────────────────────────────────────────────────────────
 
-function repsText(n: number): string {
+/** "10 חזרות" · "2:30" בתרגיל שנמדד בזמן — סכום שניות ולא ספירת תנועות */
+function repsText(n: number, metric?: ExerciseMetric): string {
+  if (metric === 'seconds') return formatClock(n)
   return n === 1 ? 'חזרה אחת' : `${n} חזרות`
 }
 
@@ -79,8 +88,12 @@ const RATING_TONES: Record<Rating, string> = {
 }
 
 /** רשימת סטי עבודה קצרה: "60×10, 60×9" */
-function setListText(sets: readonly SetLog[], mode: WeightMode): string {
-  return sets.map((s) => formatSetShort(s.weightKg, s.reps, mode)).join(', ')
+function setListText(
+  sets: readonly SetLog[],
+  mode: WeightMode,
+  metric?: ExerciseMetric
+): string {
+  return sets.map((s) => formatSetShort(s.weightKg, s.reps, mode, metric)).join(', ')
 }
 
 /**
@@ -90,7 +103,8 @@ function setListText(sets: readonly SetLog[], mode: WeightMode): string {
 function comparisonText(
   mode: WeightMode,
   current: readonly SetLog[],
-  previous: readonly SetLog[]
+  previous: readonly SetLog[],
+  metric?: ExerciseMetric
 ): string | null {
   if (!current.length || !previous.length) return null
 
@@ -121,12 +135,12 @@ function comparisonText(
 
   if (repsDiff > 0) {
     changed = true
-    parts.push(`${repsText(repsDiff)} יותר`)
+    parts.push(`${repsText(repsDiff, metric)} יותר`)
   } else if (repsDiff < 0) {
     changed = true
-    parts.push(`${repsText(-repsDiff)} פחות`)
+    parts.push(`${repsText(-repsDiff, metric)} פחות`)
   } else {
-    parts.push('אותו מספר חזרות')
+    parts.push(metric === 'seconds' ? 'אותו זמן' : 'אותו מספר חזרות')
   }
 
   if (setsDiff !== 0) {
@@ -215,7 +229,15 @@ function DeltaChip({ percent }: { percent: number }): JSX.Element {
   )
 }
 
-function SetChip({ set, mode }: { set: SetLog; mode: WeightMode }): JSX.Element {
+function SetChip({
+  set,
+  mode,
+  metric,
+}: {
+  set: SetLog
+  mode: WeightMode
+  metric?: ExerciseMetric
+}): JSX.Element {
   const warmup = set.type === 'warmup'
   return (
     <span
@@ -226,7 +248,7 @@ function SetChip({ set, mode }: { set: SetLog; mode: WeightMode }): JSX.Element 
           : 'border-ink-700 bg-ink-800 text-bone-200'
       }`}
     >
-      {formatSetShort(set.weightKg, set.reps, mode)}
+      {formatSetShort(set.weightKg, set.reps, mode, metric)}
     </span>
   )
 }
@@ -440,7 +462,7 @@ export function SummaryScreen(): JSX.Element {
                       {ex ? prHeadline(ex, event) : prLabel(pr.kind)}
                     </p>
                   </div>
-                  <span className="meta shrink-0">{prLabel(pr.kind)}</span>
+                  <span className="meta shrink-0">{prLabel(pr.kind, ex?.metric)}</span>
                 </li>
               )
             })}
@@ -462,6 +484,7 @@ export function SummaryScreen(): JSX.Element {
             {ordered.map((id) => {
               const ex = exerciseById.get(id)
               const mode: WeightMode = ex?.weightMode ?? 'total'
+              const metric = ex?.metric
               const all = setsByExercise.get(id) ?? []
               const work = workSets(all)
               const warmups = all.length - work.length
@@ -471,11 +494,11 @@ export function SummaryScreen(): JSX.Element {
               const prCount = prCountByExercise.get(id) ?? 0
 
               const prevWork = workSets(prevSetsByExercise.get(id) ?? [])
-              const comparison = comparisonText(mode, work, prevWork)
+              const comparison = comparisonText(mode, work, prevWork, metric)
 
               const totalsLine = [
                 setsText(work.length),
-                repsText(reps),
+                repsText(reps, metric),
                 volume > 0 ? formatVolume(volume) : null,
               ]
                 .filter((p): p is string => p !== null)
@@ -505,7 +528,7 @@ export function SummaryScreen(): JSX.Element {
 
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {all.map((s, i) => (
-                      <SetChip key={s.id ?? `${id}-${i}`} set={s} mode={mode} />
+                      <SetChip key={s.id ?? `${id}-${i}`} set={s} mode={mode} metric={metric} />
                     ))}
                   </div>
 
@@ -523,7 +546,7 @@ export function SummaryScreen(): JSX.Element {
                         className="tnum text-bone-400"
                         dir={mode === 'bodyweight' ? undefined : 'ltr'}
                       >
-                        {setListText(prevWork, mode)}
+                        {setListText(prevWork, mode, metric)}
                       </span>
                       {' · '}
                       <span className="font-semibold text-bone-200">הפעם {comparison}</span>

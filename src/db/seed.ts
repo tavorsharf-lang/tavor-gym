@@ -14,6 +14,23 @@ import { withLibraryLink } from './libraryLinks'
 
 const now = () => Date.now()
 
+/**
+ * שני מספרים שחלים על *כל* תרגיל, ולא לפי תרגיל.
+ *
+ * הם אחידים בכוונה. תבור רוצה להיכנס לכל תרגיל עם אותה ציפייה ולשנות אותה
+ * במקום כשהיא לא מתאימה — שני סטים ושתי דקות מנוחה — ולא לזכור שלכל תרגיל
+ * יש מספר משלו. שניהם ניתנים לשינוי בשלוש רמות: בהגדרות, בעורך התוכניות,
+ * ותוך כדי אימון על כרטיס התרגיל עצמו.
+ */
+export const DEFAULT_TARGET_SETS = 2
+export const DEFAULT_REST_SECONDS = 120
+
+/** כמה חזרות מוצעות כשאין שום היסטוריה על התרגיל */
+export const DEFAULT_REPS = 6
+
+/** היעד של הפלאנק — 1:15. נמדד בשניות, ולכן טווח סגור על מספר אחד. */
+export const PLANK_RANGE: RepRange = { min: 75, max: 75 }
+
 type ExerciseSeed = Omit<Exercise, 'createdAt' | 'updatedAt' | 'isActive' | 'order'>
 
 const reps = (min: number, max: number): RepRange => ({ min, max })
@@ -22,10 +39,10 @@ const RAW: ExerciseSeed[] = [
   // ═══ אימון A — חזה ויד אחורית ═══
   {
     id: 'pushup',
-    name: 'שכיבות סמיכה (חימום)',
-    nameEn: 'Push-Up (Warm-Up)',
+    name: 'שכיבות סמיכה',
+    nameEn: 'Push-Up',
     muscleGroup: 'chest',
-    subTarget: 'חימום — חזה, טריצפס, כתף קדמית',
+    subTarget: 'חזה, טריצפס, כתף קדמית',
     equipment: 'bodyweight',
     weightMode: 'bodyweight',
     weightIncrementKg: 0,
@@ -630,12 +647,15 @@ const RAW: ExerciseSeed[] = [
     weightIncrementKg: 0,
     defaultRestSeconds: 60,
     targetSets: 3,
-    targetReps: reps(12, 20),
+    // פלאנק נמדד בזמן החזקה ולא בתנועות. היעד הוא 1:15, והטווח סגור בכוונה
+    // על מספר אחד: זו לא "עוד חזרה אם אפשר" אלא שעון שרצים מולו.
+    metric: 'seconds',
+    targetReps: { ...PLANK_RANGE },
     cues: [
       'מרפקים מתחת לכתפיים, אמות על הרצפה',
       'גוף בקו ישר מהעקב עד הראש — אגן לא נופל ולא מתרומם',
       'בטן ועכוז נעולים, נשימה רגילה',
-      'החזרות כאן הן שניות — לספור זמן ולא תנועות',
+      'מודדים כמה זמן החזקת — לא כמה תנועות עשית',
     ],
     usesPlates: false,
     barWeightKg: null,
@@ -648,6 +668,10 @@ const RAW: ExerciseSeed[] = [
 export const SEED_EXERCISES: Exercise[] = RAW.map((e, i) =>
   withLibraryLink({
     ...e,
+    // הסטים והמנוחה נכפים כאן ולא נכתבים בכל רשומה — כך אי אפשר להוסיף תרגיל
+    // חדש ולשכוח ליישר אותו, והמספרים שב-RAW נשארים תיעוד של המקור
+    targetSets: DEFAULT_TARGET_SETS,
+    defaultRestSeconds: DEFAULT_REST_SECONDS,
     isActive: true,
     order: i,
     createdAt: now(),
@@ -662,9 +686,9 @@ function item(exerciseId: string, order: number): PlanItem {
   return {
     exerciseId,
     order,
-    targetSets: ex.targetSets,
+    targetSets: DEFAULT_TARGET_SETS,
     targetReps: { ...ex.targetReps },
-    restSeconds: ex.defaultRestSeconds,
+    restSeconds: DEFAULT_REST_SECONDS,
     startWeightKg: null,
   }
 }
@@ -680,7 +704,6 @@ const plan = (ids: string[]): PlanItem[] => ids.map((id, i) => item(id, i))
 function comebackItem(
   exerciseId: string,
   order: number,
-  sets: number,
   reps: RepRange,
   ratio: number
 ): PlanItem {
@@ -694,10 +717,9 @@ function comebackItem(
   return {
     exerciseId,
     order,
-    targetSets: sets,
+    targetSets: DEFAULT_TARGET_SETS,
     targetReps: { ...reps },
-    // מנוחה קצרה יותר — העומס נמוך, והמטרה היא לחזור לשגרה ולא לשבור שיאים
-    restSeconds: Math.min(ex.defaultRestSeconds, 90),
+    restSeconds: DEFAULT_REST_SECONDS,
     startWeightKg: start,
   }
 }
@@ -705,10 +727,14 @@ function comebackItem(
 /**
  * שתי תוכניות פול-באדי מתחלפות, לחזרה הדרגתית אחרי הפסקה.
  *
- * העקרונות: תרגיל אחד לכל שריר קטן ושניים לגדולים, 2–3 סטים במקום 4, טווח
- * חזרות גבוה יותר (10–15) שמעמיס פחות על המפרקים, ומשקל התחלה של כ-60%
- * מהמשקל הקודם. שני האימונים מכסים את אותם השרירים בתרגילים שונים, כדי
- * שאפשר יהיה להתאמן פעמיים-שלוש בשבוע בלי לחזור על עצמו.
+ * העקרונות: תרגיל אחד לכל שריר קטן ושניים לגדולים, טווח חזרות גבוה יותר
+ * (10–15) שמעמיס פחות על המפרקים, ומשקל התחלה של כ-60% מהמשקל הקודם. שני
+ * האימונים מכסים את אותם השרירים בתרגילים שונים, כדי שאפשר יהיה להתאמן
+ * פעמיים-שלוש בשבוע בלי לחזור על עצמו.
+ *
+ * אין כאן תרגיל חימום קבוע בראש התוכנית. חימום נקשר לשריר ולא לאימון: שכיבות
+ * סמיכה מחממות חזה ולא עושות כלום לרגליים, ולכן ההצעה מגיעה מ-`domain/warmup`
+ * ברגע שנפתחת קבוצת שריר חדשה — עם משקל מופחת של אותו תרגיל שעומדים לעשות.
  */
 const R = { min: 10, max: 15 } as const
 const R_LOW = { min: 10, max: 12 } as const
@@ -723,15 +749,14 @@ export const SEED_ROUTINES: Routine[] = [
     isActive: true,
     suggestBlocks: false,
     items: [
-      comebackItem('pushup', 0, 2, R_HIGH, 1),
-      comebackItem('leg-press', 1, 3, R_LOW, 0.6),
-      comebackItem('lat-pulldown', 2, 3, R_LOW, 0.6),
-      comebackItem('decline-machine-press', 3, 3, R_LOW, 0.6),
-      comebackItem('leg-curl', 4, 2, R, 0.6),
-      comebackItem('machine-shoulder-press', 5, 2, R, 0.6),
-      comebackItem('preacher-curl', 6, 2, R, 0.6),
-      comebackItem('cable-tricep-pushdown', 7, 2, R, 0.6),
-      comebackItem('abs', 8, 2, R_HIGH, 1),
+      comebackItem('leg-press', 0, R_LOW, 0.6),
+      comebackItem('lat-pulldown', 1, R_LOW, 0.6),
+      comebackItem('decline-machine-press', 2, R_LOW, 0.6),
+      comebackItem('leg-curl', 3, R, 0.6),
+      comebackItem('machine-shoulder-press', 4, R, 0.6),
+      comebackItem('preacher-curl', 5, R, 0.6),
+      comebackItem('cable-tricep-pushdown', 6, R, 0.6),
+      comebackItem('abs', 7, PLANK_RANGE, 1),
     ],
   },
   {
@@ -742,15 +767,14 @@ export const SEED_ROUTINES: Routine[] = [
     isActive: true,
     suggestBlocks: false,
     items: [
-      comebackItem('pushup', 0, 2, R_HIGH, 1),
-      comebackItem('machine-squat', 1, 3, R_LOW, 0.6),
-      comebackItem('seated-row-heavy', 2, 3, R_LOW, 0.6),
-      comebackItem('db-bench-press', 3, 3, R_LOW, 0.6),
-      comebackItem('leg-extension', 4, 2, R, 0.6),
-      comebackItem('lateral-raise', 5, 2, R_HIGH, 0.6),
-      comebackItem('hammer-curl', 6, 2, R, 0.6),
-      comebackItem('cross-cable-tricep', 7, 2, R, 0.6),
-      comebackItem('calf-raise', 8, 2, R_HIGH, 0.6),
+      comebackItem('machine-squat', 0, R_LOW, 0.6),
+      comebackItem('seated-row-heavy', 1, R_LOW, 0.6),
+      comebackItem('db-bench-press', 2, R_LOW, 0.6),
+      comebackItem('leg-extension', 3, R, 0.6),
+      comebackItem('lateral-raise', 4, R_HIGH, 0.6),
+      comebackItem('hammer-curl', 5, R, 0.6),
+      comebackItem('cross-cable-tricep', 6, R, 0.6),
+      comebackItem('calf-raise', 7, R_HIGH, 0.6),
     ],
   },
   {
@@ -833,7 +857,8 @@ export const SEED_BLOCKS: Block[] = [
 ]
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  defaultRestSeconds: 90,
+  defaultRestSeconds: DEFAULT_REST_SECONDS,
+  defaultReps: DEFAULT_REPS,
   soundEnabled: true,
   soundVolume: 0.8,
   wakeLockEnabled: true,
@@ -847,6 +872,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   confettiEnabled: true,
   autoWarmup: true,
   warmupPercent: 55,
+  hiddenVideoIds: [],
   lastBackupAt: null,
   videosInstalledAt: null,
   storagePromptSeenAt: null,

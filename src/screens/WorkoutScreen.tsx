@@ -5,7 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { ListOrdered, Trophy } from 'lucide-react'
 import { getSettings } from '@/db/db'
 import { getBlocks, getExerciseHistory, getRoutines } from '@/db/queries'
-import type { DraftSet, WeightMode } from '@/db/types'
+import type { DraftSet, ExerciseMetric, WeightMode } from '@/db/types'
 import { EmptyState, fireConfetti, toast } from '@/components/ui'
 import { Screen } from '@/components/shell/ScreenHeader'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
@@ -57,12 +57,16 @@ function ElapsedClock({ startedAt }: { startedAt: number }): JSX.Element {
  */
 function summarize(
   sets: DraftSet[],
-  mode: WeightMode
+  mode: WeightMode,
+  metric?: ExerciseMetric
 ): { count: number; top: string } | null {
   const work = sets.filter((s) => s.type === 'work')
   if (work.length === 0) return null
-  const top = work.reduce((best, s) => (s.weightKg > best.weightKg ? s : best))
-  return { count: work.length, top: formatSetShort(top.weightKg, top.reps, mode) }
+  // בתרגיל זמן כל הסטים באותו משקל (אפס), ולכן "הסט הטוב" הוא הארוך ביותר
+  const better = (a: DraftSet, b: DraftSet): boolean =>
+    metric === 'seconds' ? b.reps > a.reps : b.weightKg > a.weightKg
+  const top = work.reduce((best, s) => (better(best, s) ? s : best))
+  return { count: work.length, top: formatSetShort(top.weightKg, top.reps, mode, metric) }
 }
 
 export function WorkoutScreen(): JSX.Element | null {
@@ -294,7 +298,7 @@ export function WorkoutScreen(): JSX.Element | null {
                 exercise={exercise}
                 apart={distinguisher(exercise, duplicates)}
                 setCount={sets.length}
-                summary={summarize(sets, exercise.weightMode)}
+                summary={summarize(sets, exercise.weightMode, exercise.metric)}
                 onTap={() => void setCurrent(item.key)}
               />
             )

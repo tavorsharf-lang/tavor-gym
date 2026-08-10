@@ -1,9 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import type { Exercise } from './types'
-import { CATALOG_FIXES, applyCatalogFix } from './catalogFix'
+import { CATALOG_FIXES, CATALOG_FIXES_V5, applyCatalogFix } from './catalogFix'
 import { SEED_EXERCISES } from './seed'
 
 const seedById = new Map(SEED_EXERCISES.map((e) => [e.id, e]))
+const v5ById = new Map(CATALOG_FIXES_V5.map((f) => [f.id, f]))
+
+/**
+ * מה התיקון האחרון שחל על התרגיל הזה. תרגיל שדור מאוחר יותר נגע בו נמדד מולו
+ * ולא מול הדור שלפניו — אחרת "התמונה הקפואה" הייתה נשברת בכל שינוי קטלוג
+ * לגיטימי, ומפסיקה להגן על מה שהיא נועדה להגן עליו.
+ */
+function latest(fix: (typeof CATALOG_FIXES)[number]): (typeof CATALOG_FIXES)[number] {
+  return v5ById.get(fix.id) ?? fix
+}
 
 /** רשומה בקטלוג כפי שהיא נראית לפני התיקון */
 function before(fix: (typeof CATALOG_FIXES)[number]): Exercise {
@@ -20,7 +30,7 @@ function before(fix: (typeof CATALOG_FIXES)[number]): Exercise {
 
 describe('CATALOG_FIXES מול הזריעה', () => {
   it('כל תיקון מצביע על תרגיל שקיים', () => {
-    for (const fix of CATALOG_FIXES) {
+    for (const fix of [...CATALOG_FIXES, ...CATALOG_FIXES_V5]) {
       expect(seedById.has(fix.id), `${fix.id} לא בזריעה`).toBe(true)
     }
   })
@@ -30,7 +40,7 @@ describe('CATALOG_FIXES מול הזריעה', () => {
    * מכשיר מותקן היה נשאר מאחור בשקט — הבדיקה הזאת הופכת את זה לכישלון גלוי.
    */
   it('מחיל בדיוק את מה שיושב בזריעה', () => {
-    for (const fix of CATALOG_FIXES) {
+    for (const fix of CATALOG_FIXES.map(latest)) {
       const seed = seedById.get(fix.id)
       expect([fix.id, fix.name]).toEqual([fix.id, seed?.name])
       expect([fix.id, fix.nameEn]).toEqual([fix.id, seed?.nameEn])
@@ -39,9 +49,24 @@ describe('CATALOG_FIXES מול הזריעה', () => {
     }
   })
 
+  /** דור מאוחר חייב להמשיך את הקודם, אחרת קפיצה מגרסה 1 ל-5 מפספסת אותו */
+  it('כל תיקון בדור 5 ממשיך את התוצאה של דור 3', () => {
+    const v3ById = new Map(CATALOG_FIXES.map((f) => [f.id, f]))
+    for (const fix of CATALOG_FIXES_V5) {
+      const previous = v3ById.get(fix.id)
+      if (!previous) continue
+      expect([fix.id, fix.was]).toEqual([fix.id, previous.name])
+      if (fix.wasCues && previous.cues) {
+        expect([fix.id, [...fix.wasCues]]).toEqual([fix.id, [...previous.cues]])
+      }
+    }
+  })
+
   it('אין מזהה שמופיע פעמיים', () => {
-    const ids = CATALOG_FIXES.map((f) => f.id)
-    expect(new Set(ids).size).toBe(ids.length)
+    for (const list of [CATALOG_FIXES, CATALOG_FIXES_V5]) {
+      const ids = list.map((f) => f.id)
+      expect(new Set(ids).size).toBe(ids.length)
+    }
   })
 })
 

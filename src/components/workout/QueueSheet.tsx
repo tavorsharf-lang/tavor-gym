@@ -14,7 +14,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Check, ChevronDown, ChevronUp, Circle, Clock, Flame, Plus, X } from 'lucide-react'
 import { BottomSheet, EmptyState, toast } from '@/components/ui'
 import { MUSCLE_GROUPS, MUSCLE_GROUP_ORDER } from '@/db/types'
-import type { Exercise, MuscleGroup, QueueItem } from '@/db/types'
+import type { Exercise, ExerciseMetric, MuscleGroup, QueueItem } from '@/db/types'
 import { formatRepRange } from '@/domain/units'
 import { distinguisher, duplicateNames } from '@/domain/naming'
 import { useWorkout } from '@/state/activeWorkoutStore'
@@ -44,6 +44,7 @@ function QueueRow({
   index,
   total,
   name,
+  metric,
   apart,
   setCount,
   onMove,
@@ -52,6 +53,8 @@ function QueueRow({
   index: number
   total: number
   name: string
+  /** במה נמדד התרגיל — כדי שפלאנק יוצג כשעון ולא כטווח חזרות */
+  metric?: ExerciseMetric
   /** המשקל שמבדיל בין שני תרגילים בעלי אותו שם — null כשהשם ייחודי */
   apart: string | null
   setCount: number
@@ -91,7 +94,7 @@ function QueueRow({
         </p>
         <p className="meta mt-1">
           <span dir="ltr" className="tnum">
-            {item.targetSets}×{formatRepRange(item.targetReps)}
+            {item.targetSets}×{formatRepRange(item.targetReps, metric)}
           </span>
           {' · '}
           {setCount > 0 ? `${setCount} סטים בוצעו` : 'עוד לא התחיל'}
@@ -248,6 +251,7 @@ export function QueueSheet({ open, onClose }: QueueSheetProps): JSX.Element {
                       index={index}
                       total={queue.length}
                       name={exercisesById[item.exerciseId]?.name ?? 'תרגיל'}
+                      metric={exercisesById[item.exerciseId]?.metric}
                       apart={
                         exercisesById[item.exerciseId]
                           ? distinguisher(exercisesById[item.exerciseId], duplicates)

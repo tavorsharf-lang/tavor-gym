@@ -1,5 +1,5 @@
-import type { Exercise, PersonalRecord, PrKind, SetLog } from '@/db/types'
-import { formatVolume, formatWeight, round2 } from './units'
+import type { Exercise, ExerciseMetric, PersonalRecord, PrKind, SetLog } from '@/db/types'
+import { formatClock, formatVolume, formatWeight, round2 } from './units'
 import { setVolume, summarize, weightModeLookup } from './volume'
 
 /**
@@ -17,8 +17,14 @@ function near(a: number, b: number): boolean {
   return Math.abs(a - b) < EPS
 }
 
-/** "חזרה אחת" · "10 חזרות" */
-function repsText(n: number): string {
+/**
+ * "חזרה אחת" · "10 חזרות" · "1:15" בתרגיל שנמדד בזמן.
+ *
+ * אותו מספר, שתי יחידות. בלי ההבחנה הזו שיא של פלאנק היה מוכרז כ"80 חזרות"
+ * שנייה אחרי שאותו כרטיס עצמו הראה "1:20".
+ */
+function countText(n: number, metric?: ExerciseMetric): string {
+  if (metric === 'seconds') return formatClock(n)
   return n === 1 ? 'חזרה אחת' : `${n} חזרות`
 }
 
@@ -45,7 +51,11 @@ const PR_LABELS: Record<PrKind, string> = {
   maxSessionVolume: 'שיא נפח באימון',
 }
 
-export function prLabel(kind: PrKind): string {
+export function prLabel(kind: PrKind, metric?: ExerciseMetric): string {
+  if (metric === 'seconds') {
+    if (kind === 'maxReps') return 'שיא זמן'
+    if (kind === 'repsAtMaxWeight') return 'שיא זמן במשקל השיא'
+  }
   return PR_LABELS[kind]
 }
 
@@ -54,9 +64,9 @@ export function prHeadline(exercise: Exercise, event: PrEvent): string {
     case 'maxWeight':
       return `שיא חדש — ${formatWeight(event.value, exercise.weightMode)}`
     case 'repsAtMaxWeight':
-      return `שיא חדש — ${repsText(event.value)} ב-${formatWeight(event.weightKg, exercise.weightMode)}`
+      return `שיא חדש — ${countText(event.value, exercise.metric)} ב-${formatWeight(event.weightKg, exercise.weightMode)}`
     case 'maxReps':
-      return `שיא חדש — ${repsText(event.value)}`
+      return `שיא חדש — ${countText(event.value, exercise.metric)}`
     case 'maxSessionVolume':
       return `שיא חדש — ${formatVolume(event.value)} באימון`
   }

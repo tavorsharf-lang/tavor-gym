@@ -31,6 +31,17 @@ export type WeightMode = 'total' | 'perSide' | 'bodyweight'
 
 export type SetType = 'warmup' | 'work'
 
+/**
+ * במה נמדד סט.
+ *
+ * reps    — חזרות, וזו ברירת המחדל של כל תרגיל
+ * seconds — זמן החזקה בתנוחה (פלאנק). הערך נשמר באותו שדה `SetLog.reps`
+ *           ולא בשדה חדש: זה מספר החזרות של אותו סט מבחינת כל החישובים
+ *           (נפח, שיאים, המלצות), ורק התצוגה שואלת מה היחידה שלו. שדה נפרד
+ *           היה מחייב לפצל כל פונקציה ב-domain לשני מסלולים בלי להרוויח דבר.
+ */
+export type ExerciseMetric = 'reps' | 'seconds'
+
 /** 1 קל · 2 בינוני · 3 קשה */
 export type Rating = 1 | 2 | 3
 
@@ -65,6 +76,11 @@ export interface Exercise {
   defaultRestSeconds: number
   targetSets: number
   targetReps: RepRange
+  /**
+   * במה נמדד סט של התרגיל הזה. חסר = 'reps', כדי שרשומה ותיקה תישאר תקפה.
+   * כשזה 'seconds', `targetReps` הוא טווח שניות ולא טווח חזרות.
+   */
+  metric?: ExerciseMetric
   /** דגשי ביצוע — שורה לכל דגש */
   cues: string[]
   /** מוט/מכונת פלטות → מפעיל את מחשבון הפלטות */
@@ -271,6 +287,11 @@ export interface PlateSettings {
 
 export interface AppSettings {
   defaultRestSeconds: number
+  /**
+   * כמה חזרות מוצעות בשדה כשאין שום נתון קודם על התרגיל.
+   * ברגע שיש היסטוריה היא גוברת — הערך הזה הוא נקודת פתיחה, לא יעד.
+   */
+  defaultReps: number
   soundEnabled: boolean
   /** 0–1 */
   soundVolume: number
@@ -287,6 +308,14 @@ export interface AppSettings {
   autoWarmup: boolean
   /** אחוז ממשקל העבודה לסט החימום המוצע */
   warmupPercent: number
+  /**
+   * סרטונים שהמשתמש מחק — לפי מזהה הנכס (`bundledId`, כלומר הנתיב שלו).
+   *
+   * הרשימה יושבת בהגדרות ולא במסד המדיה כי היא צריכה לשרוד מחיקה של המדיה
+   * ואת ההתקנה שאחריה: סרטון מצורף שנמחק חוזר עם כל התקנה מחדש אם אין זיכרון
+   * להחלטה. היא גם נכנסת לגיבוי הנתונים בחינם, כי ההגדרות מיוצאות במלואן.
+   */
+  hiddenVideoIds: string[]
   lastBackupAt: number | null
   /** מתי הסרטונים המצורפים הותקנו למכשיר */
   videosInstalledAt: number | null

@@ -36,12 +36,13 @@ import {
 } from '@/db/queries'
 import { loadVideosFor, releaseVideos } from '@/db/mediaDb'
 import { videoMismatchNote } from '@/db/videoIssues'
-import { libraryFor } from '@/db/libraryLinks'
+import { libraryExercise } from '@/db/libraryLinks'
 import { prLabel } from '@/domain/prs'
 import { recommendWeight } from '@/domain/recommendation'
 import type { ExerciseSessionSummary } from '@/domain/recommendation'
 import { exerciseTrend } from '@/domain/stats'
 import {
+  countLabel,
   formatClock,
   formatKg,
   formatRepRange,
@@ -216,9 +217,8 @@ function prValueText(pr: PersonalRecord, exercise: Exercise): string {
     case 'maxWeight':
       return formatWeight(pr.value, exercise.weightMode)
     case 'repsAtMaxWeight':
-      return `${pr.value} חזרות`
     case 'maxReps':
-      return `${pr.value} חזרות`
+      return exercise.metric === 'seconds' ? formatClock(pr.value) : `${pr.value} חזרות`
     case 'maxSessionVolume':
       return formatVolume(pr.value)
   }
@@ -238,7 +238,7 @@ function SetChips({ sets, exercise }: { sets: SetLog[]; exercise: Exercise }): J
         >
           {s.type === 'warmup' && <span className="text-[9px] font-bold opacity-80">חימום</span>}
           <span dir="ltr" className="tnum">
-            {formatSetShort(s.weightKg, s.reps, exercise.weightMode)}
+            {formatSetShort(s.weightKg, s.reps, exercise.weightMode, exercise.metric)}
           </span>
         </span>
       ))}
@@ -367,9 +367,16 @@ export function ExerciseScreen(): JSX.Element {
 
   const { exercise, prs, history, recommendation, lastDone, duplicates } = data
   const mismatch = videoMismatchNote(exercise.id)
-  const libraryMatch = libraryFor(exercise.id)
+  /*
+    הקישור נקרא מהרשומה ולא מהמפה הסטטית. מגרסה 4 `Exercise.libraryId` הוא
+    מקור האמת: LIBRARY_LINKS רק זורע אותו בהתקנה, ומכאן והלאה הוא נכתב מהוספת
+    תרגיל מהמאגר. קריאה מהמפה הייתה מפספסת כל קישור שנוצר בזמן ריצה, וממשיכה
+    להציג קישור שנוקה בעריכה.
+  */
+  const libraryMatch = exercise.libraryId ? libraryExercise(exercise.libraryId) : null
   const apart = distinguisher(exercise, duplicates)
   const isBodyweight = exercise.weightMode === 'bodyweight'
+  const isTimed = exercise.metric === 'seconds'
   const heroUnit = exercise.weightMode === 'perSide' ? 'ק״ג כל צד' : 'ק״ג'
   const sortedPrs = PR_ORDER.flatMap((kind) => prs.filter((p) => p.kind === kind))
   const maxWeightPr = sortedPrs.find((p) => p.kind === 'maxWeight')
@@ -403,12 +410,20 @@ export function ExerciseScreen(): JSX.Element {
           <p className="meta">כמה אני עושה בזה</p>
           <p className="mt-2 flex items-baseline gap-2">
             <span dir="ltr" className="numeral-hero tnum text-4xl text-bone-50">
-              {isBodyweight ? lastDone.reps : formatKg(lastDone.weightKg)}
+              {isBodyweight
+                ? isTimed
+                  ? formatClock(lastDone.reps)
+                  : lastDone.reps
+                : formatKg(lastDone.weightKg)}
             </span>
             <span className="text-sm font-bold text-bone-400">
               {isBodyweight
-                ? 'חזרות'
-                : `${exercise.weightMode === 'perSide' ? 'ק״ג כל צד' : 'ק״ג'} × ${lastDone.reps}`}
+                ? isTimed
+                  ? 'להחזיק'
+                  : 'חזרות'
+                : `${exercise.weightMode === 'perSide' ? 'ק״ג כל צד' : 'ק״ג'} × ${
+                    isTimed ? formatClock(lastDone.reps) : lastDone.reps
+                  }`}
             </span>
           </p>
           <p className="meta mt-2">
@@ -477,7 +492,10 @@ export function ExerciseScreen(): JSX.Element {
         {/* 3 · מספרי היעד */}
         <Section title="היעד">
           <div className="card grid grid-cols-2 gap-4 p-4">
-            <Fact label="סטים × חזרות" value={`${exercise.targetSets} × ${formatRepRange(exercise.targetReps)}`} />
+            <Fact
+              label={`סטים × ${countLabel(exercise.metric)}`}
+              value={`${exercise.targetSets} × ${formatRepRange(exercise.targetReps, exercise.metric)}`}
+            />
             <Fact label="מנוחה" value={formatClock(exercise.defaultRestSeconds)} />
             <Fact label="מצב משקל" value={WEIGHT_MODE_LABELS[exercise.weightMode]} />
             <Fact
@@ -501,7 +519,7 @@ export function ExerciseScreen(): JSX.Element {
                 <div className="space-y-3">
                   {maxWeightPr && (
                     <div className="card animate-stamp p-4">
-                      <p className="meta">{prLabel(maxWeightPr.kind)}</p>
+                      <p className="meta">{prLabel(maxWeightPr.kind, exercise.metric)}</p>
                       <p className="mt-2 flex items-baseline gap-2">
                         <span className="numeral-hero text-4xl text-pr-400 tnum" dir="ltr">
                           {formatKg(maxWeightPr.value)}
@@ -519,7 +537,7 @@ export function ExerciseScreen(): JSX.Element {
                     <div className="grid grid-cols-2 gap-3">
                       {otherPrs.map((pr) => (
                         <div key={pr.kind} className="card p-3.5">
-                          <p className="meta">{prLabel(pr.kind)}</p>
+                          <p className="meta">{prLabel(pr.kind, exercise.metric)}</p>
                           <p className="mt-1.5 text-lg font-extrabold text-pr-400">
                             {prValueText(pr, exercise)}
                           </p>
@@ -568,8 +586,14 @@ export function ExerciseScreen(): JSX.Element {
                 {/* בתרגיל משקל גוף אין משקל ואין נפח — החזרות הן ההתקדמות היחידה */}
                 {isBodyweight ? (
                   <div className="card p-3">
-                    <p className="mb-1 px-1 text-xs font-bold text-bone-400">חזרות בסט הטוב</p>
-                    <TrendChart points={repsPoints} unit="חזרות" color="flame" />
+                    <p className="mb-1 px-1 text-xs font-bold text-bone-400">
+                      {isTimed ? 'זמן החזקה בסט הטוב' : 'חזרות בסט הטוב'}
+                    </p>
+                    <TrendChart
+                      points={repsPoints}
+                      unit={isTimed ? 'שניות' : 'חזרות'}
+                      color="flame"
+                    />
                   </div>
                 ) : (
                   <>

@@ -31,7 +31,7 @@ export function SetRow({
 }): JSX.Element {
   const [menuOpen, setMenuOpen] = useState(false)
   const warmup = set.type === 'warmup'
-  const text = formatSetShort(set.weightKg, set.reps, exercise.weightMode)
+  const text = formatSetShort(set.weightKg, set.reps, exercise.weightMode, exercise.metric)
 
   return (
     <li

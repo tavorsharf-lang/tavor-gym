@@ -6,6 +6,8 @@ import { ChevronLeft, Film, Plus, Search, SearchX, X } from 'lucide-react'
 import { db } from '@/db/db'
 import { getAllExercises } from '@/db/queries'
 import { bundledVideosFor, mediaDb } from '@/db/mediaDb'
+import { useHiddenVideoIds } from '@/db/hiddenVideos'
+import { DEFAULT_REST_SECONDS, DEFAULT_TARGET_SETS } from '@/db/seed'
 import type { Exercise, MuscleGroup } from '@/db/types'
 import { MUSCLE_GROUPS, MUSCLE_GROUP_ORDER, WEIGHT_MODE_LABELS } from '@/db/types'
 import { newId } from '@/domain/units'
@@ -27,6 +29,7 @@ function normalize(text: string): string {
 export function ExerciseCatalogScreen(): JSX.Element {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
+  const hidden = useHiddenVideoIds()
 
   const exercises = useLiveQuery(() => getAllExercises(true), [], [])
 
@@ -81,8 +84,8 @@ export function ExerciseCatalogScreen(): JSX.Element {
       equipment: 'machine',
       weightMode: 'total',
       weightIncrementKg: 2.5,
-      defaultRestSeconds: 90,
-      targetSets: 3,
+      defaultRestSeconds: DEFAULT_REST_SECONDS,
+      targetSets: DEFAULT_TARGET_SETS,
       targetReps: { min: 8, max: 12 },
       cues: [],
       usesPlates: false,
@@ -155,7 +158,9 @@ export function ExerciseCatalogScreen(): JSX.Element {
             <h2 className="meta mb-2 px-1">{MUSCLE_GROUPS[group].label}</h2>
             <div className="card divide-y divide-ink-800/70 overflow-hidden">
               {items.map((ex) => {
-                const videos = bundledVideosFor(ex.id).length + (importedCounts.get(ex.id) ?? 0)
+                const videos =
+                  bundledVideosFor(ex.id, undefined, hidden).length +
+                  (importedCounts.get(ex.id) ?? 0)
                 return (
                   <button
                     key={ex.id}

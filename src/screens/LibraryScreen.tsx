@@ -61,7 +61,7 @@ export function LibraryScreen(): JSX.Element {
       <ScreenHeader
         title="מאגר תרגילים"
         subtitle={`${LIBRARY_CATALOG.length} תרגילים · ${LIBRARY_COUNT} סרטוני הסבר`}
-        onBack={() => navigate('/')}
+        
       />
 
       <div className="relative mb-5">
@@ -115,11 +115,8 @@ export function LibraryScreen(): JSX.Element {
                     onClick={() => navigate(`/library/${ex.id}`)}
                     className="flex w-full items-center gap-3 p-3 text-start transition-colors active:bg-ink-800"
                   >
-                    <VideoThumb
-                      exerciseId={ex.id}
-                      size="sm"
-                      onOpen={() => navigate(`/library/${ex.id}`)}
-                    />
+                    {/* השורה כולה נלחצת — התמונה דקורטיבית ולא כפתור בתוך כפתור */}
+                    <VideoThumb exerciseId={ex.id} size="sm" />
 
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[0.9375rem] font-bold text-bone-50">

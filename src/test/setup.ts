@@ -12,10 +12,18 @@ afterEach(() => {
   cleanup()
 })
 
-// matchMedia — נדרש לבדיקת prefers-reduced-motion
+/*
+  matchMedia — נדרש לבדיקת prefers-reduced-motion.
+
+  שאילתת "הפחתת תנועה" מוחזרת כמתקיימת, וזו לא בחירה שרירותית: jsdom הוא סביבה
+  בלי צייר, ו-canvas-confetti שנטען בייבוא דינמי (ולכן חומק מ-vi.mock) מנסה לצייר
+  לקנבס שאין לו הקשר ומפיל שגיאה לא-מטופלת שמזהמת את ההרצה. `fireConfetti` יוצא
+  מוקדם כשהשאילתה מתקיימת, וזה גם מה שאמור לקרות בסביבה בלי אנימציות.
+  זה הצרכן היחיד של matchMedia בקוד.
+*/
 if (!window.matchMedia) {
   window.matchMedia = ((query: string) => ({
-    matches: false,
+    matches: query.includes('prefers-reduced-motion'),
     media: query,
     onchange: null,
     addListener: vi.fn(),
@@ -100,6 +108,14 @@ HTMLCanvasElement.prototype.getContext = vi.fn(
 
 // jsdom לא מממש גלילה, וה-shell קורא לזה בכל מעבר מסך
 window.scrollTo = vi.fn()
+
+// Pointer capture — ה-Stepper תופס את המצביע כדי שהאצבע תוכל להחליק מהכפתור
+// בלי שהספירה תברח. jsdom לא מממש את המשפחה הזו, ובלעדיה כל לחיצה עליו קורסת.
+if (!HTMLElement.prototype.setPointerCapture) {
+  HTMLElement.prototype.setPointerCapture = vi.fn()
+  HTMLElement.prototype.releasePointerCapture = vi.fn()
+  HTMLElement.prototype.hasPointerCapture = vi.fn(() => false)
+}
 
 // virtual:pwa-register לא קיים מחוץ ל-Vite build
 vi.mock('virtual:pwa-register', () => ({

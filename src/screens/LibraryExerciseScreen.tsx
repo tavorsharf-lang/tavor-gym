@@ -1,14 +1,17 @@
 import { useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import type { JSX } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ExternalLink, Play, SearchX } from 'lucide-react'
-import { assetUrl, bundledVideosFor } from '@/db/mediaDb'
-import { libraryExercise, LIBRARY_LINKS } from '@/db/libraryLinks'
+import { assetUrl, bundledId, bundledVideosFor, mediaDb, videoLabelsFor } from '@/db/mediaDb'
+import { useHiddenVideoIds } from '@/db/hiddenVideos'
+import { libraryExercise } from '@/db/libraryLinks'
 import { LIBRARY_MAX_PER_EXERCISE } from '@/db/libraryManifest'
 import { MUSCLE_GROUPS } from '@/db/types'
+import type { VideoAsset } from '@/db/types'
+import { db } from '@/db/db'
 import { formatBytes } from '@/domain/units'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
-import { useBack } from '@/hooks/useBack'
 import { EmptyState } from '@/components/ui'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 
@@ -19,25 +22,56 @@ import { VideoPlayer } from '@/components/media/VideoPlayer'
  * מלמדים שלושה דברים שונים, ובלי הנושא המשתמש פותח אותם אחד-אחד כדי לגלות מה יש בהם.
  */
 
-/** מזהה התרגיל בתוכנית שמקושר לתרגיל המאגר הזה, אם יש */
-function programIdFor(libId: string): string | null {
-  const found = Object.entries(LIBRARY_LINKS).find(([, lib]) => lib === libId)
-  return found ? found[0] : null
-}
-
 export function LibraryExerciseScreen(): JSX.Element {
   const { libId = '' } = useParams()
   const navigate = useNavigate()
-  const back = useBack('/library')
   const [playing, setPlaying] = useState<number | null>(null)
 
+  const hidden = useHiddenVideoIds()
+
+  /*
+    התרגיל המקביל בקטלוג נשאל מהמסד ולא מהמפה הסטטית ההפוכה.
+
+    `Exercise.libraryId` הוא מקור האמת מגרסה 4, והוא גם מאונדקס בדיוק בשביל
+    החיפוש הזה. המפה הסטטית הייתה מפספסת קישור שנוצר בזמן ריצה, וגרוע מזה —
+    ממשיכה להציג כרטיס "התרגיל הזה בתוכנית שלך" לתרגיל שנמחק מהקטלוג, שמנווט
+    למסך "תרגיל לא נמצא".
+  */
+  const linked = useLiveQuery(
+    () => (libId ? db.exercises.where('libraryId').equals(libId).first() : undefined),
+    [libId]
+  )
+
+  /*
+    האם הסרטונים באמת במכשיר. בלי הבדיקה הזו הכיתוב למטה חישב נפח מהמניפסט
+    והכריז "12MB במכשיר" גם למי שמעולם לא התקין את המאגר — עד שהוא ניסה לצפות
+    במצב טיסה וקיבל WifiOff.
+  */
+  const installedIds = useLiveQuery(
+    async () => {
+      const ids = bundledVideosFor(libId).map((c) => bundledId(c.src))
+      if (!ids.length) return new Set<string>()
+      const rows = await mediaDb.videos.bulkGet(ids)
+      return new Set(rows.filter((v): v is VideoAsset => Boolean(v)).map((v) => v.id))
+    },
+    [libId],
+    new Set<string>()
+  )
   const exercise = libraryExercise(libId)
-  const clips = bundledVideosFor(libId)
+  /*
+    הנושאים נלקחים מ-videoLabelsFor ולא מ-`exercise.videos` שבקטלוג הסטטי.
+
+    שתי הרשימות נראות מקבילות אבל רק אחת מהן מסוננת: אחרי מחיקת סרטון, הצמדה
+    של הנושא ה-i לסרטון ה-i הייתה מדביקה לכל סרטון את הכותרת של קודמו, ומשמיטה
+    את האחרון. שתי הפונקציות האלה נגזרות ממקור אחד ולכן מיושרות תמיד.
+  */
+  const clips = bundledVideosFor(libId, undefined, hidden)
+  const labels = videoLabelsFor(libId, undefined, hidden)
 
   if (!exercise) {
     return (
       <Screen>
-        <ScreenHeader title="תרגיל לא נמצא" onBack={back} />
+        <ScreenHeader title="תרגיל לא נמצא" fallback="/library" />
         <EmptyState
           icon={<SearchX size={26} />}
           title="התרגיל לא במאגר"
@@ -47,8 +81,10 @@ export function LibraryExerciseScreen(): JSX.Element {
     )
   }
 
-  const programId = programIdFor(exercise.id)
-  const omitted = exercise.totalAvailable - clips.length
+  const programId = linked?.id ?? null
+  const localCount = clips.filter((c) => installedIds.has(bundledId(c.src))).length
+  // "יש עוד סרטונים שלא נכללו" מדבר על מה שלא ירד לאפליקציה, ולא על מה שנמחק
+  const omitted = exercise.totalAvailable - bundledVideosFor(libId).length
   const totalBytes = clips.reduce((n, c) => n + c.sizeBytes, 0)
 
   return (
@@ -56,7 +92,7 @@ export function LibraryExerciseScreen(): JSX.Element {
       <ScreenHeader
         title={exercise.nameHe}
         subtitle={`${MUSCLE_GROUPS[exercise.muscleGroup].label} · ${clips.length} סרטונים`}
-        onBack={back}
+        fallback="/library"
       />
 
       <p dir="ltr" className="mb-5 text-end text-sm font-semibold text-bone-400">
@@ -78,9 +114,7 @@ export function LibraryExerciseScreen(): JSX.Element {
       ) : null}
 
       <div className="space-y-2">
-        {exercise.videos.map((note, i) => {
-          const clip = clips[i]
-          if (!clip) return null
+        {clips.map((clip, i) => {
           return (
             <button
               key={clip.src}
@@ -109,7 +143,7 @@ export function LibraryExerciseScreen(): JSX.Element {
                   dir="ltr"
                   className="block text-end text-[0.8125rem] leading-snug font-semibold text-bone-100"
                 >
-                  {note.topic}
+                  {labels[i]}
                 </span>
                 <span className="meta tnum mt-1 block">
                   {Math.round(clip.durationSec)} שניות · {formatBytes(clip.sizeBytes)}
@@ -134,7 +168,14 @@ export function LibraryExerciseScreen(): JSX.Element {
         </p>
       ) : null}
 
-      <p className="tnum meta mt-3 text-center">{formatBytes(totalBytes)} במכשיר</p>
+      {/* "במכשיר" רק כשזה נכון — אחרת אומרים מאיפה הם באמת מגיעים */}
+      <p className="tnum meta mt-3 text-center">
+        {clips.length > 0 && localCount === clips.length
+          ? `${formatBytes(totalBytes)} במכשיר`
+          : localCount > 0
+            ? `${localCount} מתוך ${clips.length} במכשיר · השאר בהזרמה מהרשת`
+            : `${formatBytes(totalBytes)} · בהזרמה מהרשת. אפשר להתקין בהגדרות ← סרטונים`}
+      </p>
 
       {playing !== null ? (
         <VideoPlayer

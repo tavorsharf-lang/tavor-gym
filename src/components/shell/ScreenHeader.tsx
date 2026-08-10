@@ -1,24 +1,36 @@
 import { ChevronRight } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
+import { useBack } from '@/hooks/useBack'
 
 /**
  * כותרת מסך אחידה עם חזרה.
  * חץ החזרה מצביע ימינה — ב-RTL זה הכיוון של "אחורה".
+ *
+ * החזרה היא `useBack` כברירת מחדל, וזה לא פרט מימוש: ניווט *קדימה* אל הכתובת
+ * הקודמת (navigate('/history')) פותח רשומת היסטוריה חדשה, וכל רשומה חדשה
+ * נפתחת מלמעלה — כך מקום הגלילה והפילטרים אובדים, וערימת ההיסטוריה מתנפחת עד
+ * שמחוות ההחלקה-אחורה של iOS מטיילת דרך עותקים של אותו מסך. `fallback` הוא
+ * לאן ללכת כשאין לאן לחזור (האפליקציה נפתחה ישר בכתובת הזו).
+ *
+ * `onBack` נשאר ליציאות שהן באמת לא "אחורה" — סיום אימון שחוזר לבית, או עורך
+ * ששואל אם לשמור לפני שהוא סוגר.
  */
 export function ScreenHeader({
   title,
   subtitle,
   action,
   onBack,
+  fallback = '/',
 }: {
   title: string
   subtitle?: string
   action?: ReactNode
   onBack?: () => void
+  /** לאן ללכת כשאין היסטוריה לחזור אליה */
+  fallback?: string
 }) {
-  const navigate = useNavigate()
-  const back = onBack ?? (() => navigate(-1))
+  const goBack = useBack(fallback)
+  const back = onBack ?? goBack
 
   return (
     <header
