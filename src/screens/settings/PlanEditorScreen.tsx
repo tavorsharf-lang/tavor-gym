@@ -10,6 +10,7 @@ import { countLabel, countMax, countStep, formatClock, formatRepRange } from '@/
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { BottomSheet, Button, EmptyState, toast } from '@/components/ui'
 import { SettingNumber } from '@/components/settings/SettingRow'
+import { normalize } from '@/lib/text'
 
 /**
  * עורך התוכניות והבלוקים.
@@ -17,10 +18,6 @@ import { SettingNumber } from '@/components/settings/SettingRow'
  * כאן אין כפתור שמירה: כל שינוי נכתב מיד. סדר התרגילים הוא הדבר שנוגעים בו
  * הכי הרבה, ולכן החיצים יושבים בשורה עצמה ולא מוסתרים מאחורי פתיחה.
  */
-
-function normalize(text: string): string {
-  return text.toLowerCase().replace(/[״׳"']/g, '').trim()
-}
 
 function IconButton({
   label,

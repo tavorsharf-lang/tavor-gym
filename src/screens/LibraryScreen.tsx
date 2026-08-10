@@ -9,6 +9,7 @@ import { MUSCLE_GROUPS, MUSCLE_GROUP_BY_SIZE } from '@/db/types'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { EmptyState } from '@/components/ui'
 import { VideoThumb } from '@/components/media/VideoThumb'
+import { normalize } from '@/lib/text'
 
 /**
  * מאגר התרגילים — שכבת הלימוד.
@@ -20,10 +21,6 @@ import { VideoThumb } from '@/components/media/VideoThumb'
  * הפרדה מלאה בכוונה: לו התרגילים האלה היו נכנסים לקטלוג, הם היו משתלטים על
  * בחירת תרגיל באימון ועל הסטטיסטיקות — 62 תרגילים בלי היסטוריה מול 28 עם.
  */
-
-function normalize(text: string): string {
-  return text.toLowerCase().replace(/[״׳"']/g, '').trim()
-}
 
 export function LibraryScreen(): JSX.Element {
   const navigate = useNavigate()
@@ -83,7 +80,7 @@ export function LibraryScreen(): JSX.Element {
             type="button"
             onClick={() => setQuery('')}
             aria-label="נקה חיפוש"
-            className="absolute inset-y-0 my-auto flex size-9 items-center justify-center rounded-full text-bone-500 active:bg-ink-800"
+            className="absolute inset-y-0 my-auto flex size-11 items-center justify-center rounded-full text-bone-500 active:bg-ink-800"
             style={{ insetInlineEnd: '0.5rem' }}
           >
             <X size={16} />

@@ -24,7 +24,13 @@ import type {
   Rir,
   SetLog,
 } from '@/db/types'
-import { EQUIPMENT_LABELS, RATING_LABELS, RIR_LABELS, WEIGHT_MODE_LABELS } from '@/db/types'
+import {
+  EQUIPMENT_LABELS,
+  RATING_LABELS,
+  RATING_TONES,
+  RIR_LABELS,
+  WEIGHT_MODE_LABELS,
+} from '@/db/types'
 import {
   getAllExercises,
   getExercise,
@@ -78,12 +84,6 @@ const HISTORY_PAGE = 15
 
 const PR_ORDER: PrKind[] = ['maxWeight', 'repsAtMaxWeight', 'maxReps', 'maxSessionVolume']
 
-const RATING_TONE: Record<Rating, string> = {
-  1: 'border-ink-700 bg-ink-800 text-bone-400',
-  2: 'border-flame-500/25 bg-flame-500/10 text-flame-300',
-  3: 'border-hard-400/30 bg-hard-400/10 text-hard-400',
-}
-
 const RECOMMENDATION_TONE = {
   up: 'text-flame-400',
   steady: 'text-bone-50',
@@ -108,7 +108,7 @@ function Section({ title, action, children }: { title: string; action?: ReactNod
 function RatingChip({ rating, rir }: { rating: Rating; rir: Rir | null }): JSX.Element {
   const extra = rir === null ? '' : rir === 0 ? ' · כשל' : ` · נשארו ${RIR_LABELS[rir]}`
   return (
-    <span className={`rounded-pill border px-2.5 py-1 text-[11px] font-bold ${RATING_TONE[rating]}`}>
+    <span className={`rounded-pill border px-2.5 py-1 text-[11px] font-bold ${RATING_TONES[rating]}`}>
       {RATING_LABELS[rating]}
       {extra}
     </span>
@@ -210,11 +210,18 @@ function MediaRow({
   )
 }
 
+/**
+ * תווית ומספר. שניהם מיושרים לקצה ההתחלה, גם כשהערך רץ LTR.
+ *
+ * בלי `text-end` הערך נצמד שמאלה תחת dir=ltr בזמן שהתווית מעליו צמודה ימינה,
+ * והזוג מתנתק ויזואלית בגריד של "היעד". ה-dir נשאר כי הוא מה שמונע מ-"3 × 8–12"
+ * להתהפך — אבל הוא רץ בלבד, לא יישור.
+ */
 function Fact({ label, value }: { label: string; value: string }): JSX.Element {
   return (
     <div>
       <p className="meta">{label}</p>
-      <p className="mt-1 text-sm font-bold text-bone-100 tnum" dir="ltr">
+      <p className="tnum mt-1 text-end text-sm font-bold text-bone-100" dir="ltr">
         {value}
       </p>
     </div>
@@ -523,7 +530,7 @@ export function ExerciseScreen(): JSX.Element {
             <ul className="card space-y-2.5 p-4">
               {exercise.cues.map((cue) => (
                 <li key={cue} className="flex gap-2.5">
-                  <span className="mt-2 size-1.5 shrink-0 rounded-full bg-flame-500 shadow-[0_0_8px_rgb(255_106_0/0.7)]" />
+                  <span className="mt-2 size-1.5 shrink-0 rounded-full bg-flame-500 shadow-[0_0_8px_color-mix(in_srgb,var(--color-flame-500)_70%,transparent)]" />
                   <span className="text-sm leading-relaxed text-bone-200">{cue}</span>
                 </li>
               ))}

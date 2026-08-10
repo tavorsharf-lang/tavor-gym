@@ -209,7 +209,7 @@ export function VolumeDashboard(): JSX.Element {
   return (
     <section>
       <div
-        role="tablist"
+        role="group"
         aria-label="טווח זמן"
         className="mb-4 flex gap-1 rounded-pill border border-ink-700 bg-ink-900 p-1"
       >
@@ -219,8 +219,9 @@ export function VolumeDashboard(): JSX.Element {
             <button
               key={r.key}
               type="button"
-              role="tab"
-              aria-selected={active}
+              // aria-pressed ולא role=tab: אין כאן tabpanel ואין ניווט חצים,
+              // ולכן סמנטיקת טאבים הייתה מבטיחה לקורא-מסך התנהגות שלא קיימת
+              aria-pressed={active}
               onClick={() => setRange(r.key)}
               className={[
                 'min-h-12 flex-1 rounded-pill text-sm font-bold transition-colors',

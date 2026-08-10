@@ -34,13 +34,12 @@ import type {
   ExerciseRating,
   MuscleGroup,
   PersonalRecord,
-  Rating,
   Session,
   SetLog,
   Substitution,
   WeightMode,
 } from '@/db/types'
-import { MUSCLE_GROUPS, RATING_LABELS, RIR_LABELS } from '@/db/types'
+import { MUSCLE_GROUPS, RATING_LABELS, RATING_TONES, RIR_LABELS } from '@/db/types'
 import {
   formatClock,
   formatDuration,
@@ -82,12 +81,6 @@ function splitValue(text: string): { head: string; tail: string } {
 const SUB_REASONS: Record<Substitution['reason'], string> = {
   occupied: 'המתקן היה תפוס',
   choice: 'בחירה שלך',
-}
-
-const RATING_TONES: Record<Rating, string> = {
-  1: 'border-ink-600 bg-ink-800 text-bone-400',
-  2: 'border-flame-500/30 bg-flame-500/10 text-flame-400',
-  3: 'border-hard-400/30 bg-hard-400/10 text-hard-400',
 }
 
 /** רשימת סטי עבודה קצרה: "60×10, 60×9" */
@@ -458,7 +451,7 @@ export function SummaryScreen(): JSX.Element {
       <section className="card animate-rise relative overflow-hidden px-5 py-6 text-center">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 -top-20 h-36 bg-[radial-gradient(60%_100%_at_50%_100%,rgb(255_106_0/0.30),transparent_72%)]"
+          className="pointer-events-none absolute inset-x-0 -top-20 h-36 bg-[radial-gradient(60%_100%_at_50%_100%,color-mix(in_srgb,var(--color-flame-500)_30%,transparent),transparent_72%)]"
         />
         <div className="relative">
           <p className="meta">{formatDateLong(session.startedAt)}</p>

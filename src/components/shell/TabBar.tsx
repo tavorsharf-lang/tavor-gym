@@ -28,7 +28,9 @@ export function TabBar() {
               className={({ isActive }) =>
                 [
                   'flex h-[4.5rem] flex-col items-center justify-center gap-1 transition-colors',
-                  isActive ? 'text-flame-400' : 'text-bone-600',
+                  // bone-600 נתן 2.85:1 על הרקע הכהה, מתחת לכל סף — ובטקסט
+                  // של 11px שנקרא גם באור שמש בדרך לחדר כושר
+                  isActive ? 'text-flame-400' : 'text-bone-400',
                 ].join(' ')
               }
             >

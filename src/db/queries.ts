@@ -5,7 +5,6 @@ import type {
   BodyWeightEntry,
   Exercise,
   ExerciseRating,
-  MuscleGroup,
   PersonalRecord,
   PlanItem,
   Routine,
@@ -15,6 +14,7 @@ import type {
 } from '@/db/types'
 import type { ExerciseSessionSummary } from '@/domain/recommendation'
 import { workingWeight } from '@/domain/volume'
+import { normalize } from '@/lib/text'
 
 /**
  * כל הקריאות מהמסד, במקום אחד.
@@ -33,15 +33,6 @@ export async function getAllExercises(includeInactive = false): Promise<Exercise
 
 export async function getExercise(id: string): Promise<Exercise | undefined> {
   return db.exercises.get(id)
-}
-
-export async function getExercisesByGroup(
-  group: MuscleGroup,
-  includeInactive = false
-): Promise<Exercise[]> {
-  const all = await db.exercises.where('muscleGroup').equals(group).toArray()
-  const visible = includeInactive ? all : all.filter((e) => e.isActive)
-  return visible.sort((a, b) => a.order - b.order)
 }
 
 /**
@@ -255,12 +246,6 @@ export async function getExerciseHistory(
   })
 }
 
-/** הביצוע האחרון בתרגיל, או null אם עוד לא בוצע באף אימון שנסגר */
-export async function getLastPerformance(exerciseId: string): Promise<ExerciseSessionSummary | null> {
-  const [last] = await getExerciseHistory(exerciseId, 1)
-  return last ?? null
-}
-
 // ─── שיאים ─────────────────────────────────────────────────────────────────
 
 export async function getPrsForExercise(exerciseId: string): Promise<PersonalRecord[]> {
@@ -269,10 +254,6 @@ export async function getPrsForExercise(exerciseId: string): Promise<PersonalRec
 
 export async function getAllPrs(): Promise<PersonalRecord[]> {
   return db.prs.toArray()
-}
-
-export async function putPr(pr: PersonalRecord): Promise<void> {
-  await db.prs.put(pr)
 }
 
 // ─── משקל גוף ──────────────────────────────────────────────────────────────
@@ -312,9 +293,6 @@ export interface HistoryFilter {
 }
 
 /** משווה טקסט עברי בלי רגישות לגרשיים טיפוגרפיים או לרישיות באנגלית */
-function normalize(text: string): string {
-  return text.toLowerCase().replace(/[״׳"']/g, '').trim()
-}
 
 function intersect(a: Set<string>, b: Set<string>): Set<string> {
   const out = new Set<string>()
@@ -394,8 +372,3 @@ export async function searchSessions(filter: HistoryFilter): Promise<Session[]> 
     .sort((a, b) => b.startedAt - a.startedAt)
 }
 
-/** מפת id → שם, כדי שרשימת ההיסטוריה לא תשלוף תרגיל לכל שורה */
-export async function getExerciseNames(): Promise<Map<string, string>> {
-  const all = await db.exercises.toArray()
-  return new Map(all.map((e) => [e.id, e.name]))
-}

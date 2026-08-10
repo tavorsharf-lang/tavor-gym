@@ -457,6 +457,19 @@ export const WEIGHT_MODE_LABELS: Record<WeightMode, string> = {
   bodyweight: 'משקל גוף',
 }
 
+/**
+ * צבעי הדירוג. יושבים ליד התוויות כי הם אותה מערכת סימון.
+ *
+ * שלושה מסכים החזיקו כל אחד עותק משלו עם סטיות קטנות — flame-300 מול
+ * flame-400, border-ink-600 מול 700 — ולכן אותו דירוג "בינוני" נצבע מעט שונה
+ * בכל מסך. הבדל שאף אחד לא התכוון אליו ואי אפשר להסביר.
+ */
+export const RATING_TONES: Record<Rating, string> = {
+  1: 'border-ink-700 bg-ink-800 text-bone-400',
+  2: 'border-flame-500/30 bg-flame-500/10 text-flame-300',
+  3: 'border-hard-400/30 bg-hard-400/10 text-hard-400',
+}
+
 export const RATING_LABELS: Record<Rating, string> = {
   1: 'קל',
   2: 'בינוני',

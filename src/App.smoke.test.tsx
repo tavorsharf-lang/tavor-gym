@@ -93,8 +93,6 @@ async function openLibrary(user: ReturnType<typeof userEvent.setup>): Promise<vo
 
 describe('ספריית התרגילים', () => {
   beforeEach(async () => {
-    // ה-hash שורד בין בדיקות, ובלי האיפוס הבדיקה הבאה נפתחת כבר בתוך הספרייה
-    window.location.hash = ''
     await db.delete()
     await db.open()
     await ensureReady()

@@ -34,17 +34,63 @@ export function BottomSheet({
     closeRef.current = onClose
   })
 
+  const panelRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     if (!open) return
     const previous = document.body.style.overflow
+    const returnTo = document.activeElement as HTMLElement | null
     document.body.style.overflow = 'hidden'
+
+    /*
+      כליאת פוקוס.
+
+      הגיליון כבר הצהיר role="dialog" ו-aria-modal, אבל Tab המשיך לטייל בתוכן
+      שמאחורי ה-backdrop — כלומר ההצהרה הייתה שקר. באפליקציית מגע של משתמש
+      יחיד זה לא כואב יומיומית, אבל ברגע ש-VoiceOver מופעל המודל דולף.
+    */
+    const focusables = (): HTMLElement[] =>
+      [
+        ...(panelRef.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ) ?? []),
+      ].filter((el) => el.offsetParent !== null)
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeRef.current()
+      if (e.key === 'Escape') {
+        closeRef.current()
+        return
+      }
+      if (e.key !== 'Tab') return
+      const items = focusables()
+      if (items.length === 0) {
+        e.preventDefault()
+        return
+      }
+      const first = items[0]
+      const last = items[items.length - 1]
+      const active = document.activeElement
+      if (e.shiftKey && (active === first || !panelRef.current?.contains(active))) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault()
+        first.focus()
+      }
     }
     document.addEventListener('keydown', onKey)
+
+    // הפוקוס נכנס פנימה, ובסגירה חוזר למה שפתח — אחרת הוא נופל לתחילת הדף
+    const enter = window.setTimeout(() => {
+      if (panelRef.current?.contains(document.activeElement)) return
+      ;(focusables()[0] ?? panelRef.current)?.focus()
+    }, 0)
+
     return () => {
+      window.clearTimeout(enter)
       document.body.style.overflow = previous
       document.removeEventListener('keydown', onKey)
+      returnTo?.focus?.()
     }
   }, [open])
 
@@ -65,7 +111,9 @@ export function BottomSheet({
       />
 
       <div
-        className="animate-sheet relative flex w-full flex-col overflow-hidden rounded-t-[1.5rem] border-t border-ink-700 bg-ink-900 shadow-[0_-14px_44px_-14px_rgba(0,0,0,0.85)]"
+        ref={panelRef}
+        tabIndex={-1}
+        className="animate-sheet relative flex w-full flex-col overflow-hidden rounded-t-[1.5rem] border-t border-ink-700 bg-ink-900 shadow-[0_-14px_44px_-14px_rgba(0,0,0,0.85)] focus:outline-none"
         style={{ maxHeight: `${maxHeightVh}dvh` }}
       >
         <div className="flex shrink-0 justify-center pt-3 pb-1">

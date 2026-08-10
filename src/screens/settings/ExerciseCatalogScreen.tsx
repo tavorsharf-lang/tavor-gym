@@ -14,6 +14,7 @@ import { newId } from '@/domain/units'
 import { distinguisher, duplicateNames } from '@/domain/naming'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { Button, EmptyState, toast } from '@/components/ui'
+import { normalize } from '@/lib/text'
 
 /**
  * קטלוג התרגילים — הרשימה המלאה, כולל תרגילים כבויים.
@@ -21,10 +22,6 @@ import { Button, EmptyState, toast } from '@/components/ui'
  * תרגיל כבוי לא נמחק אלא יורד לתחתית הקבוצה ומתעמעם: ההיסטוריה שלו עדיין
  * צריכה את השם שלו.
  */
-
-function normalize(text: string): string {
-  return text.toLowerCase().replace(/[״׳"']/g, '').trim()
-}
 
 export function ExerciseCatalogScreen(): JSX.Element {
   const navigate = useNavigate()

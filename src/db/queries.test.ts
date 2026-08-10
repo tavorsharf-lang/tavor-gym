@@ -9,7 +9,6 @@ import {
   getBodyWeights,
   getExerciseHistory,
   getFinishedSessions,
-  getLastPerformance,
   getSetsForExercise,
   getSubstituteCandidates,
   searchSessions,
@@ -201,14 +200,18 @@ describe('getExerciseHistory', () => {
   })
 })
 
-describe('getLastPerformance', () => {
-  it('מתעלם מאימון שעדיין בתהליך', async () => {
-    const last = await getLastPerformance('press')
+/**
+ * הכיסוי הזה עבר מ-`getLastPerformance` שנמחקה. ההתנהגות עצמה חיה
+ * ב-`getExerciseHistory` — אימון שעדיין בתהליך אינו נתון ללמוד ממנו.
+ */
+describe('getExerciseHistory מתעלם מאימון פתוח', () => {
+  it('מחזיר את האימון האחרון שנסגר', async () => {
+    const [last] = await getExerciseHistory('press', 1)
     expect(last?.sessionId).toBe('s2')
   })
 
-  it('מחזיר null כשאין היסטוריה', async () => {
-    expect(await getLastPerformance('fly')).toBeNull()
+  it('מחזיר רשימה ריקה כשאין היסטוריה', async () => {
+    expect(await getExerciseHistory('fly', 1)).toEqual([])
   })
 })
 

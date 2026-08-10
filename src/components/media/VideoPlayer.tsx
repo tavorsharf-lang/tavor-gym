@@ -272,14 +272,20 @@ export function VideoPlayer({
           </button>
           <div className="flex gap-1.5">
             {videos.map((v, i) => (
+              /* אזור הלחיצה 44px, הנקודה עצמה נשארת קטנה — הוויזואל לא משתנה */
               <button
                 key={v.id}
                 onClick={() => setIndex(i)}
-                aria-label={`הדגמה ${i + 1}`}
-                className={`h-2 rounded-pill transition-all ${
-                  i === index ? 'w-6 bg-flame-500' : 'w-2 bg-ink-600'
-                }`}
-              />
+                aria-label={`סרטון ${i + 1}`}
+                aria-current={i === index}
+                className="flex h-11 w-6 items-center justify-center"
+              >
+                <span
+                  className={`h-2 rounded-pill transition-all ${
+                    i === index ? 'w-6 bg-flame-500' : 'w-2 bg-ink-600'
+                  }`}
+                />
+              </button>
             ))}
           </div>
           <button

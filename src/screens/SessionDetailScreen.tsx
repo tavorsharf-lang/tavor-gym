@@ -25,7 +25,7 @@ import type {
   SetLog,
   WeightMode,
 } from '@/db/types'
-import { RATING_LABELS, RIR_LABELS } from '@/db/types'
+import { RATING_LABELS, RATING_TONES, RIR_LABELS } from '@/db/types'
 import { formatDuration, formatSetShort, formatVolume } from '@/domain/units'
 import { summarize, weightModeLookup } from '@/domain/volume'
 import { prLabel, rebuildPrs } from '@/domain/prs'
@@ -80,12 +80,6 @@ function ratingText(rating: Rating, rir: Rir | null): string {
   const base = RATING_LABELS[rating]
   if (rir === null) return base
   return rir === 0 ? `${base} · כשל` : `${base} · RIR ${RIR_LABELS[rir]}`
-}
-
-const RATING_TONES: Record<Rating, string> = {
-  1: 'border-ink-700 bg-ink-800 text-bone-400',
-  2: 'border-flame-500/35 bg-flame-500/10 text-flame-300',
-  3: 'border-hard-400/35 bg-hard-400/10 text-hard-400',
 }
 
 function Stat({ label, children }: { label: string; children: ReactNode }): JSX.Element {

@@ -10,6 +10,7 @@ import { EQUIPMENT_LABELS, MUSCLE_GROUPS } from '@/db/types'
 import type { Exercise, PersonalRecord } from '@/db/types'
 import { formatWeight } from '@/domain/units'
 import { distinguisher, duplicateNames } from '@/domain/naming'
+import { normalize } from '@/lib/text'
 
 /**
  * החלפת תרגיל באמצע אימון.
@@ -26,9 +27,6 @@ interface SubstituteSheetProps {
 }
 
 /** משווה טקסט עברי בלי רגישות לגרשיים טיפוגרפיים */
-function normalize(text: string): string {
-  return text.toLowerCase().replace(/[״׳"']/g, '').trim()
-}
 
 /** השיא שמעניין בשורת בחירה — הכי כבד, או הכי הרבה חזרות בתרגילי משקל גוף */
 function prText(ex: Exercise, prs: PersonalRecord[]): string | null {
@@ -154,7 +152,7 @@ export function SubstituteSheet({
               className={[
                 'min-h-12 rounded-pill px-3 text-sm font-bold transition-colors',
                 reason === opt.value
-                  ? 'bg-flame-500/15 text-flame-300 shadow-[inset_0_0_0_1px_rgba(255,138,43,0.45)]'
+                  ? 'bg-flame-500/15 text-flame-300 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-flame-400)_45%,transparent)]'
                   : 'text-bone-400 active:bg-ink-800',
               ].join(' ')}
             >
@@ -182,7 +180,7 @@ export function SubstituteSheet({
               type="button"
               onClick={() => setQuery('')}
               aria-label="נקה חיפוש"
-              className="absolute inset-y-0 end-1 my-auto flex size-10 items-center justify-center rounded-full text-bone-500 active:bg-ink-800"
+              className="absolute inset-y-0 end-1 my-auto flex size-11 items-center justify-center rounded-full text-bone-500 active:bg-ink-800"
             >
               <X size={16} />
             </button>

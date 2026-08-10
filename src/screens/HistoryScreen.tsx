@@ -10,6 +10,7 @@ import { formatVolume } from '@/domain/units'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { BottomSheet, EmptyState } from '@/components/ui'
 import { SessionCard } from '@/components/history/SessionCard'
+import { normalize } from '@/lib/text'
 
 /**
  * היסטוריית האימונים.
@@ -25,10 +26,6 @@ const PAGE_SIZE = 50
 const HEADER_BOTTOM = 'calc(var(--safe-t) + 4.25rem)'
 /** תחתית שורת החיפוש הנעוצה — משם מתחילות כותרות החודשים */
 const SEARCH_BOTTOM = 'calc(var(--safe-t) + 8rem)'
-
-function normalize(text: string): string {
-  return text.toLowerCase().replace(/[״׳"']/g, '').trim()
-}
 
 function countText(n: number, one: string, many: string): string {
   return n === 1 ? one : `${n} ${many}`

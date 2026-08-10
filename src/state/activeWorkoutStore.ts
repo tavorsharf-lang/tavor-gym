@@ -816,8 +816,3 @@ export function openItems(workout: ActiveWorkout | null): QueueItem[] {
     (q) => q.status !== 'done' && (workout.setsByKey[q.key]?.length ?? 0) === 0
   )
 }
-
-export function currentItem(workout: ActiveWorkout | null): QueueItem | null {
-  if (!workout?.currentKey) return null
-  return workout.queue.find((q) => q.key === workout.currentKey) ?? null
-}

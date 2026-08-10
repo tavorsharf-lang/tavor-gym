@@ -65,9 +65,11 @@ export function RestOverlay({
       <div
         className="absolute inset-0 bg-ink-950/97 backdrop-blur-xl transition-[background] duration-1000"
         style={{
-          backgroundImage: `radial-gradient(90% 55% at 50% 42%, rgba(255,106,0,${
-            0.06 + 0.16 * timer.progress
-          }), transparent 70%)`,
+          // הגוון מהטוקן ולא כליטרל: שינוי צבע המבטא לא אמור להשאיר את
+          // מסך המנוחה — המסך הכי כתום באפליקציה — על הגוון הישן
+          backgroundImage: `radial-gradient(90% 55% at 50% 42%, color-mix(in srgb, var(--color-flame-500) ${
+            (0.06 + 0.16 * timer.progress) * 100
+          }%, transparent), transparent 70%)`,
         }}
       />
       {flash && (
@@ -97,7 +99,10 @@ export function RestOverlay({
               strokeLinecap="round"
               strokeDasharray={circumference}
               strokeDashoffset={drained}
-              style={{ filter: 'drop-shadow(0 0 8px rgba(255,106,0,.65))' }}
+              style={{
+                filter:
+                  'drop-shadow(0 0 8px color-mix(in srgb, var(--color-flame-500) 65%, transparent))',
+              }}
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">

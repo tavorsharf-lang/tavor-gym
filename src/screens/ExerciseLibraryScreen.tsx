@@ -12,6 +12,7 @@ import { formatRelativeDay } from '@/lib/dates'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { EmptyState } from '@/components/ui'
 import { VideoThumb } from '@/components/media/VideoThumb'
+import { normalize } from '@/lib/text'
 
 /**
  * ספריית התרגילים — כל מה שאפשר לעשות בחדר, במקום אחד.
@@ -24,10 +25,6 @@ import { VideoThumb } from '@/components/media/VideoThumb'
  *
  * כל שורה מראה גם כמה הרמת בפעם האחרונה, כי זו השאלה שבשבילה נכנסים לכאן.
  */
-
-function normalize(text: string): string {
-  return text.toLowerCase().replace(/[״׳"']/g, '').trim()
-}
 
 export function ExerciseLibraryScreen(): JSX.Element {
   const navigate = useNavigate()
@@ -94,7 +91,7 @@ export function ExerciseLibraryScreen(): JSX.Element {
             type="button"
             onClick={() => setQuery('')}
             aria-label="נקה חיפוש"
-            className="absolute inset-y-0 my-auto flex size-9 items-center justify-center rounded-full text-bone-500 active:bg-ink-800"
+            className="absolute inset-y-0 my-auto flex size-11 items-center justify-center rounded-full text-bone-500 active:bg-ink-800"
             style={{ insetInlineEnd: '0.5rem' }}
           >
             <X size={16} />
