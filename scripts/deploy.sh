@@ -104,26 +104,44 @@ SUBJECT="$(git log -1 --pretty=%s)"
 echo "▸ נדחף ל-$BRANCH"
 
 # ── שער 2: פורסם באמת? ──
+#
 # דחיפה מוצלחת אינה פרסום. Pages בונה מהענף, והבנייה הזו כבר נתקעה ונכשלה.
-echo "▸ ממתין לפרסום"
-for _ in $(seq 1 60); do
-  STATUS="$(gh api "repos/$REPO/pages/builds/latest" --jq '.status' 2>/dev/null || echo '?')"
-  if [ "$STATUS" = "built" ]; then break; fi
-  if [ "$STATUS" = "errored" ]; then
-    echo "✗ בניית Pages נכשלה. הרץ שוב — קומיט חדש לענף בדרך כלל מעורר בנייה תקינה." >&2
-    exit 1
-  fi
-  sleep 10
-done
+#
+# לולאה אחת ולא שתיים, וזה תיקון של באג ולא סידור:
+#   • קודם היו שתי לולאות בסדרה. הראשונה שאלה את ה-API והשנייה בדקה את הקובץ.
+#     בתרחיש הכישלון המוכר — בנייה איטית — ה-API החזיר 'built' של הבנייה
+#     ה*קודמת*, הלולאה הראשונה נשברה מיד, וכל ההמתנה האמיתית נפלה על השנייה:
+#     חמש דקות בלבד, ואז ✗ שקרי ששולח להריץ שוב לחינם.
+#   • וכש-gh לא מותקן או לא מחובר, הלולאה הראשונה שרפה עשר דקות שלמות לפני
+#     שמישהו בכלל ניסה לגשת לאתר — גם כשהוא כבר עודכן.
+#
+# הסדר כאן הפוך ומכוון: הקובץ שהשרת מגיש הוא האמת הסופית, וה-API הוא רק
+# מקור לזיהוי כישלון מוקדם.
+DEADLINE=$(( $(date +%s) + 1800 ))  # 30 דקות
+GH_OK=1
+command -v gh >/dev/null 2>&1 || GH_OK=0
 
-# האמת הסופית היא מה שהשרת מגיש, לא מה ש-API אומר
-for _ in $(seq 1 30); do
+echo "▸ ממתין לפרסום (עד 30 דקות)"
+while :; do
   if curl -sf -o /dev/null "$SITE/assets/$BUNDLE"; then
     echo "✓ פורסם — $SITE"
     exit 0
   fi
+
+  if [ "$GH_OK" -eq 1 ]; then
+    STATUS="$(gh api "repos/$REPO/pages/builds/latest" --jq '.status' 2>/dev/null || echo '?')"
+    if [ "$STATUS" = "errored" ]; then
+      echo "✗ בניית Pages נכשלה. הרץ שוב — קומיט חדש לענף בדרך כלל מעורר בנייה תקינה." >&2
+      exit 1
+    fi
+    # gh קיים אבל לא מחובר / אין הרשאה — מפסיקים לשאול במקום לשאול לשווא
+    if [ "$STATUS" = "?" ]; then GH_OK=0; fi
+  fi
+
+  if [ "$(date +%s)" -ge "$DEADLINE" ]; then
+    echo "✗ עברו 30 דקות והאתר עדיין מגיש גרסה קודמת. $SITE" >&2
+    echo "  בדוק את מצב הבנייה: https://github.com/$REPO/deployments" >&2
+    exit 1
+  fi
   sleep 10
 done
-
-echo "✗ נדחף אבל האתר עדיין מגיש גרסה קודמת. $SITE" >&2
-exit 1

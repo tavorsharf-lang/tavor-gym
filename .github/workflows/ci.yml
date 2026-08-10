@@ -25,9 +25,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # .nvmrc ולא מספר קשיח — כך CI והמכונה המקומית מריצים את אותו Node,
+          # ואזהרות שמופיעות פה מופיעות גם שם
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # ה-lint לפני הכל: הוא רץ בשניות, ו-rules-of-hooks תופס משפחת באגים
+      # ש-tsc לא רואה בכלל (הוק בתוך תנאי)
+      - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      # חריגה מתקרת 4MB לקובץ ב-workbox משמיטה אותו מה-precache *בשקט*
+      # ושוברת אופליין. תיל מעידה, לא אופטימיזציה.
+      - run: npm run check:size

@@ -351,3 +351,119 @@ describe('שיאים מתואמים לסטים שבאמת קיימים', () => {
     expect(ratings.length).toBe(1)
   }, 20000)
 })
+
+/**
+ * ארבע פעולות שרצות באמצע אימון אמיתי ולא נקראו באף בדיקה. לכל אחת אותו דפוס:
+ * לבצע, לאמת את התור, ואז hydrate מהדיסק — כי כתיבה חסרה ל-activeWorkout היא
+ * בדיוק הבאג שכל ההתאוששות מקריסה תלויה בו.
+ */
+describe('פעולות התור נשמרות לדיסק', () => {
+  beforeEach(resetAll)
+
+  /** מפרק את הזיכרון ומשחזר מהדיסק, כמו קריסה */
+  async function reload(): Promise<void> {
+    useWorkout.setState({ workout: null, hydrated: false, exercisesById: {}, prCache: [] })
+    await useWorkout.getState().hydrate()
+  }
+
+  it('reorder מזיז את הפריט ושורד קריסה', async () => {
+    await useWorkout.getState().start('F1', [])
+    const before = useWorkout.getState().workout!.queue.map((q) => q.exerciseId)
+
+    await useWorkout.getState().reorder(0, 2)
+    const moved = [...before]
+    moved.splice(2, 0, ...moved.splice(0, 1))
+
+    expect(useWorkout.getState().workout?.queue.map((q) => q.exerciseId)).toEqual(moved)
+    await reload()
+    expect(useWorkout.getState().workout?.queue.map((q) => q.exerciseId)).toEqual(moved)
+  }, 20000)
+
+  it('reorder עם אינדקס לא חוקי לא משנה כלום', async () => {
+    await useWorkout.getState().start('F1', [])
+    const before = useWorkout.getState().workout!.queue.map((q) => q.key)
+
+    await useWorkout.getState().reorder(0, 99)
+    await useWorkout.getState().reorder(-1, 1)
+    await useWorkout.getState().reorder(1, 1)
+
+    expect(useWorkout.getState().workout?.queue.map((q) => q.key)).toEqual(before)
+  }, 20000)
+
+  it('addExercise מוסיף לסוף התור עם ברירות המחדל של הקטלוג', async () => {
+    await useWorkout.getState().start('F1', [])
+    const lengthBefore = useWorkout.getState().workout!.queue.length
+
+    await useWorkout.getState().addExercise('shrugs')
+
+    const added = useWorkout.getState().workout!.queue.at(-1)!
+    expect(useWorkout.getState().workout?.queue.length).toBe(lengthBefore + 1)
+    expect(added.exerciseId).toBe('shrugs')
+    expect(added.status).toBe('pending')
+    expect(added.targetSets).toBe(2)
+
+    await reload()
+    expect(useWorkout.getState().workout?.queue.at(-1)?.exerciseId).toBe('shrugs')
+  }, 20000)
+
+  it('addExercise מתעלם מתרגיל שלא בקטלוג', async () => {
+    await useWorkout.getState().start('F1', [])
+    const lengthBefore = useWorkout.getState().workout!.queue.length
+    await useWorkout.getState().addExercise('אין-כזה')
+    expect(useWorkout.getState().workout?.queue.length).toBe(lengthBefore)
+  }, 20000)
+
+  it('completeCurrent סוגר את התרגיל ופותח את הבא', async () => {
+    await useWorkout.getState().start('F1', [])
+    const first = useWorkout.getState().workout!.currentKey!
+    const second = useWorkout.getState().workout!.queue[1].key
+
+    await useWorkout.getState().completeCurrent()
+
+    const w = useWorkout.getState().workout!
+    expect(w.queue.find((q) => q.key === first)?.status).toBe('done')
+    expect(w.currentKey).toBe(second)
+    expect(w.queue.find((q) => q.key === second)?.status).toBe('active')
+
+    await reload()
+    expect(useWorkout.getState().workout?.currentKey).toBe(second)
+  }, 20000)
+
+  it('completeCurrent על התרגיל האחרון משאיר את התור בלי פריט פעיל', async () => {
+    await useWorkout.getState().start('F1', [])
+    const total = useWorkout.getState().workout!.queue.length
+    for (let i = 0; i < total; i++) await useWorkout.getState().completeCurrent()
+
+    expect(useWorkout.getState().workout?.currentKey).toBeNull()
+    expect(useWorkout.getState().workout?.queue.every((q) => q.status === 'done')).toBe(true)
+  }, 20000)
+
+  it('adjustRest מזיז את הדדליין ושורד קריסה', async () => {
+    await useWorkout.getState().start('F1', [])
+    const key = useWorkout.getState().workout!.currentKey!
+    await useWorkout.getState().startRest(key, 120)
+    const endsAt = useWorkout.getState().workout!.restEndsAt!
+
+    await useWorkout.getState().adjustRest(15)
+    expect(useWorkout.getState().workout?.restEndsAt).toBe(endsAt + 15_000)
+    expect(useWorkout.getState().workout?.restTotalSeconds).toBe(135)
+
+    await reload()
+    expect(useWorkout.getState().workout?.restTotalSeconds).toBe(135)
+  }, 20000)
+
+  it('adjustRest לא דוחף את הדדליין לעבר, ולא נוגע כשאין מנוחה', async () => {
+    await useWorkout.getState().start('F1', [])
+    const key = useWorkout.getState().workout!.currentKey!
+
+    // בלי מנוחה פעילה — אין מה לכוון
+    await useWorkout.getState().adjustRest(15)
+    expect(useWorkout.getState().workout?.restEndsAt).toBeNull()
+
+    await useWorkout.getState().startRest(key, 30)
+    await useWorkout.getState().adjustRest(-600)
+    expect(useWorkout.getState().workout!.restEndsAt!).toBeGreaterThan(Date.now())
+    // המינימום של restTotalSeconds הוא 5 שניות, לא מספר שלילי
+    expect(useWorkout.getState().workout!.restTotalSeconds).toBeGreaterThanOrEqual(5)
+  }, 20000)
+})
