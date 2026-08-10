@@ -131,6 +131,17 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
   if (data.app !== 'tavor-gym') {
     return { ok: false, error: 'הקובץ אינו גיבוי של אימוני כושר' }
   }
+  /*
+    גיבוי מפורמט עתידי לא נכנס. התרחיש אמיתי: התקנה מחדש שבה ה-Service Worker
+    מגיש גרסה ישנה, ואז ייבוא של קובץ שנוצר בגרסה חדשה היה דורס את המסד בנתונים
+    שהאפליקציה לא יודעת לקרוא נכון — בלי שום הודעה.
+  */
+  if (typeof data.schemaVersion === 'number' && data.schemaVersion > BACKUP_SCHEMA_VERSION) {
+    return {
+      ok: false,
+      error: 'הגיבוי נוצר בגרסה חדשה יותר של האפליקציה — עדכן אותה קודם',
+    }
+  }
   for (const key of Object.keys(TABLE_LABELS) as TableKey[]) {
     if (!Array.isArray(data[key])) {
       return { ok: false, error: `הגיבוי פגום — חסר החלק "${TABLE_LABELS[key]}"` }
@@ -142,7 +153,17 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
   const exercises = (data.exercises ?? []).map(withLibraryLink).map(withTimedMetric)
   const routines = (data.routines ?? []).map(withTimedPlanItems)
   const blocks = (data.blocks ?? []).map(withTimedPlanItems)
-  const setLogs = data.setLogs ?? []
+  /*
+    סטים בלי סשן לא נכנסים.
+
+    גיבוי שנוצר באמצע אימון פתוח מכיל את הסטים שלו — הם נכתבים ל-setLogs מיד —
+    אבל לא את שורת ה-session שלהם, שנכתבת רק ב-finish. בשחזור הם היו הופכים
+    ליתומים קבועים: נספרים ב"משקל אחרון", בגרפים ובבניית השיאים, אבל בלתי
+    נראים בהיסטוריה ולכן בלתי ניתנים למחיקה. הסינון כאן מנקה בדרך אגב גם
+    יתומים שכבר יושבים בגיבויים ישנים.
+  */
+  const sessionIds = new Set((data.sessions ?? []).map((s) => s.id))
+  const setLogs = (data.setLogs ?? []).filter((s) => sessionIds.has(s.sessionId))
 
   try {
     await db.transaction(
@@ -178,10 +199,16 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
         await db.sessions.bulkPut(data.sessions ?? [])
         await db.setLogs.bulkPut(setLogs)
         await db.ratings.bulkPut(data.ratings ?? [])
-        await db.prs.bulkPut(data.prs ?? [])
         await db.bodyWeights.bulkPut(data.bodyWeights ?? [])
         await db.settings.put({ key: 'app', value: mergeSettings(data.settings) })
-        // דריסה של השיאים המיובאים בחישוב טרי, באותה טרנזקציה
+        /*
+          השיאים נבנים מהסטים ולא נכתבים מהקובץ.
+
+          כתיבה של data.prs לפני החישוב נראתה זהירה, אבל הדריסה עובדת לפי
+          [exerciseId+kind]: שיא בקובץ שה-rebuild לא מייצר לו מקבילה — תרגיל
+          שהסטים שלו לא בגיבוי, או קובץ ערוך — היה שורד כשיא רפאים שמדכא קונפטי
+          של שיאים אמיתיים. הסטים הם מקור האמת היחיד, וזה מה שהופך את זה לאמת.
+        */
         await db.prs.bulkPut(rebuildPrs(exercises, setLogs))
       }
     )
@@ -223,6 +250,24 @@ function withTimedPlanItems<T extends { items: PlanItem[] }>(plan: T): T {
       TIMED_SEED[it.exerciseId] ? { ...it, targetReps: { ...TIMED_SEED[it.exerciseId] } } : it
     ),
   }
+}
+
+/**
+ * ה-origin של נכס שמיובא מגיבוי.
+ *
+ * שלושת הערכים חוקיים ומשמעותיים, ו-'library' הוא הקריטי: המונים במסך
+ * הסרטונים, כפתור "התקן את המאגר" וכפתור המחיקה כולם מסננים לפיו. שיטוח שלו
+ * ל-'imported' הותיר מאות מגה-בייט במסד שהמסך מדווח עליהם "מותקנים 0",
+ * שההתקנה מדלגת עליהם, ושאין להם שום מסלול מחיקה ב-UI.
+ *
+ * המזהה גובר על המניפסט כשהוא חד-משמעי — הוא הנתיב של הנכס, ולכן הוא נכון גם
+ * בגיבוי שנוצר לפני ש-'library' היה קיים.
+ */
+function importedOrigin(v: { id: string; origin?: string }): VideoAsset['origin'] {
+  if (v.id.startsWith('bundled:videos/lib/')) return 'library'
+  if (v.id.startsWith('bundled:')) return 'bundled'
+  if (v.origin === 'bundled' || v.origin === 'library' || v.origin === 'imported') return v.origin
+  return 'imported'
 }
 
 function errorText(err: unknown): string {
@@ -457,14 +502,28 @@ export async function importMedia(
   const manifestBlob = entries.get(MANIFEST_NAME)
   if (!manifestBlob) return { ok: false, error: 'הקובץ אינו גיבוי סרטונים של אימוני כושר' }
 
-  let manifest: { app?: unknown; videos?: unknown }
+  let manifest: { app?: unknown; videos?: unknown; schemaVersion?: unknown }
   try {
-    manifest = JSON.parse(await manifestBlob.text()) as { app?: unknown; videos?: unknown }
+    manifest = JSON.parse(await manifestBlob.text()) as {
+      app?: unknown
+      videos?: unknown
+      schemaVersion?: unknown
+    }
   } catch {
     return { ok: false, error: 'רשימת הסרטונים בארכיון פגומה' }
   }
   if (manifest.app !== 'tavor-gym' || !Array.isArray(manifest.videos)) {
     return { ok: false, error: 'הקובץ אינו גיבוי סרטונים של אימוני כושר' }
+  }
+
+  if (
+    typeof manifest.schemaVersion === 'number' &&
+    manifest.schemaVersion > BACKUP_SCHEMA_VERSION
+  ) {
+    return {
+      ok: false,
+      error: 'גיבוי הסרטונים נוצר בגרסה חדשה יותר של האפליקציה — עדכן אותה קודם',
+    }
   }
 
   const videos = (manifest.videos as unknown[]).filter(isManifestEntry)
@@ -480,7 +539,7 @@ export async function importMedia(
         const asset: VideoAsset = {
           id: v.id,
           exerciseId: v.exerciseId,
-          origin: v.origin === 'bundled' ? 'bundled' : 'imported',
+          origin: importedOrigin(v),
           blob,
           thumbnailBlob,
           label: v.label ?? '',

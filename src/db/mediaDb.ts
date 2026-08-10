@@ -69,6 +69,28 @@ export async function repairReplacedBundled(): Promise<number> {
   }
 }
 
+/**
+ * מנרמל את ה-origin של נכסים ששוחזרו מגיבוי לפני שהייבוא הכיר את 'library'.
+ *
+ * הייבוא שיטח כל origin שאינו 'bundled' ל-'imported', ולכן מכשיר שכבר שחזר
+ * גיבוי מדיה מחזיק את סרטוני המאגר תחת ערך שגוי: המונה במסך הסרטונים מציג
+ * "מותקנים 0", ההתקנה מדלגת עליהם, וכפתור המחיקה לא מופיע — מאות מגה-בייט
+ * תקועים בלי שום מסלול ניהול. המזהה הוא הנתיב, ולכן הוא מספיק כדי לתקן.
+ *
+ * מחזיר כמה רשומות תוקנו. לא מפיל את עליית האפליקציה בשום מקרה.
+ */
+export async function repairAssetOrigins(): Promise<number> {
+  try {
+    const wrong = await mediaDb.videos.where('origin').notEqual('library').toArray()
+    const fixes = wrong.filter((v) => v.id.startsWith('bundled:videos/lib/'))
+    if (!fixes.length) return 0
+    await mediaDb.videos.bulkPut(fixes.map((v) => ({ ...v, origin: 'library' as const })))
+    return fixes.length
+  } catch {
+    return 0
+  }
+}
+
 /** ה-URL המלא של נכס מצורף, כולל ה-base של האפליקציה */
 export function assetUrl(relativePath: string): string {
   return `${import.meta.env.BASE_URL}${relativePath}`

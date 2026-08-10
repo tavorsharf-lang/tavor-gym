@@ -235,6 +235,17 @@ export const useWorkout = create<WorkoutState>((set, get) => {
     },
 
     async start(routineId, blockIds) {
+      /*
+        אימון פתוח קודם נזרק כמו שצריך לפני שדורסים אותו.
+
+        הסטים נכתבים ל-setLogs מיד, אבל שורת ה-session נכתבת רק ב-finish —
+        ולכן דריסה של activeWorkout בלי ניקוי הייתה מותירה סטים בלי סשן: הם
+        נספרים ב"משקל אחרון", בגרפים ובבניית השיאים, אבל בלתי נראים בהיסטוריה
+        ולכן בלתי ניתנים למחיקה. ה-UI שואל לפני שמגיעים לכאן; זו הרשת שמתחת.
+      */
+      const open = get().workout
+      if (open) await get().discard()
+
       const [exercises, routines, blocks, prs, settings] = await Promise.all([
         db.exercises.toArray(),
         db.routines.toArray(),
@@ -301,10 +312,17 @@ export const useWorkout = create<WorkoutState>((set, get) => {
       const w = get().workout
       if (w) {
         // התרגילים שנגעו בהם — צריך לחשב להם שיאים מחדש *אחרי* שהסטים נמחקו,
-        // אחרת שיא מאימון שבוטל היה נשאר כרף להשוואה לנצח
+        // אחרת שיא מאימון שבוטל היה נשאר כרף להשוואה לנצח.
+        // הכל בטרנזקציה אחת: קריסה בין המחיקה לחישוב מחדש הייתה משאירה בדיוק
+        // את השיא הזה, וה-reconcile הבא היה רץ רק אם התרגיל ייערך שוב.
         const touched = [...new Set(w.queue.map((q) => q.exerciseId))]
-        await db.setLogs.where('sessionId').equals(w.sessionId).delete()
-        await reconcile(touched)
+        await db.transaction('rw', db.setLogs, db.prs, db.activeWorkout, async () => {
+          await db.setLogs.where('sessionId').equals(w.sessionId).delete()
+          await reconcile(touched)
+          await db.activeWorkout.delete('current')
+        })
+        set({ workout: null, pendingPrEvents: [] })
+        return
       }
       await db.activeWorkout.delete('current')
       set({ workout: null, pendingPrEvents: [] })
@@ -520,18 +538,21 @@ export const useWorkout = create<WorkoutState>((set, get) => {
 
     async removeSet(key, logId) {
       const exerciseId = get().workout?.queue.find((q) => q.key === key)?.exerciseId
-      await db.setLogs.delete(logId)
-      await mutate((w) => {
-        const remaining = (w.setsByKey[key] ?? []).filter((s) => s.logId !== logId)
-        return { ...w, setsByKey: { ...w.setsByKey, [key]: remaining } }
+      // מחיקה, מספור מחדש וחישוב שיאים הם פעולה אחת: קריסה באמצע הייתה
+      // משאירה שיא של סט שכבר לא קיים, או מספור עם חור
+      await db.transaction('rw', db.setLogs, db.prs, async () => {
+        await db.setLogs.delete(logId)
+        const remaining = (get().workout?.setsByKey[key] ?? []).filter((s) => s.logId !== logId)
+        await Promise.all(remaining.map((s, i) => db.setLogs.update(s.logId, { setIndex: i })))
+        if (exerciseId) await reconcile([exerciseId])
       })
-      // מספור הסטים בטבלה מתעדכן כדי שההיסטוריה תישאר רציפה
-      const remaining = get().workout?.setsByKey[key] ?? []
-      await Promise.all(
-        remaining.map((s, i) => db.setLogs.update(s.logId, { setIndex: i }))
-      )
-      // סט שנמחק לא יכול להשאיר אחריו שיא
-      if (exerciseId) await reconcile([exerciseId])
+      await mutate((w) => ({
+        ...w,
+        setsByKey: {
+          ...w.setsByKey,
+          [key]: (w.setsByKey[key] ?? []).filter((s) => s.logId !== logId),
+        },
+      }))
     },
 
     async rate(key, rating, rir) {

@@ -53,10 +53,25 @@ export function StartWorkoutSheet({
   const [routineOverride, setRoutineOverride] = useState<RoutineId | null>(null)
   const [blocksOverride, setBlocksOverride] = useState<string[] | null>(null)
   const [starting, setStarting] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+
+  /*
+    אימון פתוח שעומד להימחק.
+
+    התחלת אימון חדש דורסת אותו, והסטים שלו נמחקים איתו — הם נכתבו ל-setLogs
+    אבל שורת ה-session שלהם נכתבת רק בסיום. זו פעולה בלתי הפיכה, ולכן היא
+    שואלת. הקריאה היא ל-store שבזיכרון ולא ל-liveQuery: אסור להאזין לטבלת
+    activeWorkout, היא נכתבת אחרי כל נגיעה.
+  */
+  const openWorkout = useWorkout((w) => w.workout)
+  const openSetCount = openWorkout
+    ? Object.values(openWorkout.setsByKey).reduce((n, list) => n + list.length, 0)
+    : 0
 
   // סגירה מאפסת את הבחירה — פתיחה הבאה מתחילה שוב מההצעה
   useEffect(() => {
     if (open) return
+    setConfirmDiscard(false)
     setRoutineOverride(null)
     setBlocksOverride(null)
     setStarting(false)
@@ -92,6 +107,10 @@ export function StartWorkoutSheet({
   }
 
   const handleStart = async () => {
+    if (openWorkout && !confirmDiscard) {
+      setConfirmDiscard(true)
+      return
+    }
     // הלחיצה הזו היא ההזדמנות היחידה לפתוח את האודיו ב-iOS: אחרי await
     // המחווה כבר "נצרכה" וספארי יסרב. חייב להיות ראשון בפונקציה.
     unlock()
@@ -200,10 +219,19 @@ export function StartWorkoutSheet({
       </div>
 
       <div className="sticky bottom-0 -mx-5 mt-5 border-t border-ink-800 bg-ink-900/95 px-5 pt-3 pb-safe backdrop-blur-xl">
-        <p className="mb-2 text-center text-sm text-bone-400">
-          <span className="tnum font-bold text-bone-200">{planItems.length}</span> תרגילים · בערך{' '}
-          <span className="tnum font-bold text-bone-200">{formatDuration(totalSeconds)}</span>
-        </p>
+        {confirmDiscard ? (
+          <p className="mb-2 rounded-xl border border-hard-400/35 bg-hard-400/10 px-3 py-2 text-center text-sm leading-relaxed text-hard-400">
+            <span className="font-extrabold">יש אימון פתוח.</span>{' '}
+            {openSetCount > 0
+              ? `התחלה של אימון חדש תמחק אותו ואת ${openSetCount} הסטים שנרשמו בו.`
+              : 'התחלה של אימון חדש תבטל אותו.'}
+          </p>
+        ) : (
+          <p className="mb-2 text-center text-sm text-bone-400">
+            <span className="tnum font-bold text-bone-200">{planItems.length}</span> תרגילים · בערך{' '}
+            <span className="tnum font-bold text-bone-200">{formatDuration(totalSeconds)}</span>
+          </p>
+        )}
         <Button
           variant="flame"
           size="hero"
@@ -213,8 +241,23 @@ export function StartWorkoutSheet({
           onClick={() => void handleStart()}
           style={{ minHeight: '4.25rem' }}
         >
-          התחל
+          {confirmDiscard ? 'בטל את הפתוח והתחל חדש' : 'התחל'}
         </Button>
+        {confirmDiscard ? (
+          <Button
+            variant="quiet"
+            size="md"
+            fullWidth
+            className="mt-2"
+            onClick={() => {
+              setConfirmDiscard(false)
+              onClose()
+              navigate('/workout')
+            }}
+          >
+            חזור לאימון הפתוח
+          </Button>
+        ) : null}
       </div>
     </BottomSheet>
   )
