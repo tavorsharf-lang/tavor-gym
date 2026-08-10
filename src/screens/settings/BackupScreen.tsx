@@ -3,11 +3,12 @@ import type { JSX, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Download, FileDown, FileUp, HardDrive, Upload } from 'lucide-react'
-import { getSettings, resetDatabase, saveSettings } from '@/db/db'
+import { getSettings, resetDatabase } from '@/db/db'
 import { invalidateHiddenVideos } from '@/db/hiddenVideos'
 import {
   backupFilename,
-  exportData,
+  backupNow,
+  STALE_BACKUP_DAYS,
   exportMedia,
   importData,
   importMedia,
@@ -27,7 +28,6 @@ import { BottomSheet, Button, toast } from '@/components/ui'
  */
 
 /** מעבר לזה השורה נצבעת באדום */
-const STALE_BACKUP_DAYS = 30
 
 type Busy = 'data' | 'media' | 'import' | null
 type PendingKind = 'data' | 'media'
@@ -72,15 +72,13 @@ export function BackupScreen(): JSX.Element {
   const exportDataFile = async (): Promise<void> => {
     setBusy('data')
     try {
-      const blob = await exportData()
-      const how = await saveBlob(blob, backupFilename(Date.now(), 'data'))
-      // ביטול בגיליון השיתוף = אין קובץ בשום מקום. סימון תאריך גיבוי היה
-      // משתיק את האזהרה בבית לחודש שלם על סמך גיבוי שלא קיים.
+      // ביטול בגיליון השיתוף = אין קובץ בשום מקום. `backupNow` לא מסמן תאריך
+      // במקרה הזה, אחרת האזהרה בבית הייתה נשתקת לחודש על גיבוי שלא קיים.
+      const how = await backupNow()
       if (how === 'cancelled') {
         toast('הייצוא בוטל')
         return
       }
-      await saveSettings({ lastBackupAt: Date.now() })
       toast(
         how === 'shared'
           ? 'הגיבוי נשלח לגיליון השיתוף — שמור אותו ב״קבצים״'

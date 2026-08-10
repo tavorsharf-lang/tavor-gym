@@ -2,17 +2,18 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import type { JSX } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ExternalLink, Play, SearchX } from 'lucide-react'
+import { ExternalLink, Play, Plus, SearchX } from 'lucide-react'
 import { assetUrl, bundledId, bundledVideosFor, mediaDb, videoLabelsFor } from '@/db/mediaDb'
 import { useHiddenVideoIds } from '@/db/hiddenVideos'
 import { libraryExercise } from '@/db/libraryLinks'
 import { LIBRARY_MAX_PER_EXERCISE } from '@/db/libraryManifest'
 import { MUSCLE_GROUPS } from '@/db/types'
-import type { VideoAsset } from '@/db/types'
+import type { Exercise, VideoAsset } from '@/db/types'
 import { db } from '@/db/db'
-import { formatBytes } from '@/domain/units'
+import { DEFAULT_REST_SECONDS, DEFAULT_TARGET_SETS } from '@/db/seed'
+import { formatBytes, newId } from '@/domain/units'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
-import { EmptyState } from '@/components/ui'
+import { Button, EmptyState, toast } from '@/components/ui'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 
 /**
@@ -26,6 +27,7 @@ export function LibraryExerciseScreen(): JSX.Element {
   const { libId = '' } = useParams()
   const navigate = useNavigate()
   const [playing, setPlaying] = useState<number | null>(null)
+  const [adding, setAdding] = useState(false)
 
   const hidden = useHiddenVideoIds()
 
@@ -82,6 +84,56 @@ export function LibraryExerciseScreen(): JSX.Element {
   }
 
   const programId = linked?.id ?? null
+
+  /**
+   * יוצר תרגיל בקטלוג עם הקישור למאגר.
+   *
+   * ברירות המחדל שמרניות בכוונה: מכונה, משקל כולל, בלי פלטות ובלי משקל זריעה.
+   * המשתמש יראה את המספרים שלו כבר בסט הראשון, והעורך פתוח לו מיד — עדיף
+   * לנחש מעט מלנחש הרבה ולא נכון.
+   */
+  const addToCatalog = async (): Promise<void> => {
+    if (!exercise || adding) return
+    setAdding(true)
+    try {
+      const existing = await db.exercises.where('libraryId').equals(exercise.id).first()
+      if (existing) {
+        navigate(`/exercise/${existing.id}`)
+        return
+      }
+      const now = Date.now()
+      const maxOrder = (await db.exercises.toArray()).reduce((m, e) => Math.max(m, e.order), -1)
+      const created: Exercise = {
+        id: newId('ex-'),
+        name: exercise.nameHe,
+        nameEn: exercise.nameEn,
+        muscleGroup: exercise.muscleGroup,
+        subTarget: '',
+        equipment: 'machine',
+        weightMode: 'total',
+        weightIncrementKg: 2.5,
+        defaultRestSeconds: DEFAULT_REST_SECONDS,
+        targetSets: DEFAULT_TARGET_SETS,
+        targetReps: { min: 8, max: 12 },
+        cues: [],
+        usesPlates: false,
+        barWeightKg: null,
+        seedWeightKg: null,
+        libraryId: exercise.id,
+        isActive: true,
+        order: maxOrder + 1,
+        createdAt: now,
+        updatedAt: now,
+      }
+      await db.exercises.add(created)
+      toast(`${created.name} נוסף לתרגילים שלך`, { tone: 'success' })
+      navigate(`/settings/exercises/${created.id}`)
+    } catch {
+      toast('לא הצלחתי להוסיף את התרגיל', { tone: 'warn' })
+    } finally {
+      setAdding(false)
+    }
+  }
   const localCount = clips.filter((c) => installedIds.has(bundledId(c.src))).length
   // "יש עוד סרטונים שלא נכללו" מדבר על מה שלא ירד לאפליקציה, ולא על מה שנמחק
   const omitted = exercise.totalAvailable - bundledVideosFor(libId).length
@@ -98,6 +150,25 @@ export function LibraryExerciseScreen(): JSX.Element {
       <p dir="ltr" className="mb-5 text-end text-sm font-semibold text-bone-400">
         {exercise.nameEn}
       </p>
+
+      {/*
+        הזרימה שמיגרציית v4 נבנתה בשבילה: הוספת תרגיל מהמאגר לקטלוג יוצרת את
+        הקישור בעצמה, במקום לדרוש עריכת קוד. לפני היצירה בודקים אם כבר קיים
+        קישור ומנווטים אליו — כך אי אפשר לייצר שני תרגילים שמצביעים על אותו
+        מזהה מאגר, וזו גם ההתנהגות הנכונה מוצרית.
+      */}
+      {!programId ? (
+        <Button
+          size="lg"
+          fullWidth
+          className="mb-5"
+          icon={<Plus size={18} />}
+          loading={adding}
+          onClick={() => void addToCatalog()}
+        >
+          הוסף לתרגילים שלי
+        </Button>
+      ) : null}
 
       {programId ? (
         <button

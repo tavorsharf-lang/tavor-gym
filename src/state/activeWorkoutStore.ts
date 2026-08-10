@@ -98,6 +98,8 @@ interface WorkoutState {
   /** שינוי היעד של התרגיל תוך כדי אימון — נשאר בתור ולא נוגע בתוכנית הקבועה */
   setTargetSets: (key: string, targetSets: number) => Promise<void>
   setItemRest: (key: string, seconds: number) => Promise<void>
+  /** הערה אישית על תרגיל — נכתבת לקטלוג, לא לאימון */
+  saveNote: (exerciseId: string, note: string) => Promise<void>
 
   // ניווט ותור
   setCurrent: (key: string) => Promise<void>
@@ -579,6 +581,23 @@ export const useWorkout = create<WorkoutState>((set, get) => {
         ...w,
         queue: w.queue.map((q) => (q.key === key ? { ...q, targetSets: next } : q)),
       }))
+    },
+
+    /*
+      נכתבת לטבלת exercises ולא לאימון: ההערה מתארת את המכונה, לא את היום.
+      המטמון שבזיכרון מתעדכן איתה כי הכרטיס קורא ממנו ולא מ-liveQuery.
+    */
+    async saveNote(exerciseId, note) {
+      const current = get().exercisesById[exerciseId]
+      if (!current) return
+      const trimmed = note.trim()
+      const next: Exercise = {
+        ...current,
+        personalNote: trimmed || undefined,
+        updatedAt: Date.now(),
+      }
+      await db.exercises.put(next)
+      set({ exercisesById: { ...get().exercisesById, [exerciseId]: next } })
     },
 
     async setItemRest(key, seconds) {

@@ -1,4 +1,4 @@
-import { db, mergeSettings } from '@/db/db'
+import { db, mergeSettings, saveSettings } from '@/db/db'
 import { mediaDb } from '@/db/mediaDb'
 import type {
   AppSettings,
@@ -50,6 +50,17 @@ export interface BackupData {
 }
 
 /** 'tavor-gym-נתונים-2026-08-05.json' · 'tavor-gym-סרטונים-2026-08-05.zip' */
+/**
+ * מכמה ימים בלי גיבוי מזכירים.
+ *
+ * יושב כאן ולא במסך הגיבוי כי שני מסכים שואלים את אותה שאלה — הבית ומסך
+ * הסיכום — ושני מספרים שונים היו אומרים למשתמש שני דברים סותרים.
+ */
+export const STALE_BACKUP_DAYS = 30
+
+/** מעל זה הניסוח מוקשח: חצי שנה בלי גיבוי היא לא "כדאי", היא סיכון */
+export const URGENT_BACKUP_DAYS = 90
+
 export function backupFilename(now: number, kind: 'data' | 'media'): string {
   const label = kind === 'data' ? 'נתונים' : 'סרטונים'
   const ext = kind === 'data' ? 'json' : 'zip'
@@ -581,6 +592,24 @@ function isAbortError(err: unknown): boolean {
  * 'cancelled'  — המשתמש סגר את הגיליון. אין קובץ בשום מקום, ולכן אסור לרשום
  *                שגובה — אבל גם אין טעם להוריד מאחורי גבו.
  */
+/**
+ * ייצוא הנתונים ושמירתם, כולל סימון תאריך הגיבוי — הזרימה השלמה במקום אחד.
+ *
+ * מיוצא כי יש לה שני מקורות: מסך הגיבוי, ומסך הסיכום שמציע לגבות מיד אחרי
+ * אימון. שכפול שלה היה מסתיים בכך שאחד משני המסלולים שוכח לסמן את התאריך —
+ * ואז האזהרה בבית מופיעה על גיבוי שכן נעשה, או נעלמת על גיבוי שלא.
+ *
+ * מחזיר 'cancelled' כשהמשתמש סגר את גיליון השיתוף: אין קובץ בשום מקום, ולכן
+ * גם אין מה לסמן.
+ */
+export async function backupNow(): Promise<'downloaded' | 'shared' | 'cancelled'> {
+  const blob = await exportData()
+  const how = await saveBlob(blob, backupFilename(Date.now(), 'data'))
+  if (how === 'cancelled') return 'cancelled'
+  await saveSettings({ lastBackupAt: Date.now() })
+  return how
+}
+
 export async function saveBlob(
   blob: Blob,
   filename: string

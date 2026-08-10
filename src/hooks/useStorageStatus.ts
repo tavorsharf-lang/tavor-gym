@@ -4,8 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
  * מצב האחסון של האפליקציה.
  *
  * בלי אחסון קבוע (persistent) הדפדפן רשאי למחוק את ה-IndexedDB כשנגמר המקום
- * במכשיר — כלומר את כל היסטוריית האימונים. Safari דורש שהמשתמש יאשר, ולכן
- * `requestPersist` נקרא מכפתור מפורש ולא אוטומטית.
+ * במכשיר — כלומר את כל היסטוריית האימונים.
+ *
+ * `ensurePersisted` נקרא אוטומטית אחרי האימון הראשון: ב-PWA מותקן ספארי מאשר
+ * בשקט בלי דיאלוג, ולכן ההגנה החשובה ביותר של האפליקציה לא צריכה להיות חבויה
+ * מאחורי כפתור בתחתית מסך ההגדרות שרוב הזמן אף אחד לא גולל אליו.
  */
 
 export interface StorageStatus {
@@ -29,6 +32,24 @@ const EMPTY: Estimate = { persisted: null, usageBytes: null, quotaBytes: null }
 function storageManager(): StorageManager | null {
   if (typeof navigator === 'undefined' || !('storage' in navigator)) return null
   return navigator.storage ?? null
+}
+
+/**
+ * מבקש אחסון קבוע פעם אחת, מחוץ ל-React.
+ *
+ * לא הוק כי הקורא הוא זרימה ולא רינדור — סיום אימון. חוזר בשקט על עצמו: אם
+ * הבקשה נדחתה, ניסיון נוסף אחרי אימון נוסף לא עולה כלום ולפעמים כן מצליח
+ * (הדפדפן שוקל שימוש חוזר).
+ */
+export async function ensurePersisted(): Promise<boolean> {
+  const storage = storageManager()
+  if (!storage || typeof storage.persist !== 'function') return false
+  try {
+    if (typeof storage.persisted === 'function' && (await storage.persisted())) return true
+    return await storage.persist()
+  } catch {
+    return false
+  }
 }
 
 export function useStorageStatus(): StorageStatus {

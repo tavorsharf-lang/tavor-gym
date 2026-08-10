@@ -314,6 +314,65 @@ export async function deleteVideo(id: string): Promise<void> {
   })
 }
 
+/**
+ * שומר למכשיר סרטון מצורף שנוגן מהרשת.
+ *
+ * מי שמעיין במאגר בלי ללחוץ "התקן את המאגר" מוריד את אותם בייטים בכל צפייה —
+ * GitHub Pages מגיש עם cache-control של דקות. זו לא התקנה מאחורי הגב: יורדים
+ * בדיוק מה שהמשתמש ממילא הוריד כדי לצפות, ורק מפסיקים לזרוק את זה. הספירות
+ * במסך הסרטונים מתעדכנות מעצמן כי הן סופרות לפי origin.
+ *
+ * שקט לחלוטין בכישלון — זו אופטימיזציה, לא פעולה שהמשתמש ביקש.
+ */
+export async function cacheStreamedVideo(assetId: string): Promise<void> {
+  if (!assetId.startsWith('bundled:')) return
+  const src = assetId.slice('bundled:'.length)
+  try {
+    if (await mediaDb.videos.get(assetId)) return
+    const hidden = await loadHiddenVideoIds()
+    if (hidden.has(assetId)) return
+
+    const fromLibrary = src.startsWith('videos/lib/')
+    const manifest = fromLibrary ? LIBRARY_MANIFEST : VIDEO_MANIFEST
+    let clip: BundledVideo | undefined
+    let exerciseId = ''
+    for (const [id, list] of Object.entries(manifest)) {
+      const found = list.find((v) => v.src === src)
+      if (found) {
+        clip = found
+        exerciseId = id
+        break
+      }
+    }
+    if (!clip) return
+
+    const [videoRes, posterRes] = await Promise.all([
+      fetch(assetUrl(clip.src)),
+      fetch(assetUrl(clip.poster)).catch(() => null),
+    ])
+    if (!videoRes.ok) return
+    const blob = await videoRes.blob()
+    // מרוץ: ההתקנה המלאה או צפייה נוספת יכלו לכתוב בינתיים
+    if (await mediaDb.videos.get(assetId)) return
+
+    await mediaDb.videos.put({
+      id: assetId,
+      exerciseId,
+      origin: fromLibrary ? 'library' : 'bundled',
+      blob,
+      thumbnailBlob: posterRes?.ok ? await posterRes.blob() : null,
+      label: '',
+      durationSec: clip.durationSec,
+      sizeBytes: blob.size,
+      width: clip.width,
+      height: clip.height,
+      createdAt: Date.now(),
+    })
+  } catch {
+    // אין רשת, אין מקום, או שהבקשה בוטלה — הסרטון פשוט יישאר בהזרמה
+  }
+}
+
 /** משחרר objectURL-ים שנוצרו ב-loadVideosFor */
 export function releaseVideos(videos: readonly PlayableVideo[]): void {
   for (const v of videos) {

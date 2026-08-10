@@ -343,6 +343,8 @@ export function ExerciseEditorScreen(): JSX.Element {
       ...draft,
       name,
       nameEn: draft.nameEn?.trim() ?? '',
+      // מחרוזת ריקה נשמרת כשדה חסר, כדי שהתצוגה תבדוק דבר אחד ולא שניים
+      personalNote: draft.personalNote?.trim() || undefined,
       subTarget: draft.subTarget.trim(),
       cues: draft.cues.map((c) => c.trim()).filter(Boolean),
       barWeightKg: draft.usesPlates ? (draft.barWeightKg ?? 0) : null,
@@ -592,6 +594,23 @@ export function ExerciseEditorScreen(): JSX.Element {
           <p className="px-4 py-2 text-xs font-semibold text-hard-400">{problems.increment}</p>
         )}
       </Card>
+
+      <section className="mb-5">
+        <h2 className="meta mb-2 px-1">ההערה שלי</h2>
+        <div className="card p-4">
+          <p className="mb-3 text-xs leading-relaxed text-bone-500">
+            הגדרות המכונה ומה שכדאי לזכור. נפרד מהדגשים: הם "איך מבצעים", וזה "מה
+            שאני יודע על המכונה הזו". אפשר לכתוב גם באמצע אימון, מהכרטיס.
+          </p>
+          <textarea
+            value={draft.personalNote ?? ''}
+            onChange={(e) => patch({ personalNote: e.target.value })}
+            rows={3}
+            placeholder="מושב בגובה 4, ידיות במצב 2"
+            className="w-full resize-none rounded-2xl border border-ink-700 bg-ink-850 p-3 leading-relaxed text-bone-50 placeholder:text-bone-600 focus:border-flame-500/50 focus:outline-none"
+          />
+        </div>
+      </section>
 
       <section className="mb-5">
         <h2 className="meta mb-2 px-1">דגשי ביצוע</h2>

@@ -7,6 +7,7 @@ import {
   Dumbbell,
   History,
   Minus,
+  ShieldAlert,
   Shuffle,
   SkipForward,
   StickyNote,
@@ -15,6 +16,8 @@ import {
   Trophy,
 } from 'lucide-react'
 import { getSettings } from '@/db/db'
+import { ensurePersisted } from '@/hooks/useStorageStatus'
+import { backupNow, STALE_BACKUP_DAYS, URGENT_BACKUP_DAYS } from '@/db/backup'
 import {
   getAllExercises,
   getAllPrs,
@@ -48,8 +51,8 @@ import {
 import { summarize, weightModeLookup, workSets, workingWeight } from '@/domain/volume'
 import type { PrEvent } from '@/domain/prs'
 import { prHeadline, prLabel } from '@/domain/prs'
-import { formatDateLong, formatTime } from '@/lib/dates'
-import { Button, EmptyState, fireConfetti } from '@/components/ui'
+import { formatDateLong, formatTime, daysSince } from '@/lib/dates'
+import { Button, EmptyState, fireConfetti, toast } from '@/components/ui'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 
 /**
@@ -253,6 +256,62 @@ function SetChip({
   )
 }
 
+/** תזכורת הגיבוי, עם ייצוא במקום. מוצגת רק כשבאמת עבר מספיק זמן. */
+function BackupNudge(): JSX.Element | null {
+  const settings = useLiveQuery(() => getSettings(), [])
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(false)
+
+  if (!settings || done) return null
+  const last = settings.lastBackupAt
+  const days = last === null ? null : daysSince(last)
+  if (days !== null && days < STALE_BACKUP_DAYS) return null
+
+  const urgent = days === null || days >= URGENT_BACKUP_DAYS
+  const line =
+    days === null
+      ? 'עוד לא גיבית אף פעם. הנתונים קיימים רק על המכשיר הזה.'
+      : `עברו ${days} ימים מהגיבוי האחרון.`
+
+  const run = async (): Promise<void> => {
+    setBusy(true)
+    try {
+      const how = await backupNow()
+      if (how === 'cancelled') {
+        toast('הייצוא בוטל')
+        return
+      }
+      setDone(true)
+      toast('הגיבוי נשמר', { tone: 'success' })
+    } catch {
+      toast('הייצוא נכשל', { tone: 'warn' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section
+      className={`card mt-3 flex items-center gap-3 p-4 ${
+        urgent ? 'border-hard-400/35 bg-hard-400/[0.07]' : ''
+      }`}
+    >
+      <ShieldAlert
+        size={20}
+        className={`shrink-0 ${urgent ? 'text-hard-400' : 'text-flame-400'}`}
+        aria-hidden="true"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold text-bone-50">{line}</p>
+        <p className="meta mt-0.5">{urgent ? 'זה הזמן. זה לוקח שנייה.' : 'שווה לגבות עכשיו.'}</p>
+      </div>
+      <Button size="md" variant={urgent ? 'danger' : 'ghost'} loading={busy} onClick={() => void run()}>
+        גבה
+      </Button>
+    </section>
+  )
+}
+
 // ─── המסך ──────────────────────────────────────────────────────────────────
 
 export function SummaryScreen(): JSX.Element {
@@ -302,6 +361,17 @@ export function SummaryScreen(): JSX.Element {
 
   useEffect(() => {
     void getSettings().then((s) => setConfettiEnabled(s.confettiEnabled))
+  }, [])
+
+  /*
+    אחסון קבוע, אחרי אימון שנסגר.
+
+    זו ההגנה היחידה מפני ספארי שמפנה מקום ומוחק את כל ההיסטוריה, והיא הייתה
+    חבויה ככפתור בתחתית מסך ההגדרות — מי שלא גלל לשם מעולם לא ביקש אותה.
+    ב-PWA מותקן הבקשה מאושרת בשקט, ולכן אין כאן שום הפרעה למשתמש.
+  */
+  useEffect(() => {
+    void ensurePersisted()
   }, [])
 
   useEffect(() => {
@@ -412,6 +482,15 @@ export function SummaryScreen(): JSX.Element {
           ) : null}
         </div>
       </section>
+
+      {/*
+        ── תזכורת גיבוי ──
+
+        אין שרת, אין ענן ואין Push — הנתונים קיימים רק על המכשיר הזה, והרגע
+        היחיד עם תשומת לב מובטחת הוא סיום אימון. התזכורת בבית קטנה, ניתנת
+        להסתרה, ולא מסלימה: אחרי חצי שנה היא נראית כמו אחרי 31 יום.
+      */}
+      <BackupNudge />
 
       {/* ── ארבעת המספרים הגדולים ── */}
       <div className="mt-3 grid grid-cols-2 gap-3">

@@ -9,7 +9,7 @@ import {
   WifiOff,
   X,
 } from 'lucide-react'
-import { deleteVideo, loadVideosFor, releaseVideos } from '@/db/mediaDb'
+import { cacheStreamedVideo, deleteVideo, loadVideosFor, releaseVideos } from '@/db/mediaDb'
 import { useHiddenVideosVersion } from '@/db/hiddenVideos'
 import { videoMismatchNote } from '@/db/videoIssues'
 import type { PlayableVideo } from '@/db/types'
@@ -108,6 +108,23 @@ export function VideoPlayer({
     if (open) window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
+
+  /*
+    סרטון שנוגן מהרשת נשמר למכשיר.
+
+    בלי זה אותם בייטים יורדים מחדש כמעט בכל צפייה — הקאש של GitHub Pages קצר —
+    והסרטון עדיין לא זמין בחדר בלי קליטה. זו לא התקנה מאחורי הגב: יורד בדיוק
+    מה שהמשתמש ממילא הוריד כדי לצפות. ההמתנה עד `canplay` מוודאת שמורידים רק
+    מה שבאמת נצפה ולא כל דבר שהנגן נגע בו לרגע.
+  */
+  useEffect(() => {
+    const el = videoRef.current
+    const asset = videos[index]
+    if (!el || !asset || asset.isLocal) return
+    const onReady = () => void cacheStreamedVideo(asset.id)
+    el.addEventListener('canplay', onReady, { once: true })
+    return () => el.removeEventListener('canplay', onReady)
+  }, [videos, index])
 
   // ההשתקה חוזרת ונאכפת גם אחרי שהמשתמש נגע בכפתור ההשתקה של הפקדים — אחרת
   // הסרטון תופס את מושב האודיו ועוצר את המוזיקה, בלי להשמיע כלום בתמורה

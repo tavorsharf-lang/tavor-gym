@@ -497,6 +497,15 @@ export function ExerciseScreen(): JSX.Element {
           ) : null}
         </Section>
 
+        {/* 1.5 · ההערה שלי — מה שאני יודע על המכונה הזו, ולא איך מבצעים */}
+        {exercise.personalNote ? (
+          <Section title="ההערה שלי">
+            <p className="card p-4 text-sm leading-relaxed whitespace-pre-wrap text-bone-100">
+              {exercise.personalNote}
+            </p>
+          </Section>
+        ) : null}
+
         {/* 2 · דגשי ביצוע — כאן הם תמיד פתוחים, זה המקום שבאים אליו ללמוד */}
         <Section
           title="דגשי ביצוע"

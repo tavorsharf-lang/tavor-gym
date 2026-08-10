@@ -368,6 +368,18 @@ export async function searchSessions(filter: HistoryFilter): Promise<Session[]> 
     await collect(exerciseIds, 'exerciseIds')
     await collect(routineIds, 'routineId')
     await collect(blockIds, 'blockIds')
+
+    /*
+      גם בהערות האימון.
+
+      הערה היא המקום הטבעי לכתוב "כאב בכתף שמאל בלחיצת כתפיים", ובלי החיפוש
+      הזה אין שום דרך למצוא אחר כך את כל הפעמים שזה הוזכר — כלומר ההערות הן
+      כתיבה לחור שחור. טבלת sessions קטנה (מאות שורות לשנים של אימון), ולכן
+      סריקה שלה זולה, ובניגוד ל-setLogs היא לא גדלה עם כל סט.
+    */
+    for (const session of await db.sessions.toArray()) {
+      if (session.notes && normalize(session.notes).includes(q)) matched.add(session.id)
+    }
     sets.push(matched)
   }
 

@@ -1,4 +1,4 @@
-import { ChevronLeft, Dumbbell } from 'lucide-react'
+import { ChevronLeft, Dumbbell, NotebookPen } from 'lucide-react'
 import type { JSX } from 'react'
 import type { Session } from '@/db/types'
 import { formatDuration, formatVolume } from '@/domain/units'
@@ -73,6 +73,17 @@ export function SessionCard({
           <span aria-hidden="true">·</span>
           <span className="tnum">{session.totalSets} סטים</span>
         </span>
+
+        {/*
+          רמז להערה. בלעדיו תוצאת חיפוש שהגיעה מהערה נראית כמו תוצאה שגויה —
+          שום דבר בכרטיס לא מסביר למה היא עלתה.
+        */}
+        {session.notes.trim() ? (
+          <span className="mt-1.5 flex items-start gap-1.5 text-[0.6875rem] leading-snug text-bone-500">
+            <NotebookPen size={11} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <span className="line-clamp-2 min-w-0">{session.notes.trim()}</span>
+          </span>
+        ) : null}
       </span>
 
       <ChevronLeft size={18} className="shrink-0 text-bone-600" aria-hidden="true" />

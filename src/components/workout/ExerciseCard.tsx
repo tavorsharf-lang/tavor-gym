@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
-import { Check, ChevronDown, Clock, Minus, Plus, Repeat, Timer } from 'lucide-react'
+import { Check, ChevronDown, Clock, Minus, NotebookPen, Plus, Repeat, Timer } from 'lucide-react'
 import type {
   AppSettings,
   DraftSet,
@@ -210,6 +210,7 @@ export function ExerciseCard({
   const markWarmupOffered = useWorkout((s) => s.markWarmupOffered)
   const setTargetSets = useWorkout((s) => s.setTargetSets)
   const setItemRest = useWorkout((s) => s.setItemRest)
+  const saveNote = useWorkout((s) => s.saveNote)
   const workout = useWorkout((s) => s.workout)
   const exercisesById = useWorkout((s) => s.exercisesById)
   const prCache = useWorkout((s) => s.prCache)
@@ -223,6 +224,8 @@ export function ExerciseCard({
   const [isWarmup, setIsWarmup] = useState(false)
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState<DraftSet | null>(null)
+  const [noteOpen, setNoteOpen] = useState(false)
+  const [noteDraft, setNoteDraft] = useState('')
 
   const bodyweight = exercise.weightMode === 'bodyweight'
   const timed = exercise.metric === 'seconds'
@@ -432,6 +435,33 @@ export function ExerciseCard({
         </div>
       )}
 
+      {/* 2.5 — ההערה שלי על המכונה הזו */}
+      <button
+        type="button"
+        onClick={() => {
+          setNoteDraft(exercise.personalNote ?? '')
+          setNoteOpen(true)
+        }}
+        className={`mt-3 flex w-full items-start gap-2 rounded-card border px-3 py-2.5 text-start ${
+          exercise.personalNote
+            ? 'border-flame-500/25 bg-flame-500/[0.06]'
+            : 'border-dashed border-ink-700'
+        }`}
+      >
+        <NotebookPen
+          size={14}
+          className={`mt-0.5 shrink-0 ${exercise.personalNote ? 'text-flame-400' : 'text-bone-600'}`}
+          aria-hidden="true"
+        />
+        <span
+          className={`min-w-0 flex-1 text-[0.8125rem] leading-snug ${
+            exercise.personalNote ? 'font-semibold text-bone-100' : 'text-bone-500'
+          }`}
+        >
+          {exercise.personalNote || 'הערה למכונה הזו — גובה מושב, מה כאב, מה לזכור'}
+        </span>
+      </button>
+
       {/* 3 — פעם קודמת */}
       <div className="mt-3">
         <p className="meta">פעם קודמת</p>
@@ -639,6 +669,33 @@ export function ExerciseCard({
           <span>הרגיש {formatRatingText(rating.rating, rating.rir)}</span>
         </button>
       )}
+
+      <BottomSheet open={noteOpen} onClose={() => setNoteOpen(false)} title="הערה לתרגיל">
+        <div className="flex flex-col gap-3 pt-1 pb-4">
+          <p className="text-sm leading-relaxed text-bone-400">
+            מה שכדאי לזכור על המכונה הזו בפעם הבאה. נשמר על התרגיל, לא על האימון.
+          </p>
+          <textarea
+            value={noteDraft}
+            onChange={(e) => setNoteDraft(e.target.value)}
+            rows={3}
+            autoFocus
+            placeholder="מושב בגובה 4, ידיות במצב 2"
+            className="w-full resize-none rounded-2xl border border-ink-700 bg-ink-850 p-3 leading-relaxed text-bone-50 placeholder:text-bone-600 focus:border-flame-500/50 focus:outline-none"
+          />
+          <Button
+            variant="flame"
+            size="lg"
+            fullWidth
+            onClick={() => {
+              void saveNote(exercise.id, noteDraft)
+              setNoteOpen(false)
+            }}
+          >
+            שמור
+          </Button>
+        </div>
+      </BottomSheet>
 
       <BottomSheet open={editing !== null} onClose={() => setEditing(null)} title="עריכת סט">
         {editing && (
