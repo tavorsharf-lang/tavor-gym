@@ -36,13 +36,17 @@ if (HAS_DOM) {
   })
 
   /*
-    matchMedia — נדרש לבדיקת prefers-reduced-motion.
+    matchMedia — הצרכן היחיד שלו בקוד הוא `prefersReducedMotion` ב-Confetti.tsx.
 
-    שאילתת "הפחתת תנועה" מוחזרת כמתקיימת, וזו לא בחירה שרירותית: jsdom הוא
-    סביבה בלי צייר, ו-canvas-confetti שנטען בייבוא דינמי (ולכן חומק מ-vi.mock)
-    מנסה לצייר לקנבס שאין לו הקשר ומפיל שגיאה לא-מטופלת שמזהמת את ההרצה.
-    `fireConfetti` יוצא מוקדם כשהשאילתה מתקיימת, וזה גם מה שאמור לקרות בסביבה
-    בלי אנימציות. זה הצרכן היחיד של matchMedia בקוד.
+    שאילתת "הפחתת תנועה" מוחזרת כמתקיימת, וזו החלטה שנמדדה ולא הונחה: עם
+    `matches: false` ההרצה המלאה מסתיימת עם unhandled error אמיתי —
+    `clearRect` על null מתוך canvas-confetti דרך rAF של jsdom — ו-vitest
+    מזהיר במפורש ש"this might cause false positive tests". ה-mock של המודול
+    כן חל על ייבוא דינמי (נמדד), ובכל זאת הספרייה האמיתית מגיעה לצייר; לא
+    ירדתי לשורש המדויק, ולכן הנימוק כאן הוא התצפית ולא תיאוריה.
+
+    מה שזה עולה: מסלול הקונפטי לא נבדק דרך רינדור מלא. `fireConfetti` עצמו
+    מכוסה ישירות ב-Confetti.test.ts, כולל שני צדי ההחלטה.
   */
   if (!window.matchMedia) {
     window.matchMedia = ((query: string) => ({

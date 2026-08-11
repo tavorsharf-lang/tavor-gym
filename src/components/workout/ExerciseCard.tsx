@@ -683,7 +683,7 @@ export function ExerciseCard({
             rows={3}
             autoFocus
             placeholder="מושב בגובה 4, ידיות במצב 2"
-            className="w-full resize-none rounded-2xl border border-ink-700 bg-ink-850 p-3 leading-relaxed text-bone-50 placeholder:text-bone-600 focus:border-flame-500/50 focus:outline-none"
+            className="w-full resize-none rounded-2xl border border-ink-700 bg-ink-850 p-3 leading-relaxed text-bone-50 placeholder:text-bone-500 focus:border-flame-500/50 focus:outline-none"
           />
           <Button
             variant="flame"

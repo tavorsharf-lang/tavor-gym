@@ -280,7 +280,7 @@ function HistoryRow({
     >
       <div className="flex items-center gap-2">
         <span className="text-sm font-extrabold text-bone-50">{formatRelativeDay(entry.startedAt)}</span>
-        <span className="text-xs text-bone-600 tnum" dir="ltr">
+        <span className="text-xs text-bone-500 tnum" dir="ltr">
           {formatDateShort(entry.startedAt)}
         </span>
         <span className="ms-auto flex items-center gap-2">
@@ -536,7 +536,7 @@ export function ExerciseScreen(): JSX.Element {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-bone-600">עוד לא כתבת דגשים לתרגיל הזה</p>
+            <p className="text-sm text-bone-500">עוד לא כתבת דגשים לתרגיל הזה</p>
           )}
         </Section>
 
@@ -597,7 +597,7 @@ export function ExerciseScreen(): JSX.Element {
                               ב-{formatWeight(pr.weightKg, exercise.weightMode)}
                             </p>
                           )}
-                          <p className="mt-1.5 text-[11px] text-bone-600 tnum" dir="ltr">
+                          <p className="mt-1.5 text-[11px] text-bone-500 tnum" dir="ltr">
                             {formatDateShort(pr.achievedAt)}
                           </p>
                         </div>

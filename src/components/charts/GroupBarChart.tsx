@@ -66,7 +66,7 @@ export function GroupBarChart({
     return (
       <div className="flex h-32 flex-col items-center justify-center gap-2 rounded-card border border-dashed border-ink-700/80">
         <span className="h-px w-24 bg-ink-600" />
-        <p className="text-xs text-bone-600">אין עדיין נפח לשבוע הזה</p>
+        <p className="text-xs text-bone-500">אין עדיין נפח לשבוע הזה</p>
       </div>
     )
   }

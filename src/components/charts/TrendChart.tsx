@@ -79,7 +79,7 @@ export function TrendChart({
         style={{ height }}
       >
         <span className="h-px w-24 bg-ink-600" />
-        <p className="text-xs text-bone-600">צריך לפחות שני אימונים כדי לצייר קו</p>
+        <p className="text-xs text-bone-500">צריך לפחות שני אימונים כדי לצייר קו</p>
       </div>
     )
   }

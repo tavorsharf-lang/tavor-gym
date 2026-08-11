@@ -293,7 +293,7 @@ export function SettingsScreen(): JSX.Element {
                   }}
                   placeholder="7.5"
                   aria-label="משקל פלטה חדשה"
-                  className="h-12 min-w-0 flex-1 rounded-xl border border-ink-700 bg-ink-850 px-4 text-center text-bone-50 placeholder:text-bone-600 focus:border-flame-500/50 focus:outline-none"
+                  className="h-12 min-w-0 flex-1 rounded-xl border border-ink-700 bg-ink-850 px-4 text-center text-bone-50 placeholder:text-bone-500 focus:border-flame-500/50 focus:outline-none"
                 />
                 <Button
                   variant="ghost"
@@ -399,7 +399,7 @@ export function SettingsScreen(): JSX.Element {
 
           <footer className="mt-8 mb-2 text-center">
             <p className="meta">אימוני כושר · גרסה {APP_VERSION}</p>
-            <p className="mt-1.5 text-xs text-bone-600">כל הנתונים נשמרים רק במכשיר הזה</p>
+            <p className="mt-1.5 text-xs text-bone-500">כל הנתונים נשמרים רק במכשיר הזה</p>
           </footer>
         </>
       )}

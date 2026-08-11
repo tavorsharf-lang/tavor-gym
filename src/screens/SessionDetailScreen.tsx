@@ -324,7 +324,7 @@ export function SessionDetailScreen(): JSX.Element {
             </button>
 
             {block.warmups.length + block.work.length === 0 ? (
-              <p className="mt-2 text-xs text-bone-600">לא נרשם כאן אף סט</p>
+              <p className="mt-2 text-xs text-bone-500">לא נרשם כאן אף סט</p>
             ) : (
               <div className="mt-2.5">
                 {block.warmups.length > 0 && (

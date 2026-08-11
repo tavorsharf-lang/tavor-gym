@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { Clock, Flame, TriangleAlert } from 'lucide-react'
-import { BottomSheet, Button } from '@/components/ui'
+import { BottomSheet, Button, toast } from '@/components/ui'
 import type { Exercise, QueueItem } from '@/db/types'
 import { useWorkout } from '@/state/activeWorkoutStore'
 
@@ -93,6 +93,21 @@ export function FinishSheet({
   )
   const discard = useWorkout((s) => s.discard)
 
+  /**
+   * הביטול נסגר רק אחרי שהמחיקה הצליחה.
+   *
+   * קודם הגיליון נסגר מיד, ולכן טרנזקציה שנכשלה הייתה משאירה את האימון במסד
+   * בזמן שהמסך כבר הראה שהוא בוטל — והסט הבא היה נרשם לאימון "שלא קיים".
+   */
+  async function discardAndClose(): Promise<void> {
+    try {
+      await discard()
+      onClose()
+    } catch {
+      toast('ביטול האימון נכשל — האימון עדיין פתוח')
+    }
+  }
+
   const deferred = openItems.filter((q) => q.status === 'deferred')
   const pending = openItems.filter((q) => q.status !== 'deferred')
   const nameOf = (item: QueueItem): string => exercisesById[item.exerciseId]?.name ?? 'תרגיל'
@@ -108,7 +123,7 @@ export function FinishSheet({
         onChange={(e) => setLocalNotes(e.target.value)}
         rows={3}
         placeholder="משהו שכדאי לזכור מהאימון הזה?"
-        className="w-full resize-none rounded-2xl border border-ink-700 bg-ink-850 p-3 leading-relaxed text-bone-50 placeholder:text-bone-600 focus:border-flame-500/50 focus:outline-none"
+        className="w-full resize-none rounded-2xl border border-ink-700 bg-ink-850 p-3 leading-relaxed text-bone-50 placeholder:text-bone-500 focus:border-flame-500/50 focus:outline-none"
       />
     </div>
   )
@@ -132,10 +147,7 @@ export function FinishSheet({
             size="hero"
             fullWidth
             className="mt-6"
-            onClick={() => {
-              void discard()
-              onClose()
-            }}
+            onClick={() => void discardAndClose()}
           >
             בטל את האימון
           </Button>

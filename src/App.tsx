@@ -95,7 +95,7 @@ export function App() {
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 p-8 text-center">
         <p className="text-lg font-bold text-hard-400">משהו השתבש בפתיחת האפליקציה</p>
         <p className="text-sm text-bone-400">{error}</p>
-        <p className="text-xs text-bone-600">
+        <p className="text-xs text-bone-500">
           אם זה חוזר, נסה לסגור את האפליקציה ולפתוח מחדש. הנתונים שמורים במכשיר.
         </p>
       </div>

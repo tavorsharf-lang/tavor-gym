@@ -58,7 +58,7 @@ export function LibraryScreen(): JSX.Element {
       <ScreenHeader
         title="מאגר תרגילים"
         subtitle={`${LIBRARY_CATALOG.length} תרגילים · ${LIBRARY_COUNT} סרטוני הסבר`}
-        
+
       />
 
       <div className="relative mb-5">
@@ -73,7 +73,7 @@ export function LibraryScreen(): JSX.Element {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="חיפוש תרגיל או שריר"
           aria-label="חיפוש במאגר"
-          className="h-13 w-full rounded-card border border-ink-700 bg-ink-900/70 pe-4 ps-11 text-bone-50 outline-none transition-colors placeholder:text-bone-600 focus:border-flame-500/60"
+          className="h-13 w-full rounded-card border border-ink-700 bg-ink-900/70 pe-4 ps-11 text-bone-50 outline-none transition-colors placeholder:text-bone-500 focus:border-flame-500/60"
         />
         {query && (
           <button

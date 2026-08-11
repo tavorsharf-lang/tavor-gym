@@ -204,7 +204,7 @@ export function HistoryScreen(): JSX.Element {
             placeholder="חפש תרגיל, תוכנית או הערה"
             aria-label="חיפוש באימונים"
             enterKeyHint="search"
-            className="h-12 w-full rounded-2xl border border-ink-700 bg-ink-850 ps-10 pe-11 text-bone-50 placeholder:text-bone-600 focus:border-flame-500/50 focus:outline-none"
+            className="h-12 w-full rounded-2xl border border-ink-700 bg-ink-850 ps-10 pe-11 text-bone-50 placeholder:text-bone-500 focus:border-flame-500/50 focus:outline-none"
           />
           {rawQuery.length > 0 && (
             <button
@@ -357,7 +357,7 @@ export function HistoryScreen(): JSX.Element {
             onChange={(e) => setPickerQuery(e.target.value)}
             placeholder="חפש תרגיל"
             aria-label="חיפוש תרגיל"
-            className="h-12 w-full rounded-2xl border border-ink-700 bg-ink-850 px-4 text-bone-50 placeholder:text-bone-600 focus:border-flame-500/50 focus:outline-none"
+            className="h-12 w-full rounded-2xl border border-ink-700 bg-ink-850 px-4 text-bone-50 placeholder:text-bone-500 focus:border-flame-500/50 focus:outline-none"
           />
         </div>
 

@@ -10,7 +10,9 @@ import {
   getExerciseHistory,
   getFinishedSessions,
   getSetsForExercise,
+  getSessionsSince,
   getSubstituteCandidates,
+  lastPerformedFrom,
   searchSessions,
 } from '@/db/queries'
 
@@ -220,6 +222,69 @@ describe('getFinishedSessions ו-getSetsForExercise', () => {
     expect((await getFinishedSessions()).map((s) => s.id)).toEqual(['s2', 's1'])
     const sets = await getSetsForExercise('press', 2)
     expect(sets.map((s) => s.sessionId)).toEqual(['s3', 's2'])
+  })
+})
+
+describe('lastPerformedFrom', () => {
+  /** סט בודד, בשליטה מלאה על משקל וחזרות */
+  function s(sessionId: string, weightKg: number, reps: number, at: number, i = 0): SetLog {
+    return { sessionId, exerciseId: 'press', setIndex: i, type: 'work', weightKg, reps, completedAt: at }
+  }
+
+  it('מחזיר null כשאין סטי עבודה', () => {
+    expect(lastPerformedFrom([])).toBeNull()
+    expect(lastPerformedFrom([{ ...s('s1', 40, 10, T1), type: 'warmup' }])).toBeNull()
+  })
+
+  it('לוקח רק את האימון האחרון ולא את השיא ההיסטורי', () => {
+    const out = lastPerformedFrom([
+      s('s1', 80, 8, T1), // כבד יותר, אבל ישן
+      s('s2', 60, 10, T2, 0),
+      s('s2', 60, 9, T2 + 60_000, 1),
+    ])
+    expect(out).toEqual({ weightKg: 60, reps: 10, at: T2 + 60_000, sets: 2 })
+  })
+
+  it('מדווח את משקל העבודה ולא סט חריג יחיד', () => {
+    // שני סטים ב-50 וסט אחד ב-70 — 50 הוא מה שבאמת נעשה
+    const out = lastPerformedFrom([
+      s('s2', 50, 10, T2, 0),
+      s('s2', 50, 9, T2 + 60_000, 1),
+      s('s2', 70, 4, T2 + 120_000, 2),
+    ])
+    expect(out?.weightKg).toBe(50)
+    expect(out?.reps).toBe(10) // המרבי מבין הסטים באותו משקל
+    expect(out?.sets).toBe(3) // ...אבל הספירה היא של כל האימון
+  })
+
+  it('מתעלם מסטי חימום בתוך אותו אימון', () => {
+    const out = lastPerformedFrom([
+      { ...s('s2', 20, 12, T2 - 60_000), type: 'warmup' },
+      s('s2', 60, 8, T2),
+    ])
+    expect(out?.weightKg).toBe(60)
+    expect(out?.sets).toBe(1)
+  })
+})
+
+describe('getSessionsSince', () => {
+  it('מחזיר רק אימונים שנסגרו מהתאריך והלאה, עם הסטים שלהם', async () => {
+    const { sessions, sets } = await getSessionsSince(T2)
+    // s1 מוקדם מדי, s3 לא נסגר
+    expect(sessions.map((x) => x.id)).toEqual(['s2'])
+    expect(sets.length).toBeGreaterThan(0)
+    expect(sets.every((x) => x.sessionId === 's2')).toBe(true)
+  })
+
+  it('הגבול עצמו נכלל', async () => {
+    const { sessions } = await getSessionsSince(T1)
+    expect(sessions.map((x) => x.id).sort()).toEqual(['s1', 's2'])
+  })
+
+  it('בלי אימונים בטווח לא נוגע בטבלת הסטים', async () => {
+    const { sessions, sets } = await getSessionsSince(T3 + DAY)
+    expect(sessions).toEqual([])
+    expect(sets).toEqual([])
   })
 })
 

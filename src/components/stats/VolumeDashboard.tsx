@@ -114,7 +114,7 @@ function Stat({ value, label }: { value: string; label: string }): JSX.Element {
 function DeltaChip({ deltaPct, hasCurrent }: { deltaPct: number | null; hasCurrent: boolean }): JSX.Element {
   if (deltaPct === null) {
     return (
-      <span className="rounded-pill border border-ink-700 px-2 py-0.5 text-[11px] font-bold text-bone-600">
+      <span className="rounded-pill border border-ink-700 px-2 py-0.5 text-[11px] font-bold text-bone-500">
         {hasCurrent ? 'חדש' : '—'}
       </span>
     )
@@ -193,7 +193,12 @@ export function VolumeDashboard(): JSX.Element {
     return {
       current,
       comparisons: compareWeeks(current, previous, undefined, daysIntoWindow),
-      workouts: data.sessions.filter((s) => s.startedAt >= from && s.startedAt < to).length,
+      // אותה הגדרת "אימון" כמו ברצף ובהזנחה: בלי סט עבודה זה לא אימון. אחרת
+      // האריח הזה היה סופר אימון ריק שהרצף והמלצת "מה היום" מתעלמים ממנו,
+      // ושלושת המספרים היו סותרים זה את זה על אותו מסך.
+      workouts: data.sessions.filter(
+        (s) => s.startedAt >= from && s.startedAt < to && s.totalWorkSets > 0
+      ).length,
       spark: weeks.map((w) => ({ label: weekLabel(w.weekStart), value: w.totalVolumeKg })),
     }
   }, [data, weeks, range])

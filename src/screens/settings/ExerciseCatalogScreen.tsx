@@ -103,7 +103,11 @@ export function ExerciseCatalogScreen(): JSX.Element {
 
   return (
     <Screen dock={false}>
-      <ScreenHeader title="קטלוג התרגילים" subtitle={`${exercises.length} תרגילים`} />
+      <ScreenHeader
+        title="קטלוג התרגילים"
+        subtitle={`${exercises.length} תרגילים`}
+        fallback="/settings"
+      />
 
       <div className="relative mb-3">
         <Search
@@ -118,7 +122,7 @@ export function ExerciseCatalogScreen(): JSX.Element {
           placeholder="חפש תרגיל"
           aria-label="חיפוש בקטלוג"
           enterKeyHint="search"
-          className="h-12 w-full rounded-2xl border border-ink-700 bg-ink-850 ps-10 pe-11 text-bone-50 placeholder:text-bone-600 focus:border-flame-500/50 focus:outline-none"
+          className="h-12 w-full rounded-2xl border border-ink-700 bg-ink-850 ps-10 pe-11 text-bone-50 placeholder:text-bone-500 focus:border-flame-500/50 focus:outline-none"
         />
         {query.length > 0 ? (
           <button

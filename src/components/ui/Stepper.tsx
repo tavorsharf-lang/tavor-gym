@@ -121,6 +121,9 @@ export function Stepper({
   disabled = false,
 }: StepperProps): JSX.Element {
   const inputId = useId()
+  // ההסבר מתחת לשדה נקרא בעיניים ממילא. בלי הקישור הזה קורא מסך מקריא את
+  // התווית ואת המספר, ומדלג בדיוק על המשפט שמסביר מה המספר הזה אומר.
+  const hintId = `${inputId}-hint`
   const dec = decimals ?? decimalsForStep(step)
   const [draft, setDraft] = useState<string | null>(null)
   const [held, setHeld] = useState<-1 | 0 | 1>(0)
@@ -264,6 +267,7 @@ export function Stepper({
         <div className="flex h-16 min-w-0 flex-1 items-center justify-center rounded-2xl border border-ink-700 bg-ink-900/70 px-2 transition-colors focus-within:border-flame-500/60">
           <input
             id={inputId}
+            aria-describedby={hint ? hintId : undefined}
             inputMode="decimal"
             dir="ltr"
             type="text"
@@ -311,7 +315,11 @@ export function Stepper({
         />
       </div>
 
-      {hint ? <p className="mt-1.5 text-[0.6875rem] font-medium text-bone-500">{hint}</p> : null}
+      {hint ? (
+        <p id={hintId} className="mt-1.5 text-[0.6875rem] font-medium text-bone-500">
+          {hint}
+        </p>
+      ) : null}
     </div>
   )
 }

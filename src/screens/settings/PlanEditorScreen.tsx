@@ -193,7 +193,11 @@ export function PlanEditorScreen(): JSX.Element {
 
   return (
     <Screen dock={false}>
-      <ScreenHeader title="תוכניות ובלוקים" subtitle="מה נכנס לכל אימון ובאיזה סדר" />
+      <ScreenHeader
+        title="תוכניות ובלוקים"
+        subtitle="מה נכנס לכל אימון ובאיזה סדר"
+        fallback="/settings"
+      />
 
       {/*
         שתי שיטות אימון שונות לא יכולות להתערבב בהצעה של "מה מתאמנים היום",
@@ -296,7 +300,7 @@ export function PlanEditorScreen(): JSX.Element {
                     void persistMeta(nameDraft, e.target.value)
                   }}
                   placeholder="חזה ויד אחורית"
-                  className="h-12 w-full rounded-xl border border-ink-700 bg-ink-850 px-4 text-bone-50 placeholder:text-bone-600 focus:border-flame-500/50 focus:outline-none"
+                  className="h-12 w-full rounded-xl border border-ink-700 bg-ink-850 px-4 text-bone-50 placeholder:text-bone-500 focus:border-flame-500/50 focus:outline-none"
                 />
               </div>
             ) : null}
@@ -436,7 +440,7 @@ export function PlanEditorScreen(): JSX.Element {
             onChange={(e) => setPickerQuery(e.target.value)}
             placeholder="חפש תרגיל"
             aria-label="חיפוש תרגיל"
-            className="h-12 w-full rounded-2xl border border-ink-700 bg-ink-850 px-4 text-bone-50 placeholder:text-bone-600 focus:border-flame-500/50 focus:outline-none"
+            className="h-12 w-full rounded-2xl border border-ink-700 bg-ink-850 px-4 text-bone-50 placeholder:text-bone-500 focus:border-flame-500/50 focus:outline-none"
           />
         </div>
 

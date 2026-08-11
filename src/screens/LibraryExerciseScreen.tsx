@@ -39,10 +39,17 @@ export function LibraryExerciseScreen(): JSX.Element {
     ממשיכה להציג כרטיס "התרגיל הזה בתוכנית שלך" לתרגיל שנמחק מהקטלוג, שמנווט
     למסך "תרגיל לא נמצא".
   */
+  /*
+    `null` הוא "חיפשתי ואין קישור", ו-undefined הוא "עוד לא יודע".
+    useLiveQuery מחזיר undefined בשני המצבים, ולכן הרינדור הראשון הציג תמיד
+    "הוסף לתרגילים שלי" — כולל לתרגיל שכבר בתוכנית, שרק אחרי רגע התחלף בכרטיס
+    הקישור. הכפתור שהבהב היה גם הכפתור שיוצר כפילות אם מספיקים ללחוץ עליו.
+  */
   const linked = useLiveQuery(
-    () => (libId ? db.exercises.where('libraryId').equals(libId).first() : undefined),
+    async () => (libId ? ((await db.exercises.where('libraryId').equals(libId).first()) ?? null) : null),
     [libId]
   )
+  const linkKnown = linked !== undefined
 
   /*
     האם הסרטונים באמת במכשיר. בלי הבדיקה הזו הכיתוב למטה חישב נפח מהמניפסט
@@ -157,7 +164,7 @@ export function LibraryExerciseScreen(): JSX.Element {
         קישור ומנווטים אליו — כך אי אפשר לייצר שני תרגילים שמצביעים על אותו
         מזהה מאגר, וזו גם ההתנהגות הנכונה מוצרית.
       */}
-      {!programId ? (
+      {linkKnown && !programId ? (
         <Button
           size="lg"
           fullWidth

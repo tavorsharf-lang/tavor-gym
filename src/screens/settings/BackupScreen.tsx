@@ -170,7 +170,7 @@ export function BackupScreen(): JSX.Element {
 
   return (
     <Screen dock={false}>
-      <ScreenHeader title="גיבוי ושחזור" />
+      <ScreenHeader title="גיבוי ושחזור" fallback="/settings" />
 
       <section className="card animate-rise mb-4 border-flame-500/25 p-4">
         <div className="flex items-start gap-3">

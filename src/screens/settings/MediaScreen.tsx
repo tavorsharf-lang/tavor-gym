@@ -373,7 +373,7 @@ export function MediaScreen(): JSX.Element {
 
   return (
     <Screen dock={false}>
-      <ScreenHeader title="סרטונים ואחסון" />
+      <ScreenHeader title="סרטונים ואחסון" fallback="/settings" />
 
       <section className="card animate-rise mb-5 p-4">
         <div className="flex items-start gap-3">

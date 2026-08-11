@@ -76,6 +76,24 @@ describe('routineStatuses', () => {
     expect(statuses[2].daysSince).toBeNull()
   })
 
+  /**
+   * "סיים בכל זאת" על אימון שלא נרשם בו סט אחד כותב Session אמיתי עם
+   * endedAt. אם הוא היה מאפס את שעון ההזנחה, פתיחה וסגירה בטעות היו שולחות
+   * את ההצעה של מחר לתוכנית הלא נכונה — ולכן הוא נספר כמי שלא בוצע.
+   */
+  it('אימון שנסגר בלי סטי עבודה לא מאפס את השעון', () => {
+    const empty = { ...done('A', 1), totalWorkSets: 0 }
+    const statuses = routineStatuses(ROUTINES, [empty], NOW)
+    expect(statuses[0].neverDone).toBe(true)
+    expect(statuses[0].lastDoneAt).toBeNull()
+  })
+
+  it('אימון ריק לא מסתיר אימון אמיתי ישן יותר', () => {
+    const empty = { ...done('A', 1), totalWorkSets: 0 }
+    const statuses = routineStatuses(ROUTINES, [empty, done('A', 6)], NOW)
+    expect(statuses[0].daysSince).toBe(6)
+  })
+
   it('מתעלם מאימון בלי תוכנית', () => {
     const statuses = routineStatuses(ROUTINES, [done(null, 1)], NOW)
     expect(statuses.every((s) => s.neverDone)).toBe(true)
@@ -149,6 +167,12 @@ describe('blockStatuses', () => {
   it('מתעלם מאימונים שלא נסגרו', () => {
     const statuses = blockStatuses(BLOCKS, [unfinished('A', 0, ['abs'])], NOW, 7)
     expect(statuses[2].neverDone).toBe(true)
+  })
+
+  it('אימון ריק לא מרענן בלוק', () => {
+    const empty = { ...done('A', 1, ['shoulders']), totalWorkSets: 0 }
+    const statuses = blockStatuses(BLOCKS, [empty], NOW, 7)
+    expect(statuses.find((b) => b.blockId === 'shoulders')?.neverDone).toBe(true)
   })
 
   it('ממיין לפי order', () => {

@@ -324,9 +324,14 @@ export async function deleteVideo(id: string): Promise<void> {
  *
  * שקט לחלוטין בכישלון — זו אופטימיזציה, לא פעולה שהמשתמש ביקש.
  */
+/** הורדות שכבר בדרך — דפדוף הלוך ושוב הפעיל fetch שני על אותם בייטים */
+const streaming = new Set<string>()
+
 export async function cacheStreamedVideo(assetId: string): Promise<void> {
   if (!assetId.startsWith('bundled:')) return
+  if (streaming.has(assetId)) return
   const src = assetId.slice('bundled:'.length)
+  streaming.add(assetId)
   try {
     if (await mediaDb.videos.get(assetId)) return
     const hidden = await loadHiddenVideoIds()
@@ -370,6 +375,8 @@ export async function cacheStreamedVideo(assetId: string): Promise<void> {
     })
   } catch {
     // אין רשת, אין מקום, או שהבקשה בוטלה — הסרטון פשוט יישאר בהזרמה
+  } finally {
+    streaming.delete(assetId)
   }
 }
 

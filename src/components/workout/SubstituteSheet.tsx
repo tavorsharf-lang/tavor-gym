@@ -177,7 +177,7 @@ export function SubstituteSheet({
             onChange={(e) => setQuery(e.target.value)}
             placeholder="חיפוש תרגיל"
             aria-label="חיפוש תרגיל"
-            className="min-h-12 w-full rounded-2xl border border-ink-700 bg-ink-850 ps-9 pe-10 text-bone-50 placeholder:text-bone-600 focus:border-flame-500/50 focus:outline-none"
+            className="min-h-12 w-full rounded-2xl border border-ink-700 bg-ink-850 ps-9 pe-10 text-bone-50 placeholder:text-bone-500 focus:border-flame-500/50 focus:outline-none"
           />
           {query ? (
             <button

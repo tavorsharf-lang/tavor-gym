@@ -173,7 +173,7 @@ function TextField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         autoComplete="off"
-        className="h-12 w-full rounded-xl border border-ink-700 bg-ink-850 px-4 text-bone-50 placeholder:text-bone-600 focus:border-flame-500/50 focus:outline-none"
+        className="h-12 w-full rounded-xl border border-ink-700 bg-ink-850 px-4 text-bone-50 placeholder:text-bone-500 focus:border-flame-500/50 focus:outline-none"
       />
     </div>
   )
@@ -557,7 +557,7 @@ export function ExerciseEditorScreen(): JSX.Element {
           min={1}
           max={10}
         />
-{/*
+        {/*
           תרגיל שנמדד בזמן עורך שניות ולא חזרות. התקרה חייבת להיגזר מהיחידה —
           פלאנק של 1:15 מול תקרה של 50 היה נחתך ל-0:50 בלחיצה אחת על מינוס.
         */}
@@ -607,7 +607,7 @@ export function ExerciseEditorScreen(): JSX.Element {
             onChange={(e) => patch({ personalNote: e.target.value })}
             rows={3}
             placeholder="מושב בגובה 4, ידיות במצב 2"
-            className="w-full resize-none rounded-2xl border border-ink-700 bg-ink-850 p-3 leading-relaxed text-bone-50 placeholder:text-bone-600 focus:border-flame-500/50 focus:outline-none"
+            className="w-full resize-none rounded-2xl border border-ink-700 bg-ink-850 p-3 leading-relaxed text-bone-50 placeholder:text-bone-500 focus:border-flame-500/50 focus:outline-none"
           />
         </div>
       </section>
@@ -637,7 +637,7 @@ export function ExerciseEditorScreen(): JSX.Element {
                     placeholder={`דגש ${index + 1}`}
                     aria-label={`דגש ${index + 1}`}
                     enterKeyHint="done"
-                    className="h-12 min-w-0 flex-1 rounded-xl border border-ink-700 bg-ink-850 px-3 text-bone-50 placeholder:text-bone-600 focus:border-flame-500/50 focus:outline-none"
+                    className="h-12 min-w-0 flex-1 rounded-xl border border-ink-700 bg-ink-850 px-3 text-bone-50 placeholder:text-bone-500 focus:border-flame-500/50 focus:outline-none"
                   />
                   <IconButton
                     label={`העלה דגש ${index + 1}`}
