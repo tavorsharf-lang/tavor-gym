@@ -129,7 +129,7 @@ export function ExerciseCatalogScreen(): JSX.Element {
             type="button"
             onClick={() => setQuery('')}
             aria-label="נקה חיפוש"
-            className="absolute end-1 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full text-bone-500 active:bg-ink-800"
+            className="absolute end-1 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-full text-bone-500 active:bg-ink-800"
           >
             <X size={18} />
           </button>

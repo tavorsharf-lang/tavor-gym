@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import type { JSX } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -10,6 +10,7 @@ import { LIBRARY_MAX_PER_EXERCISE } from '@/db/libraryManifest'
 import { MUSCLE_GROUPS } from '@/db/types'
 import type { Exercise, VideoAsset } from '@/db/types'
 import { db } from '@/db/db'
+import { getCatalogEntry } from '@/db/catalog'
 import { DEFAULT_REST_SECONDS, DEFAULT_TARGET_SETS } from '@/db/seed'
 import { formatBytes, newId } from '@/domain/units'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
@@ -67,6 +68,20 @@ export function LibraryExerciseScreen(): JSX.Element {
     new Set<string>()
   )
   const exercise = libraryExercise(libId)
+
+  /*
+    כתובת של תרגיל מהקטלוג שהגיעה לנתיב של המאגר.
+
+    `libraryExercise` מכיר רק את המאגר, ולכן /library/<מזהה-קטלוג> נחת על
+    "התרגיל לא במאגר" — מסך שקרי, כי התרגיל קיים ורק הנתיב לא נכון.
+    `getCatalogEntry` הוא בדיוק השכבה שיודעת לענות על שני סוגי המזהים, והיא
+    מחזירה את הרשומה הקנונית: התרגיל שלי, עם חומר הלימוד בתוכו.
+  */
+  const entry = useLiveQuery(async () => (exercise ? null : getCatalogEntry(libId)), [libId, exercise])
+  const canonicalId = entry?.exercise?.id ?? null
+  useEffect(() => {
+    if (canonicalId) navigate(`/exercise/${canonicalId}`, { replace: true })
+  }, [canonicalId, navigate])
   /*
     הנושאים נלקחים מ-videoLabelsFor ולא מ-`exercise.videos` שבקטלוג הסטטי.
 

@@ -18,7 +18,7 @@ cd "$ROOT"
 
 BRANCH="gh-pages"
 WORKTREE=".deploy"
-SITE="https://tavorsharf-lang.github.io/tavor-gym/"
+SITE="https://tavorsharf-lang.github.io/tavor-gym"  # בלי / בסוף — הוא מתווסף באתר הקריאה
 REPO="tavorsharf-lang/tavor-gym"
 ALLOW_DIRTY=0
 [ "${1:-}" = "--allow-dirty" ] && ALLOW_DIRTY=1
@@ -43,6 +43,13 @@ if [ "$ALLOW_DIRTY" -eq 0 ] && [ -n "$(git status --porcelain 2>/dev/null)" ]; t
   exit 1
 fi
 
+# אזהרה ולא חסימה: הפריסה מתייגת את עצמה ב-SHA המקומי, ואם הוא לא נדחף אז
+# הקומיט בענף gh-pages מצביע על קוד שלא קיים בשום מקום חוץ מהמחשב הזה.
+if ! git merge-base --is-ancestor HEAD "origin/$(git rev-parse --abbrev-ref HEAD)" 2>/dev/null; then
+  echo "⚠ ה-HEAD המקומי עוד לא נדחף ל-origin — התווית על הפריסה תצביע על קומיט שלא קיים בשרת." >&2
+  echo "  מומלץ: git push" >&2
+fi
+
 echo "▸ בדיקות"
 npm test
 
@@ -57,7 +64,6 @@ npm run check:size
 # בלי הקובץ הזה Jekyll של GitHub מעבד את התיקייה ומתעלם מקבצים שמתחילים ב-_
 touch dist/.nojekyll
 
-BUNDLE="$(basename "$(ls dist/assets/index-*.js | head -1)")"
 
 echo "▸ הכנת ענף $BRANCH"
 git worktree remove "$WORKTREE" --force 2>/dev/null || true
@@ -88,6 +94,10 @@ echo "▸ העתקת dist"
 find "$WORKTREE" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
 cp -R dist/. "$WORKTREE"/
 
+# חותם ייחודי לכל הרצה. הוא מה שמאפשר לשער 2 לאמת *פרסום* ולא רק "קובץ קיים".
+STAMP="$(git rev-parse --short HEAD)-$(date -u +%Y%m%dT%H%M%SZ)"
+printf '%s\n' "$STAMP" > "$WORKTREE/deployed.txt"
+
 SHA="$(git rev-parse --short HEAD)"
 SUBJECT="$(git log -1 --pretty=%s)"
 [ "$ALLOW_DIRTY" -eq 1 ] && SUBJECT="$SUBJECT (+ שינויים לא מקובעים)"
@@ -95,15 +105,10 @@ SUBJECT="$(git log -1 --pretty=%s)"
 (
   cd "$WORKTREE"
   git add -A
-  if git diff --cached --quiet; then
-    # קומיט ריק בכוונה: Pages בונה רק בתגובה לדחיפה, ולפעמים צריך לעורר בנייה
-    # מחדש אחרי בנייה שנתקעה — בלי לשנות ולו בית אחד בתוצר.
-    git -c user.name="Tavor Sharf" -c user.email="tavorsharf@gmail.com" \
-      commit --quiet --allow-empty -m "פריסה מחדש מ-$SHA"
-  else
-    git -c user.name="Tavor Sharf" -c user.email="tavorsharf@gmail.com" \
-      commit --quiet -m "פריסה מ-$SHA — $SUBJECT"
-  fi
+  # תמיד יש שינוי — deployed.txt נושא חותמת זמן — ולכן אין יותר מסלול של קומיט
+  # ריק. זה גם מה שמעורר בנייה חדשה ב-Pages כשצריך לפרוס מחדש בלי שינוי קוד.
+  git -c user.name="Tavor Sharf" -c user.email="tavorsharf@gmail.com" \
+    commit --quiet -m "פריסה מ-$SHA — $SUBJECT"
   git push --quiet --force origin "$BRANCH"
 )
 PUSHED_SHA="$(git -C "$ROOT/$WORKTREE" rev-parse HEAD)"
@@ -129,7 +134,15 @@ command -v gh >/dev/null 2>&1 || GH_OK=0
 
 echo "▸ ממתין לפרסום (עד 30 דקות)"
 while :; do
-  if curl -sf -o /dev/null "$SITE/assets/$BUNDLE"; then
+  # התוכן, לא שם הקובץ.
+  #
+  # קודם נבדק רק שקובץ ה-bundle קיים בשרת. אבל שם ה-bundle הוא hash של התוכן,
+  # ולכן פריסה שלא נגעה ב-JS (סרטון חדש, שינוי CSS, פריסה חוזרת) הגישה בדיוק
+  # את אותו שם מהפריסה *הקודמת* — ה-curl הצליח באיטרציה הראשונה והסקריפט הכריז
+  # "✓ פורסם" לפני ש-Pages בכלל התחיל לבנות. השער נועד לתפוס בדיוק את זה.
+  # מחרוזת נגד-מטמון כי CDN של Pages מגיש גרסה ישנה לכמה דקות.
+  SERVED="$(curl -sf "$SITE/deployed.txt?cb=$(date +%s)" 2>/dev/null | tr -d '[:space:]' || true)"
+  if [ "$SERVED" = "$STAMP" ]; then
     echo "✓ פורסם — $SITE"
     exit 0
   fi

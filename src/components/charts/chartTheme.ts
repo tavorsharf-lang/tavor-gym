@@ -11,6 +11,7 @@ import {
   Tooltip,
 } from 'chart.js'
 import type { ChartOptions } from 'chart.js'
+import { FLAME, flameAlpha } from '@/styles/tokens'
 
 /**
  * ערכת העיצוב של הגרפים — "מכון בלילה" מתורגם ל-Chart.js.
@@ -32,9 +33,9 @@ Chart.register(
 )
 
 export const CHART_COLORS = {
-  flame: '#FF6A00',
-  flameSoft: 'rgba(255, 106, 0, 0.28)',
-  flameFade: 'rgba(255, 106, 0, 0)',
+  flame: FLAME[500],
+  flameSoft: flameAlpha(0.28),
+  flameFade: flameAlpha(0),
   pr: '#4ADE80',
   prSoft: 'rgba(74, 222, 128, 0.24)',
   prFade: 'rgba(74, 222, 128, 0)',

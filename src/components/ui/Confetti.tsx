@@ -1,4 +1,5 @@
 import type { Options } from 'canvas-confetti'
+import { BONE_50, FLAME, PR_400 } from '@/styles/tokens'
 
 /**
  * חגיגת שיא אישי.
@@ -10,7 +11,7 @@ import type { Options } from 'canvas-confetti'
 export type ConfettiIntensity = 'small' | 'big'
 
 /** רק הפלטה החמה של האפליקציה, פלוס הירוק של שיא ולבן עצם */
-const COLORS = ['#FF6A00', '#FF8A2B', '#FFB066', '#4ADE80', '#FBF9F7']
+const COLORS = [FLAME[500], FLAME[400], FLAME[300], PR_400, BONE_50]
 
 type ConfettiFn = (options?: Options) => Promise<null> | null
 

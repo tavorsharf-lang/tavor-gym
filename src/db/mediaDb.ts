@@ -327,11 +327,22 @@ export async function deleteVideo(id: string): Promise<void> {
 /** הורדות שכבר בדרך — דפדוף הלוך ושוב הפעיל fetch שני על אותם בייטים */
 const streaming = new Set<string>()
 
+/**
+ * תקציב זמן להורדה ברקע.
+ *
+ * בלי זה בקשה שנתקעת (רשת של חדר כושר, captive portal) לא נפתרת ולא נדחית,
+ * ה-finally לעולם לא רץ, והמזהה נשאר נעול עד רענון הדף — כלומר הנעילה שנועדה
+ * למנוע הורדה כפולה הייתה חוסמת *כל* שמירה של הסרטון הזה, לתמיד ובשקט.
+ */
+const STREAM_TIMEOUT_MS = 60_000
+
 export async function cacheStreamedVideo(assetId: string): Promise<void> {
   if (!assetId.startsWith('bundled:')) return
   if (streaming.has(assetId)) return
   const src = assetId.slice('bundled:'.length)
   streaming.add(assetId)
+  const abort = new AbortController()
+  const timer = setTimeout(() => abort.abort(), STREAM_TIMEOUT_MS)
   try {
     if (await mediaDb.videos.get(assetId)) return
     const hidden = await loadHiddenVideoIds()
@@ -352,8 +363,8 @@ export async function cacheStreamedVideo(assetId: string): Promise<void> {
     if (!clip) return
 
     const [videoRes, posterRes] = await Promise.all([
-      fetch(assetUrl(clip.src)),
-      fetch(assetUrl(clip.poster)).catch(() => null),
+      fetch(assetUrl(clip.src), { signal: abort.signal }),
+      fetch(assetUrl(clip.poster), { signal: abort.signal }).catch(() => null),
     ])
     if (!videoRes.ok) return
     const blob = await videoRes.blob()
@@ -376,6 +387,7 @@ export async function cacheStreamedVideo(assetId: string): Promise<void> {
   } catch {
     // אין רשת, אין מקום, או שהבקשה בוטלה — הסרטון פשוט יישאר בהזרמה
   } finally {
+    clearTimeout(timer)
     streaming.delete(assetId)
   }
 }

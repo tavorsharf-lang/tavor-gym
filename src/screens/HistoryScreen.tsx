@@ -211,7 +211,7 @@ export function HistoryScreen(): JSX.Element {
               type="button"
               onClick={() => setRawQuery('')}
               aria-label="נקה חיפוש"
-              className="absolute end-1 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full text-bone-500 active:bg-ink-800"
+              className="absolute end-1 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-full text-bone-500 active:bg-ink-800"
             >
               <X size={18} />
             </button>
@@ -264,7 +264,7 @@ export function HistoryScreen(): JSX.Element {
               type="button"
               onClick={() => setExerciseId(null)}
               aria-label={`הסר סינון לפי ${selectedExercise.name}`}
-              className="ms-1 flex size-10 items-center justify-center rounded-full active:bg-flame-500/20"
+              className="ms-1 flex size-11 items-center justify-center rounded-full active:bg-flame-500/20"
             >
               <X size={16} />
             </button>
