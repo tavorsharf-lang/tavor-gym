@@ -35,6 +35,7 @@ import { SetRow } from './SetRow'
 import { RecommendationChip } from './RecommendationChip'
 import { PlateHint } from './PlateHint'
 import { PlateChips } from './PlateChips'
+import { RepChips } from './RepChips'
 
 /**
  * הכרטיס של התרגיל הפעיל — המסך שבו נמצאים באמת באמצע אימון.
@@ -79,7 +80,7 @@ function SetEditor({
       {exercise.weightMode !== 'bodyweight' && (
         <Stepper
           label="משקל"
-          suffix={exercise.weightMode === 'perSide' ? 'ק״ג לכל צד' : 'ק״ג'}
+          unit={exercise.weightMode === 'perSide' ? 'ק״ג לכל צד' : 'ק״ג'}
           value={weightKg}
           onChange={setWeightKg}
           step={step}
@@ -88,7 +89,7 @@ function SetEditor({
       )}
       <Stepper
         label={countLabel(exercise.metric)}
-        suffix={exercise.metric === 'seconds' ? 'שניות' : undefined}
+        unit={exercise.metric === 'seconds' ? 'שניות' : 'חזרות'}
         value={reps}
         onChange={setReps}
         step={countStep(exercise.metric)}
@@ -259,35 +260,36 @@ export function ExerciseCard({
         )
       : null
 
-  // סדר ההעדפות למספרים שבשדות: מה שהרמתי לפני רגע, אחר כך ההמלצה,
-  // אחר כך הסט הכבד של הפעם הקודמת. משקל ההתחלה של התוכנית קודם לזה
-  // שבקטלוג — זה מה שמאפשר לתוכנית חזרה להתחיל קל באותו תרגיל בדיוק.
+  /*
+    סדר ההעדפות למשקל שבשדה: מה שהרמתי לפני רגע, אחר כך המשקל שבוצע *בפועל*
+    בסט הכבד של הפעם הקודמת, ורק אז ההמלצה. ההמלצה היא הצעה לשינוי ולכן היא
+    לא ממלאת את השדה לבד — היא במרחק לחיצה אחת בשבב שמעל. משקל ההתחלה של
+    התוכנית קודם לזה שבקטלוג, וזה מה שמאפשר לתוכנית חזרה להתחיל קל.
+  */
   const seedWeight =
     lastWork?.weightKg ??
-    recommendation.weightKg ??
     previousTop?.weightKg ??
+    recommendation.weightKg ??
     item.startWeightKg ??
     exercise.seedWeightKg ??
     0
   /*
-    כשאין שום נתון קודם, מאיפה מגיע המספר בשדה הספירה:
-      • תרגיל זמן — מהיעד עצמו. פלאנק נכנסים אליו מול שעון, ו"6 שניות" זו לא
+    שדה הספירה נפתח תמיד על אותו מספר, ולא על מה שנרשם בסט הקודם:
+      • תרגיל חזרות — ברירת המחדל שבהגדרות (6). זו נקודת פתיחה קבועה שממנה
+        מסמנים כמה באמת יצאו, ולא גרירה של הסט הקודם שצריך לזכור לתקן.
+      • תרגיל זמן — היעד עצמו. פלאנק נכנסים אליו מול שעון, ו"6 שניות" זו לא
         הצעה אלא טעות.
-      • תרגיל חזרות — מברירת המחדל שבהגדרות, ולא מראש הטווח שבקטלוג. ראש
-        הטווח הוא לאן רוצים להגיע, וזו נקודת פתיחה.
     היעד עצמו נמדד תמיד מול הטווח של *התוכנית* (item), לא של הקטלוג.
   */
   const fallbackCount = timed ? item.targetReps.min : settings.defaultReps
-  const seedReps = lastWork?.reps ?? previousTop?.reps ?? fallbackCount
+  const seedReps = fallbackCount
 
   const [entry, setEntry] = useState(() => ({ weightKg: seedWeight, reps: seedReps }))
   // חתימה של מקורות ברירת המחדל. משתנה כשנרשם סט או כשההיסטוריה הגיעה מהמסד,
   // ואז השדות נטענים מחדש — אבל עריכה ידנית בין לבין נשמרת.
   const seedSig = `${item.key}|${sets.length}|${lastWork?.logId ?? 0}|${lastWork?.weightKg ?? 0}|${
-    lastWork?.reps ?? 0
-  }|${recommendation.weightKg ?? 0}|${recommendation.targetCount ?? 0}|${
-    previousTop?.weightKg ?? 0
-  }|${previousTop?.reps ?? 0}|${fallbackCount}`
+    recommendation.weightKg ?? 0
+  }|${previousTop?.weightKg ?? 0}|${fallbackCount}`
   const [seenSig, setSeenSig] = useState(seedSig)
   if (seenSig !== seedSig) {
     setSeenSig(seedSig)
@@ -577,12 +579,17 @@ export function ExerciseCard({
           הוא האמת ומקלידים אותו; במוט ובמזחלת סופרים פלטות בזמן שמעמיסים.
           שדה המשקל זהה בשניהם — מה שמשתנה זה מה עומד לידו.
         */}
-        <div className={`mt-3 grid gap-3 ${bodyweight ? 'grid-cols-1' : 'grid-cols-2'}`}>
+        {/*
+          שדה מתחת לשדה, ולא שניים בשורה. בעמודה של חצי כרטיס שני כפתורי ה-+/-
+          בולעים את כל הרוחב והמספר נמעך לפס דק — בדיוק ה"אני לא רואה כמה ק״ג
+          וכמה חזרות" שהפריסה הזו באה לתקן. השדות האלה הם הפעולה של המסך.
+        */}
+        <div className="mt-3 flex flex-col gap-4">
           {!bodyweight && (
             <div>
               <Stepper
                 label="משקל"
-                suffix={exercise.weightMode === 'perSide' ? 'ק״ג לכל צד' : 'ק״ג'}
+                unit={exercise.weightMode === 'perSide' ? 'ק״ג לכל צד' : 'ק״ג'}
                 value={entry.weightKg}
                 onChange={(weightKg) => setEntry((e) => ({ ...e, weightKg }))}
                 step={weightStep(exercise)}
@@ -615,15 +622,25 @@ export function ExerciseCard({
               <PlateHint targetKg={entry.weightKg} exercise={exercise} plates={settings.plates} />
             </div>
           )}
-          <Stepper
-            label={countLabel(exercise.metric)}
-            suffix={timed ? 'שניות' : undefined}
-            value={entry.reps}
-            onChange={(reps) => setEntry((e) => ({ ...e, reps }))}
-            step={countStep(exercise.metric)}
-            min={0}
-            hint={timed ? `היעד ${formatClock(item.targetReps.min)}` : undefined}
-          />
+          <div>
+            <Stepper
+              label={countLabel(exercise.metric)}
+              unit={timed ? 'שניות' : 'חזרות'}
+              value={entry.reps}
+              onChange={(reps) => setEntry((e) => ({ ...e, reps }))}
+              step={countStep(exercise.metric)}
+              min={0}
+              hint={timed ? `היעד ${formatClock(item.targetReps.min)}` : undefined}
+            />
+            {!timed && (
+              <RepChips
+                value={entry.reps}
+                targetReps={item.targetReps}
+                fallback={fallbackCount}
+                onPick={(reps) => setEntry((e) => ({ ...e, reps }))}
+              />
+            )}
+          </div>
         </div>
       </div>
 

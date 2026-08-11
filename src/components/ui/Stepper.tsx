@@ -20,6 +20,14 @@ export interface StepperProps {
   label: string
   /** הבהרה קטנה לצד התווית, למשל 'ק״ג כל צד' */
   suffix?: string
+  /**
+   * היחידה שנכתבת *מתחת למספר עצמו*, בתוך המסגרת — 'ק״ג', 'חזרות'.
+   *
+   * התווית שמעל השדה נקראת פעם אחת כשמגיעים לכרטיס; באמצע סט העין נופלת על
+   * המספר בלבד, וצריך שיהיה כתוב עליו מה הוא. בלי זה שני מספרים גדולים זה לצד
+   * זה נראים אותו דבר, וזו בדיוק הטעות שעולה סט שלם.
+   */
+  unit?: string
   /** שורה מתחת לפקד — למה הכפתורים קופצים בקפיצה הזו, או מה אפשר להקליד */
   hint?: string
   decimals?: 0 | 1 | 2
@@ -76,7 +84,9 @@ function StepButton({ dir, disabled, active, ariaLabel, onStart, onStop }: StepB
       disabled={disabled}
       aria-label={ariaLabel}
       className={[
-        'btn-ghost flex size-16 shrink-0 select-none items-center justify-center rounded-2xl',
+        // רוחב קבוע וגובה נמתח: הכפתור נצמד לגובה תיבת המספר, ולעולם לא גונב
+        // ממנה רוחב. size-16 קבוע היה מוחץ את המספר לפס דק בעמודה צרה.
+        'btn-ghost flex w-16 shrink-0 select-none items-center justify-center self-stretch rounded-2xl',
         '[-webkit-touch-callout:none]',
         'disabled:opacity-30 disabled:[transform:none]',
         active ? 'border-flame-500/60 bg-ink-700 text-flame-400' : '',
@@ -115,6 +125,7 @@ export function Stepper({
   max,
   label,
   suffix,
+  unit,
   hint,
   decimals,
   size = 'md',
@@ -254,7 +265,7 @@ export function Stepper({
         לכיוון הכתיבה. באמצע סט האצבע הולכת לפי זיכרון שריר ולא לפי כיוון הטקסט,
         ושיקוף הכפתורים היה גורם להורדת משקל בטעות. התווית והיחידה נשארות RTL.
       */}
-      <div dir="ltr" className="flex items-center gap-2">
+      <div dir="ltr" className="flex items-stretch gap-2">
         <StepButton
           dir={-1}
           disabled={!canStep || atMin}
@@ -264,7 +275,16 @@ export function Stepper({
           onStop={stopHold}
         />
 
-        <div className="flex h-16 min-w-0 flex-1 items-center justify-center rounded-2xl border border-ink-700 bg-ink-900/70 px-2 transition-colors focus-within:border-flame-500/60">
+        {/*
+          המספר הוא הדבר הכי גדול בשורה, ולא נכנע לכפתורים. min-w שומר לו רוחב
+          מינימלי גם כשהפקד יושב בעמודה צרה, כדי ש-"22.5" לא ייחתך לאמצע.
+        */}
+        <div
+          className={[
+            'flex min-w-[5.5rem] flex-1 flex-col items-center justify-center rounded-2xl border border-ink-700 bg-ink-900/70 px-2 transition-colors focus-within:border-flame-500/60',
+            hero ? 'min-h-20 py-1.5' : 'min-h-16 py-1',
+          ].join(' ')}
+        >
           <input
             id={inputId}
             aria-describedby={hint ? hintId : undefined}
@@ -274,8 +294,8 @@ export function Stepper({
             autoComplete="off"
             disabled={disabled}
             className={[
-              'numeral-hero tnum w-full appearance-none border-0 bg-transparent text-center text-bone-50 outline-none',
-              hero ? 'text-[2.75rem]' : 'text-3xl',
+              'numeral-hero tnum w-full appearance-none border-0 bg-transparent text-center leading-none text-bone-50 outline-none',
+              hero ? 'text-[2.75rem]' : 'text-[2.125rem]',
             ].join(' ')}
             value={draft ?? display(value, dec)}
             onChange={(e) => typeDraft(e.target.value)}
@@ -303,6 +323,17 @@ export function Stepper({
               }
             }}
           />
+          {unit ? (
+            // aria-hidden: התווית והיחידה כבר נקראות מה-label של השדה, ואין
+            // טעם שקורא מסך יגיד "חזרות" פעמיים על אותו מספר
+            <span
+              aria-hidden="true"
+              dir="rtl"
+              className="mt-1 text-[0.6875rem] leading-none font-bold text-bone-400"
+            >
+              {unit}
+            </span>
+          ) : null}
         </div>
 
         <StepButton

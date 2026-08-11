@@ -95,6 +95,50 @@ export function countMax(metric: ExerciseMetric = 'reps'): number {
   return metric === 'seconds' ? 600 : 50
 }
 
+/** שתי שורות שבבים על מסך טלפון, בלי להפוך את הכרטיס לרשימה */
+const MAX_REP_MARKS = 12
+
+/**
+ * טווח צר מקבל מספר אחד מתחת ומעל, כי סט נגמר גם בחזרה שלא יצאה וגם בחזרה
+ * שיצאה בהפתעה. טווח רחב כמו 12–20 כבר מכסה בעצמו את שתי האפשרויות, וריפוד
+ * שלו רק גונב מקום.
+ */
+const NARROW_SPAN = 4
+
+/**
+ * המספרים שאפשר לסמן בהם "כמה חזרות עשיתי" בסוף סט.
+ *
+ * שני מקורות, ולא אחד: כל טווח היעד של התרגיל, *ובנוסף* המספר שהשדה נפתח
+ * עליו. הם רחוקים זה מזה — היעד בהרמות צד הוא 12–20 והשדה נפתח על 6 — ולכן
+ * חלון רציף אחד שמתחיל ב-5 לא מגיע ל-20, וגם ההפך. חלון כזה היה נותן את אותה
+ * שורה בדיוק לכל תרגיל באימון ועוצר ב-12, כלומר בשני שלישים מהתרגילים אי אפשר
+ * לסמן את מה שבאמת עשית — וזו כל מטרת השורה.
+ *
+ * לכן ברירת המחדל נוסעת כשבב נפרד לפני הטווח (או אחריו), ולא נבלעת בו.
+ */
+export function repMarks(range: RepRange, fallback: number): number[] {
+  const pad = range.max - range.min <= NARROW_SPAN ? 1 : 0
+  const hi = Math.max(1, range.max + pad)
+  const lo = Math.min(hi, Math.max(1, range.min - pad))
+  const seed = Number.isFinite(fallback) && fallback >= 1 ? Math.round(fallback) : null
+
+  /*
+    יעד חריג ורחב לא מותר לו לפרוץ את הכרטיס, ולכן הוא נחתך — מלמטה דווקא, כי
+    ראש הטווח הוא לאן מכוונים. החיתוך נעשה פעמיים: הרמת הרצפה יכולה להוציא את
+    ברירת המחדל מהחלון ולדרוש לה שבב משלה, וזה תופס מקום שצריך לפנות מראש.
+    מעבר שני מספיק — הרצפה רק עולה, וערך שכבר בחוץ לא חוזר פנימה.
+  */
+  const outside = (start: number): boolean => seed !== null && (seed < start || seed > hi)
+  let start = Math.max(lo, hi - MAX_REP_MARKS + 1)
+  if (outside(start)) start = Math.max(lo, hi - MAX_REP_MARKS + 2)
+
+  const out: number[] = []
+  if (seed !== null && seed < start) out.push(seed)
+  for (let n = start; n <= hi; n += 1) out.push(n)
+  if (seed !== null && seed > hi) out.push(seed)
+  return out
+}
+
 /** שניות → "1:30" · "12:05" · "1:02:30" */
 export function formatClock(totalSeconds: number): string {
   const s = Math.max(0, Math.round(totalSeconds))

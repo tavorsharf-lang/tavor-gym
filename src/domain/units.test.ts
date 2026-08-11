@@ -10,6 +10,7 @@ import {
   formatRepRange,
   formatSetShort,
   formatVolume,
+  repMarks,
   roundToIncrement,
   round2,
   weightStep,
@@ -124,6 +125,40 @@ describe('מדידה בזמן מול חזרות', () => {
   it('התקרה בעורך גדולה מספיק ליעד של תרגיל זמן', () => {
     expect(countMax('reps')).toBe(50)
     expect(countMax('seconds')).toBeGreaterThanOrEqual(PLANK_RANGE.max)
+  })
+
+  /**
+   * שורת "כמה חזרות עשיתי". שתי דרישות שאסור לוותר על אף אחת מהן: המספר שהשדה
+   * *נפתח* עליו חייב להיות על השורה, וגם ראש טווח היעד. חלון רציף אחד סביב 6
+   * נתן בעבר את אותם שמונה שבבים בדיוק לכל תרגיל, ועצר ב-12 — כלומר בהרמות צד
+   * וזקיפות עגל, שהיעד בהן 12–20, אי אפשר היה לסמן שום מספר בטווח.
+   */
+  it('שבבי החזרות מכסים גם את היעד וגם את ברירת המחדל', () => {
+    // כל טווחי היעד שבתוכניות הפעילות, מול ברירת מחדל של 6
+    for (const range of [
+      { min: 10, max: 12 },
+      { min: 10, max: 15 },
+      { min: 12, max: 20 },
+      { min: 8, max: 12 },
+    ]) {
+      const marks = repMarks(range, 6)
+      expect(marks).toContain(6)
+      expect(marks).toContain(range.min)
+      expect(marks).toContain(range.max)
+      expect(marks.length).toBeLessThanOrEqual(12)
+      // תמיד עולה, בלי כפילויות — השורה נקראת משמאל לימין כמו סרגל
+      expect([...marks].sort((a, b) => a - b)).toEqual(marks)
+      expect(new Set(marks).size).toBe(marks.length)
+    }
+
+    // ברירת מחדל שכבר בתוך הטווח לא מוסיפה שבב, וטווח צר מרופד משני הצדדים
+    expect(repMarks({ min: 10, max: 12 }, 10)).toEqual([9, 10, 11, 12, 13])
+    // אף פעם לא 0 חזרות, ואף פעם לא שורה בלי סוף
+    expect(repMarks({ min: 1, max: 3 }, 1)).toEqual([1, 2, 3, 4])
+    const wide = repMarks({ min: 5, max: 30 }, 6)
+    expect(wide.length).toBeLessThanOrEqual(12)
+    expect(wide).toContain(30)
+    expect(wide).toContain(6)
   })
 
   it('טווח יעד מוצג כשעון', () => {
