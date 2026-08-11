@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto'
 import Dexie from 'dexie'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '@/db/db'
+import { LIBRARY_LINKS } from '@/db/libraryLinks'
 import {
   DEFAULT_REPS,
   DEFAULT_REST_SECONDS,
@@ -134,6 +135,9 @@ async function seedVersion4(): Promise<void> {
 }
 
 /** סכמת גרסה 1 — מכשיר שלא נפתח מאז ההתקנה הראשונה */
+/** הקישורים שנוספו אחרי שגרסה 4 כבר רצה אצל המשתמש */
+const NEW_LINKS = ['low-row-rack', 'overhead-tricep-ext'] as const
+
 const V1_STORES = { ...V4_STORES, exercises: 'id, muscleGroup, isActive, order' }
 
 /**
@@ -329,5 +333,53 @@ describe('מיגרציה לגרסה 5', () => {
     expect(pushup?.name).toBe('השם שלי')
     // ההתיישרות המספרית כן חלה — היא לא תלויה בשם
     expect(pushup?.targetSets).toBe(DEFAULT_TARGET_SETS)
+  })
+})
+
+/**
+ * גרסה 6 — הקישורים החדשים למאגר.
+ *
+ * הבאג שהמיגרציה הזאת מונעת שקט לגמרי: `LIBRARY_LINKS` היא זריעה, ולכן שורה
+ * חדשה בה עובדת רק בהתקנה מאפס. מכשיר קיים שכבר עבר את מיגרציה 4 היה נשאר
+ * בלי הקישור, וסרטוני המאגר לא היו מופיעים — בדיוק התלונה שהובילה לשינוי.
+ */
+describe('מיגרציה לגרסה 6 — קישורי מאגר שנוספו', () => {
+  beforeEach(async () => {
+    await db.close()
+    await db.delete()
+  })
+
+  it('שותלת קישור חדש על מסד שכבר עבר את גרסה 4', async () => {
+    await seedVersion4()
+
+    // מדמים את המצב שלפני: הקישורים החדשים עוד לא קיימים על הרשומות
+    const legacy = new Dexie('tavor-gym')
+    legacy.version(4).stores(V4_STORES)
+    await legacy.open()
+    for (const id of NEW_LINKS) {
+      await legacy.table<Exercise, string>('exercises').update(id, { libraryId: undefined })
+    }
+    legacy.close()
+
+    await db.open()
+    for (const id of NEW_LINKS) {
+      expect(await db.exercises.get(id).then((e) => e?.libraryId), id).toBe(LIBRARY_LINKS[id])
+    }
+  })
+
+  it('לא דורסת קישור שהמשתמש יצר בעצמו', async () => {
+    await seedVersion4()
+
+    const legacy = new Dexie('tavor-gym')
+    legacy.version(4).stores(V4_STORES)
+    await legacy.open()
+    await legacy
+      .table<Exercise, string>('exercises')
+      .update('low-row-rack', { libraryId: 'lib-barbell_row' })
+    legacy.close()
+
+    await db.open()
+    // הוספת תרגיל מהמאגר גוברת על הזריעה — זה מה ש-withLibraryLink מבטיח
+    expect((await db.exercises.get('low-row-rack'))?.libraryId).toBe('lib-barbell_row')
   })
 })

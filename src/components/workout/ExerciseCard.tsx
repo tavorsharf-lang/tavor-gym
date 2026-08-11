@@ -373,7 +373,11 @@ export function ExerciseCard({
     >
       {/* 1 — מי אני, מה היעד, וכמה כבר עשיתי */}
       <div className="flex items-start gap-3">
-        <VideoThumb exerciseId={exercise.id} onOpen={onOpenVideo} />
+        <VideoThumb
+          exerciseId={exercise.id}
+          libraryId={exercise.libraryId}
+          onOpen={onOpenVideo}
+        />
         <div className="min-w-0 flex-1">
           <h2 className="text-xl leading-tight font-extrabold text-bone-50">{exercise.name}</h2>
           <p className="meta mt-1 truncate">

@@ -238,6 +238,28 @@ class GymDatabase extends Dexie {
         }
       })
 
+    /**
+     * גרסה 6 — קישורים למאגר שהתגלו כחסרים.
+     *
+     * `LIBRARY_LINKS` היא זריעה בלבד: מגרסה 4 הקישור חי כשדה על התרגיל. לכן
+     * הוספת שורה לטבלה ההיא לא מגיעה למכשיר שכבר עבר את מיגרציה 4 — היא
+     * משפיעה רק על התקנה חדשה. בלי המיגרציה הזאת שני הקישורים החדשים היו
+     * עובדים אצל מי שמתקין מאפס ולא אצל מי שכבר משתמש.
+     *
+     * אותו לולאה בדיוק כמו בגרסה 4, ומאותה סיבה היא בטוחה: `withLibraryLink`
+     * לא נוגע ברשומה שכבר נושאת קישור, ולכן תרגיל שהמשתמש הוסיף בעצמו מהמאגר
+     * שומר על הקישור שלו.
+     */
+    this.version(6)
+      .stores({})
+      .upgrade(async (tx) => {
+        const table = tx.table<Exercise, string>('exercises')
+        for (const exercise of await table.toArray()) {
+          const linked = withLibraryLink(exercise)
+          if (linked !== exercise) await table.put(linked)
+        }
+      })
+
     // רץ פעם אחת בלבד, בפתיחה הראשונה של המסד
     this.on('populate', async () => {
       await this.exercises.bulkAdd(SEED_EXERCISES)

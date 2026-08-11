@@ -26,13 +26,19 @@ describe('הקטלוג המאוחד', () => {
     expect(exercises.find((e) => e.id === 'calf-raise')?.libraryId).toBeUndefined()
   })
 
-  it('מאחד את שני המקורות בלי כפילות — 28 ועוד 62 פחות 12 מקושרים', async () => {
+  it('מאחד את שני המקורות בלי כפילות — כל הקטלוג ועוד מה שבמאגר ולא מקושר', async () => {
     const entries = await getCatalogEntries()
     const own = entries.filter((e) => e.exercise)
     const teaching = entries.filter((e) => !e.exercise)
 
-    expect(entries.length).toBe(78)
-    expect(own.length).toBe(28)
+    // נגזר ולא מספר קשיח: כל קישור חדש מקטין את הצד הלימודי באחד, וספירה
+    // כתובה ביד הייתה נשברת על כל התאמה שמתווספת — ומלמדת לעדכן מספר במקום
+    // לבדוק שהאיחוד עצמו נכון.
+    const catalogSize = (await getAllExercises(true)).length
+    expect(own.length).toBe(catalogSize)
+    expect(entries.length).toBe(
+      catalogSize + LIBRARY_CATALOG.length - Object.keys(LIBRARY_LINKS).length
+    )
     expect(teaching.length).toBe(LIBRARY_CATALOG.length - Object.keys(LIBRARY_LINKS).length)
 
     // מזהה מופיע פעם אחת בלבד

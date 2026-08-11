@@ -336,6 +336,7 @@ export function WorkoutScreen(): JSX.Element | null {
         <>
           <VideoPlayer
             exerciseId={activeExercise.id}
+            libraryId={activeExercise.libraryId}
             exerciseName={activeExercise.name}
             open={videoOpen}
             onClose={() => setVideoOpen(false)}

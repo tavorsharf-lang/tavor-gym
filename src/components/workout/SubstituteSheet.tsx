@@ -60,7 +60,7 @@ function Row({
   const pr = prText(ex, prs)
   return (
     <li className="card flex items-center gap-3 p-2">
-      <VideoThumb exerciseId={ex.id} size="sm" onOpen={onPlay} />
+      <VideoThumb exerciseId={ex.id} libraryId={ex.libraryId} size="sm" onOpen={onPlay} />
       <button
         type="button"
         onClick={onPick}
@@ -246,6 +246,7 @@ export function SubstituteSheet({
       {playing ? (
         <VideoPlayer
           exerciseId={playing.id}
+          libraryId={playing.libraryId}
           exerciseName={playing.name}
           open
           onClose={() => setPlaying(null)}
