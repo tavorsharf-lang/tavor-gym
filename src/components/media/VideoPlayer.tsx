@@ -168,7 +168,17 @@ export function VideoPlayer({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-ink-950/97 backdrop-blur-xl animate-fade">
+    /*
+      role ו-aria-modal אינם קישוט: הנגן הוא שכבה מלאה מעל המסך, ובלעדיהם
+      קורא-מסך רואה אותו כתוכן שנוסף לדף ולא כחלון. הם גם מה שמאפשר לגיליון
+      שמתחתיו לדעת שהוא כבר לא העליון ולוותר על כליאת הפוקוס שלו.
+    */
+    <div
+      className="fixed inset-0 z-50 flex flex-col bg-ink-950/97 backdrop-blur-xl animate-fade"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`סרטוני הדגמה — ${exerciseName}`}
+    >
       <header
         className="flex items-center gap-2 px-4 pb-2"
         style={{ paddingTop: 'calc(var(--safe-t) + 0.75rem)' }}

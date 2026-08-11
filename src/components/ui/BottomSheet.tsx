@@ -34,6 +34,7 @@ export function BottomSheet({
     closeRef.current = onClose
   })
 
+  const rootRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -48,15 +49,33 @@ export function BottomSheet({
       הגיליון כבר הצהיר role="dialog" ו-aria-modal, אבל Tab המשיך לטייל בתוכן
       שמאחורי ה-backdrop — כלומר ההצהרה הייתה שקר. באפליקציית מגע של משתמש
       יחיד זה לא כואב יומיומית, אבל ברגע ש-VoiceOver מופעל המודל דולף.
+
+      בלי מסנן `offsetParent !== null` שנפוץ בפתרונות כאלה: הוא נשען על פריסה,
+      מחזיר null לכל אלמנט בתוך אב `fixed`, ולכן היה משתנה לפי הקשר במקום לפי
+      נראות. הבורר עצמו כבר מוציא disabled, hidden ו-tabindex="-1" — וזה מה
+      שבאמת קובע אם אפשר להגיע לאלמנט ב-Tab.
     */
-    const focusables = (): HTMLElement[] =>
-      [
-        ...(panelRef.current?.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        ) ?? []),
-      ].filter((el) => el.offsetParent !== null)
+    const focusables = (): HTMLElement[] => [
+      ...(panelRef.current?.querySelectorAll<HTMLElement>(
+        'a[href]:not([hidden]), button:not([disabled]):not([hidden]), input:not([disabled]):not([hidden]), textarea:not([disabled]):not([hidden]), select:not([disabled]):not([hidden]), [tabindex]:not([tabindex="-1"]):not([hidden])'
+      ) ?? []),
+    ]
+
+    /*
+      הגיליון לא לוכד פוקוס כשמשהו נפתח מעליו.
+
+      נגן הסרטונים נפתח כ-portal אח *בזמן* שגיליון ההחלפה עדיין פתוח. בלי
+      הבדיקה הזו, Shift+Tab בתוך הנגן היה חוטף את הפוקוס בחזרה לגיליון שמתחתיו
+      — כלומר הכליאה שנועדה למנוע דליפה הייתה יוצרת מלכודת. פורטלים נדחפים
+      ל-body לפי סדר הפתיחה, ולכן האחרון ב-DOM הוא זה שלמעלה.
+    */
+    const isTopmost = (): boolean => {
+      const modals = [...document.querySelectorAll('[aria-modal="true"]')]
+      return modals.length === 0 || modals[modals.length - 1] === rootRef.current
+    }
 
     const onKey = (e: KeyboardEvent) => {
+      if (!isTopmost()) return
       if (e.key === 'Escape') {
         closeRef.current()
         return
@@ -98,6 +117,7 @@ export function BottomSheet({
 
   return createPortal(
     <div
+      ref={rootRef}
       className="fixed inset-x-0 top-0 z-50 flex h-[100dvh] items-end"
       role="dialog"
       aria-modal="true"
