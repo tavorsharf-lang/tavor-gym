@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type React from 'react'
 import { createPortal } from 'react-dom'
 import {
   ChevronLeft,
@@ -26,6 +27,12 @@ import { Button, toast } from '@/components/ui'
  * של המערכת — והמוזיקה שהמשתמש מנגן ברקע נעצרת. פקדי הנגן המובנים מציעים
  * כפתור השתקה, ולחיצה מקרית עליו הייתה עולה במוזיקה בלי להוסיף שום צליל.
  */
+/** מעל זה שורת הנקודות רחבה מהמסך, ומוחלפת בפס מיקום */
+const DOTS_MAX = 10
+
+/** כמה צריך להחליק כדי שזו תהיה החלפה ולא נגיעה */
+const SWIPE_MIN_PX = 56
+
 export function VideoPlayer({
   exerciseId,
   libraryId,
@@ -49,6 +56,19 @@ export function VideoPlayer({
   const [failed, setFailed] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
+  /*
+    נקודת ההתחלה של המחווה ב-ref ולא במשתנה רגיל.
+
+    בין pointerdown ל-pointerup יש רינדורים מחדש — הסרטון נטען, הפקדים
+    מתעדכנים — וכל אחד מהם היה יוצר אובייקט חדש ומאפס את נקודת ההתחלה לאפס.
+    התוצאה הייתה dx ענק מול הקצה השמאלי של המסך, כלומר קפיצת סרטון מנגיעה.
+  */
+  const swipeFrom = useRef<{ x: number; y: number } | null>(null)
+  // האורך העדכני, כדי ש-`go` לא ייכנס לתלויות של כל מי שקורא לו
+  const videosRef = useRef(videos)
+  useLayoutEffect(() => {
+    videosRef.current = videos
+  })
   // אחרי מחיקה נשארים באותו מקום ברשימה במקום לקפוץ לסרטון הראשון
   const resumeAt = useRef<number | null>(null)
 
@@ -107,13 +127,29 @@ export function VideoPlayer({
     }
   }, [open])
 
+  /**
+   * מעבר מחזורי בין הסרטונים.
+   *
+   * מחזורי ולא חסום בקצוות: ברשימה של 23 סרטוני הסבר, "הבא" שמפסיק לעבוד
+   * בסרטון האחרון מחייב לחזור אחורה 22 פעם. `step` הוא +1 קדימה ו-‎-1 אחורה.
+   */
+  const go = useCallback((step: number) => {
+    setIndex((i) => {
+      const n = videosRef.current.length
+      return n ? (i + step + n) % n : 0
+    })
+  }, [])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') return onClose()
+      // המסך כולו RTL: הבא יושב משמאל, ולכן חץ שמאלה מקדם וחץ ימינה מחזיר
+      if (e.key === 'ArrowLeft') go(1)
+      if (e.key === 'ArrowRight') go(-1)
     }
     if (open) window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  }, [open, onClose, go])
 
   /*
     סרטון שנוגן מהרשת נשמר למכשיר.
@@ -155,7 +191,30 @@ export function VideoPlayer({
   if (!open) return null
 
   const current = videos[index]
+  const many = videos.length > 1
   const mismatch = videoMismatchNote(exerciseId)
+
+  /*
+    החלקה להחלפת סרטון.
+
+    הסף כפול בכוונה: מרחק מינימלי, *וגם* דרישה שהתנועה תהיה בעיקר אופקית.
+    לנגן יש פקדים מובנים, והמשתמש גורר עליהם את סרגל הזמן — בלי התנאי השני כל
+    גרירה קטנה על הסרגל הייתה מדלגת סרטון. אין `preventDefault` מאותה סיבה:
+    נגיעה רגילה חייבת להמשיך להגיע לפקדים.
+  */
+  const onSwipeStart = (e: React.PointerEvent) => {
+    swipeFrom.current = { x: e.clientX, y: e.clientY }
+  }
+  const onSwipeEnd = (e: React.PointerEvent) => {
+    const from = swipeFrom.current
+    swipeFrom.current = null
+    if (!many || !from) return
+    const dx = e.clientX - from.x
+    const dy = e.clientY - from.y
+    if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < Math.abs(dy) * 1.5) return
+    // התוכן זז עם האצבע: גרירה שמאלה מביאה את מה שמימין — וב-RTL זה הבא
+    go(dx < 0 ? 1 : -1)
+  }
 
   const confirmDelete = async (): Promise<void> => {
     if (!current) return
@@ -239,7 +298,11 @@ export function VideoPlayer({
         </p>
       ) : null}
 
-      <div className="relative flex flex-1 items-center justify-center px-3">
+      <div
+        className="relative flex flex-1 items-center justify-center px-3 touch-pan-y"
+        onPointerDown={onSwipeStart}
+        onPointerUp={onSwipeEnd}
+      >
         {loading && <Loader2 className="animate-spin text-bone-600" size={32} />}
 
         {!loading && !current && (
@@ -274,43 +337,86 @@ export function VideoPlayer({
             onError={() => setFailed(true)}
           />
         )}
+
+        {/*
+          החיצים יושבים על הסרטון ולא רק בתחתית המסך.
+
+          עם 23 סרטוני הסבר המעבר הוא הפעולה השכיחה כאן, והיד שאוחזת בטלפון
+          מגיעה לצדדים בלי לשנות אחיזה. הם מעל שוליים ולא מעל הסרטון עצמו, כדי
+          לא לכסות את הפקדים המובנים שבתחתיתו.
+        */}
+        {many && (
+          <>
+            <button
+              onClick={() => go(-1)}
+              aria-label="הסרטון הקודם"
+              className="absolute inset-y-0 end-0 flex w-14 items-center justify-center text-bone-300 active:text-flame-400"
+            >
+              <span className="flex size-11 items-center justify-center rounded-full bg-ink-900/70 backdrop-blur-sm">
+                <ChevronRight size={24} />
+              </span>
+            </button>
+            <button
+              onClick={() => go(1)}
+              aria-label="הסרטון הבא"
+              className="absolute inset-y-0 start-0 flex w-14 items-center justify-center text-bone-300 active:text-flame-400"
+            >
+              <span className="flex size-11 items-center justify-center rounded-full bg-ink-900/70 backdrop-blur-sm">
+                <ChevronLeft size={24} />
+              </span>
+            </button>
+          </>
+        )}
       </div>
 
-      {videos.length > 1 && (
-        <div className="flex items-center justify-center gap-3 px-5 pb-safe pt-4">
-          {/* ב-RTL חץ ימינה הוא "אחורה" — ולכן הוא זה שמחזיר לסרטון הקודם */}
-          <button
-            onClick={() => setIndex((i) => (i - 1 + videos.length) % videos.length)}
-            aria-label="הסרטון הקודם"
-            className="btn-ghost flex size-14 items-center justify-center rounded-full"
-          >
-            <ChevronRight size={22} />
-          </button>
-          <div className="flex gap-1.5">
-            {videos.map((v, i) => (
-              /* אזור הלחיצה 44px, הנקודה עצמה נשארת קטנה — הוויזואל לא משתנה */
-              <button
-                key={v.id}
-                onClick={() => setIndex(i)}
-                aria-label={`סרטון ${i + 1}`}
-                aria-current={i === index}
-                className="flex h-11 w-6 items-center justify-center"
+      {/*
+        מחוון מיקום, לא פקד ניווט — הניווט עבר לחיצים שעל הסרטון ולהחלקה.
+
+        שורת הנקודות הייתה נקודה לכל סרטון. זה עבד כשהיו שלוש הדגמות, אבל אחרי
+        שסרטוני המאגר נכנסו לאימון יש עד 23 — כלומר שורה ברוחב 550px שגולשת
+        מהמסך ונקודות שאי אפשר לפגוע בהן. מעל הסף מוצג פס מיקום שלא תלוי בכמות.
+      */}
+      {many && (
+        <div className="flex items-center justify-center px-5 pb-safe pt-4">
+          {videos.length <= DOTS_MAX ? (
+            <div className="flex gap-1.5">
+              {videos.map((v, i) => (
+                /* אזור הלחיצה 44px, הנקודה עצמה נשארת קטנה — הוויזואל לא משתנה */
+                <button
+                  key={v.id}
+                  onClick={() => setIndex(i)}
+                  aria-label={`סרטון ${i + 1}`}
+                  aria-current={i === index}
+                  className="flex h-11 w-6 items-center justify-center"
+                >
+                  <span
+                    className={`h-2 rounded-pill transition-all ${
+                      i === index ? 'w-6 bg-flame-500' : 'w-2 bg-ink-600'
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex h-11 w-full max-w-64 items-center gap-3">
+              <div
+                className="h-1.5 flex-1 overflow-hidden rounded-pill bg-ink-700"
+                role="progressbar"
+                aria-valuemin={1}
+                aria-valuemax={videos.length}
+                aria-valuenow={index + 1}
+                aria-label="מיקום ברשימת הסרטונים"
               >
                 <span
-                  className={`h-2 rounded-pill transition-all ${
-                    i === index ? 'w-6 bg-flame-500' : 'w-2 bg-ink-600'
-                  }`}
+                  className="block h-full rounded-pill bg-flame-500 transition-all duration-200"
+                  style={{ width: `${((index + 1) / videos.length) * 100}%` }}
                 />
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={() => setIndex((i) => (i + 1) % videos.length)}
-            aria-label="הסרטון הבא"
-            className="btn-ghost flex size-14 items-center justify-center rounded-full"
-          >
-            <ChevronLeft size={22} />
-          </button>
+              </div>
+              <span className="tnum shrink-0 text-xs font-bold text-bone-400" dir="ltr">
+                {index + 1}/{videos.length}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
