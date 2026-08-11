@@ -4,11 +4,12 @@
 // ה-reference הוא מקומי בכוונה: tsconfig.app.json לא כולל טיפוסי node, וזה
 // שומר על ההבטחה שקוד האפליקציה עצמו לא נוגע ב-API של השרת. הבדיקה הזו כן —
 // היא בודקת שקבצים קיימים על הדיסק, וזה בדיוק מה שאי אפשר לעשות בדפדפן.
-import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { VIDEO_MANIFEST } from '@/db/videoManifest'
-import { LIBRARY_CATALOG, LIBRARY_MANIFEST } from '@/db/libraryManifest'
+import { LIBRARY_CATALOG, LIBRARY_COUNT, LIBRARY_MANIFEST } from '@/db/libraryManifest'
 import { LIBRARY_LINKS, UNLINKED_NOTES } from '@/db/libraryLinks'
 import { SEED_EXERCISES } from '@/db/seed'
 import { VIDEO_MISMATCH } from '@/db/videoIssues'
@@ -111,5 +112,40 @@ describe('אזהרות הסרטונים', () => {
     const ids = new Set(SEED_EXERCISES.map((e) => e.id))
     const orphans = Object.keys(VIDEO_MISMATCH).filter((id) => !ids.has(id))
     expect(orphans).toEqual([])
+  })
+})
+
+/**
+ * הכפילויות שנמחקו.
+ *
+ * המאגר פרסם את אותו קליפ תחת שתי כתובות — לפעמים באותו תרגיל, ולפעמים בין
+ * הדגמת התוכנית לסרטון המאגר של אותו תרגיל מקושר. אחרי המיזוג לאימון הן הופיעו
+ * זו לצד זו. הן זוהו בהשוואת פריימים (dHash), נבדקו בעין, ונחסמו ב-DUPLICATE_URLS
+ * שב-scripts/import-videos.mjs.
+ *
+ * הבדיקה כאן שומרת על התוצאה משני כיוונים: שהסקריפט עדיין מחזיק את החסימה,
+ * ושאף כתובת חסומה לא חזרה למניפסט.
+ */
+describe('כפילויות שנחסמו', () => {
+  const script = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'scripts', 'import-videos.mjs'),
+    'utf8'
+  )
+  const blocked = [...script.matchAll(/^\s*'(https:\/\/[^']+)',$/gm)].map((m) => m[1])
+
+  it('רשימת החסימה עדיין בסקריפט', () => {
+    expect(script).toContain('const DUPLICATE_URLS = new Set([')
+    expect(script).toContain('!DUPLICATE_URLS.has(v.url)')
+    expect(blocked.length).toBeGreaterThanOrEqual(33)
+  })
+
+  it('אף כתובת חסומה לא חזרה לקטלוג', () => {
+    const inCatalog = new Set(LIBRARY_CATALOG.flatMap((e) => e.videos.map((v) => v.url)))
+    expect(blocked.filter((u) => inCatalog.has(u))).toEqual([])
+  })
+
+  it('LIBRARY_COUNT תואם למה שבמניפסט בפועל', () => {
+    const actual = Object.values(LIBRARY_MANIFEST).reduce((n, v) => n + v.length, 0)
+    expect(actual).toBe(LIBRARY_COUNT)
   })
 })

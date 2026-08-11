@@ -43,6 +43,58 @@ const LIB_MANIFEST = join(ROOT, 'src', 'db', 'libraryManifest.ts')
  */
 const LIB_MAX = Number.POSITIVE_INFINITY
 
+/**
+ * סרטונים שהמקור מפרסם יותר מפעם אחת.
+ *
+ * המאגר מכיל את אותו קליפ בדיוק תחת שתי כתובות שונות — לפעמים באותו תרגיל
+ * ולפעמים בין תרגיל התוכנית לתרגיל המאגר המקביל. שם הקובץ שונה והבייטים שונים
+ * (קידוד אחר), ולכן השוואת md5 לא תופסת את זה. הרשימה כאן נבנתה מהשוואה
+ * תפיסתית: שמונה פריימים בפריסה אחידה מכל סרטון, dHash לכל פריים, וזוגות
+ * במרחק המינג ממוצע נמוך. כל זוג נבדק גם בעין מול פריימים לפני שנכנס לכאן.
+ *
+ * למה כאן ולא רק במחיקת הקבצים: המניפסטים נוצרים אוטומטית מהסקריפט הזה, ולכן
+ * `npm run import:videos` היה מחזיר את הכפילויות בהרצה הבאה.
+ *
+ * הכתובת שנשארת בכל זוג היא זו שכבר מותקנת אצל המשתמש — הדגמת התוכנית קודמת
+ * לסרטון המאגר, ובתוך המאגר נשמר המופע המוקדם יותר.
+ */
+const DUPLICATE_URLS = new Set([
+  'https://www.tiktok.com/@deltabolic/video/7229117703041174790',
+  'https://www.tiktok.com/@deltabolic/video/7230619955937561862',
+  'https://www.tiktok.com/@deltabolic/video/7244334326920400133',
+  'https://www.tiktok.com/@deltabolic/video/7328124394126068997',
+  'https://www.tiktok.com/@deltabolic/video/7560124224904416513',
+  'https://www.tiktok.com/@deltabolic/video/7567933458475928840',
+  'https://www.tiktok.com/@deltabolic/video/7575749385187904769',
+  'https://www.tiktok.com/@deltabolic/video/7580540364319132945',
+  'https://www.tiktok.com/@deltabolic/video/7580924307560254736',
+  'https://www.tiktok.com/@deltabolic/video/7581633130717531409',
+  'https://www.tiktok.com/@deltabolic/video/7585770367348673793',
+  'https://www.tiktok.com/@deltabolic/video/7586860337199090960',
+  'https://www.tiktok.com/@deltabolic/video/7600597121871531280',
+  'https://www.tiktok.com/@deltabolic/video/7602436025993989393',
+  'https://www.tiktok.com/@deltabolic/video/7610208047830437137',
+  'https://www.tiktok.com/@deltabolic/video/7612098282692611345',
+  'https://www.tiktok.com/@deltabolic/video/7615013821366816017',
+  'https://www.tiktok.com/@deltabolic/video/7622766689603685633',
+  'https://www.tiktok.com/@deltabolic/video/7622835195439320337',
+  'https://www.tiktok.com/@deltabolic/video/7623915507929959697',
+  'https://www.tiktok.com/@deltabolic/video/7624689912972889345',
+  'https://www.tiktok.com/@deltabolic/video/7625058981471472913',
+  'https://www.tiktok.com/@deltabolic/video/7627614725223812369',
+  'https://www.tiktok.com/@deltabolic/video/7627989099143597329',
+  'https://www.tiktok.com/@deltabolic/video/7635387543650913537',
+  'https://www.tiktok.com/@deltabolic/video/7635443784578387217',
+  'https://www.tiktok.com/@deltabolic/video/7636116644674161921',
+  'https://www.tiktok.com/@deltabolic/video/7636159246161169665',
+  'https://www.tiktok.com/@deltabolic/video/7636953632805506320',
+  'https://www.tiktok.com/@deltabolic/video/7643944699027328273',
+  'https://www.tiktok.com/@deltabolic/video/7651794944499240193',
+  'https://www.tiktok.com/@deltabolic/video/7666620266960801040',
+  'https://www.tiktok.com/@deltabolic/video/7669146131384782096',
+])
+
+
 /** קבוצת שריר במאגר (עברית) → הערך ב-MuscleGroup */
 const MUSCLE_MAP = {
   'חזה': 'chest',
@@ -255,6 +307,7 @@ function importLibrary() {
   let totalIn = 0
   let totalOut = 0
   let capped = 0
+  let dropped = 0
 
   for (const ex of source) {
     const muscle = CALVES_KEYS.has(ex.key) ? 'calves' : MUSCLE_MAP[ex.muscle]
@@ -264,8 +317,10 @@ function importLibrary() {
     }
     const key = slug(ex.key)
     const id = `lib-${key}`
-    const picked = ex.videos.slice(0, LIB_MAX)
-    if (ex.videos.length > picked.length) capped += ex.videos.length - picked.length
+    const unique = ex.videos.filter((v) => !DUPLICATE_URLS.has(v.url))
+    dropped += ex.videos.length - unique.length
+    const picked = unique.slice(0, LIB_MAX)
+    if (unique.length > picked.length) capped += unique.length - picked.length
 
     manifest[id] = []
     const videos = []
@@ -299,7 +354,7 @@ function importLibrary() {
     })
   }
 
-  return { manifest, catalog, totalIn, totalOut, capped }
+  return { manifest, catalog, totalIn, totalOut, capped, dropped }
 }
 
 function main() {
@@ -402,6 +457,7 @@ export const LIBRARY_OMITTED = ${lib.capped}
     )
     // קיצוץ שקט נקרא ככיסוי מלא — לכן הוא נאמר במפורש
     console.log(
+      lib.dropped > 0 ? `  ${lib.dropped} סרטונים דולגו ככפילויות של סרטון אחר` : null,
       lib.capped > 0
         ? `  ${lib.capped} סרטונים נוספים קיימים במקור ולא נכנסו (תקרה של ${LIB_MAX} לתרגיל)`
         : '  בלי תקרה — כל הסרטונים שבמקור נכנסו'

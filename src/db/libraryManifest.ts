@@ -84,14 +84,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "sizeBytes": 304564
     },
     {
-      "src": "videos/lib/cable_crunch-04.mp4",
-      "poster": "videos/lib/cable_crunch-04.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 5.8,
-      "sizeBytes": 319126
-    },
-    {
       "src": "videos/lib/cable_crunch-05.mp4",
       "poster": "videos/lib/cable_crunch-05.jpg",
       "width": 406,
@@ -308,22 +300,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "sizeBytes": 379375
     },
     {
-      "src": "videos/lib/lat_pulldown-19.mp4",
-      "poster": "videos/lib/lat_pulldown-19.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 10.1,
-      "sizeBytes": 345441
-    },
-    {
-      "src": "videos/lib/lat_pulldown-20.mp4",
-      "poster": "videos/lib/lat_pulldown-20.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 12.5,
-      "sizeBytes": 468880
-    },
-    {
       "src": "videos/lib/lat_pulldown-21.mp4",
       "poster": "videos/lib/lat_pulldown-21.jpg",
       "width": 406,
@@ -332,36 +308,12 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "sizeBytes": 581633
     },
     {
-      "src": "videos/lib/lat_pulldown-22.mp4",
-      "poster": "videos/lib/lat_pulldown-22.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 7.1,
-      "sizeBytes": 214773
-    },
-    {
-      "src": "videos/lib/lat_pulldown-23.mp4",
-      "poster": "videos/lib/lat_pulldown-23.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 19.6,
-      "sizeBytes": 609117
-    },
-    {
       "src": "videos/lib/lat_pulldown-24.mp4",
       "poster": "videos/lib/lat_pulldown-24.jpg",
       "width": 406,
       "height": 720,
       "durationSec": 14.3,
       "sizeBytes": 487925
-    },
-    {
-      "src": "videos/lib/lat_pulldown-25.mp4",
-      "poster": "videos/lib/lat_pulldown-25.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 7.5,
-      "sizeBytes": 260977
     }
   ],
   "lib-seated_cable_row": [
@@ -502,28 +454,12 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "sizeBytes": 540368
     },
     {
-      "src": "videos/lib/seated_cable_row-18.mp4",
-      "poster": "videos/lib/seated_cable_row-18.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 8.5,
-      "sizeBytes": 308853
-    },
-    {
       "src": "videos/lib/seated_cable_row-19.mp4",
       "poster": "videos/lib/seated_cable_row-19.jpg",
       "width": 406,
       "height": 720,
       "durationSec": 18,
       "sizeBytes": 570017
-    },
-    {
-      "src": "videos/lib/seated_cable_row-20.mp4",
-      "poster": "videos/lib/seated_cable_row-20.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 8,
-      "sizeBytes": 325749
     },
     {
       "src": "videos/lib/seated_cable_row-21.mp4",
@@ -1166,28 +1102,12 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "sizeBytes": 568277
     },
     {
-      "src": "videos/lib/barbell_bench_press-15.mp4",
-      "poster": "videos/lib/barbell_bench_press-15.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 11.5,
-      "sizeBytes": 363275
-    },
-    {
       "src": "videos/lib/barbell_bench_press-16.mp4",
       "poster": "videos/lib/barbell_bench_press-16.jpg",
       "width": 406,
       "height": 720,
       "durationSec": 10.3,
       "sizeBytes": 467365
-    },
-    {
-      "src": "videos/lib/barbell_bench_press-17.mp4",
-      "poster": "videos/lib/barbell_bench_press-17.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 10.7,
-      "sizeBytes": 366546
     },
     {
       "src": "videos/lib/barbell_bench_press-18.mp4",
@@ -1254,14 +1174,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "sizeBytes": 392512
     },
     {
-      "src": "videos/lib/barbell_bench_press-26.mp4",
-      "poster": "videos/lib/barbell_bench_press-26.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 13,
-      "sizeBytes": 372206
-    },
-    {
       "src": "videos/lib/barbell_bench_press-27.mp4",
       "poster": "videos/lib/barbell_bench_press-27.jpg",
       "width": 406,
@@ -1292,14 +1204,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "height": 720,
       "durationSec": 20.2,
       "sizeBytes": 592149
-    },
-    {
-      "src": "videos/lib/barbell_bench_press-31.mp4",
-      "poster": "videos/lib/barbell_bench_press-31.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 6.6,
-      "sizeBytes": 304602
     },
     {
       "src": "videos/lib/barbell_bench_press-32.mp4",
@@ -1464,14 +1368,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "sizeBytes": 280004
     },
     {
-      "src": "videos/lib/push_up-18.mp4",
-      "poster": "videos/lib/push_up-18.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 9.4,
-      "sizeBytes": 259793
-    },
-    {
       "src": "videos/lib/push_up-19.mp4",
       "poster": "videos/lib/push_up-19.jpg",
       "width": 406,
@@ -1526,14 +1422,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "height": 720,
       "durationSec": 11.3,
       "sizeBytes": 292212
-    },
-    {
-      "src": "videos/lib/push_up-26.mp4",
-      "poster": "videos/lib/push_up-26.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 10.6,
-      "sizeBytes": 357203
     },
     {
       "src": "videos/lib/push_up-27.mp4",
@@ -1704,14 +1592,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "height": 720,
       "durationSec": 9.2,
       "sizeBytes": 305668
-    },
-    {
-      "src": "videos/lib/cable_chest_fly-21.mp4",
-      "poster": "videos/lib/cable_chest_fly-21.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 11.4,
-      "sizeBytes": 392179
     }
   ],
   "lib-dumbbell_bench_press": [
@@ -1802,14 +1682,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "height": 720,
       "durationSec": 11,
       "sizeBytes": 351291
-    },
-    {
-      "src": "videos/lib/dumbbell_bench_press-12.mp4",
-      "poster": "videos/lib/dumbbell_bench_press-12.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 6.5,
-      "sizeBytes": 205097
     }
   ],
   "lib-incline_barbell_bench_press": [
@@ -1928,14 +1800,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "height": 720,
       "durationSec": 7.2,
       "sizeBytes": 277985
-    },
-    {
-      "src": "videos/lib/dumbbell_chest_fly-05.mp4",
-      "poster": "videos/lib/dumbbell_chest_fly-05.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 7.3,
-      "sizeBytes": 219102
     }
   ],
   "lib-pec_deck_machine_chest_fly": [
@@ -2208,36 +2072,12 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "sizeBytes": 223675
     },
     {
-      "src": "videos/lib/skull_crusher-07.mp4",
-      "poster": "videos/lib/skull_crusher-07.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 9,
-      "sizeBytes": 314721
-    },
-    {
       "src": "videos/lib/skull_crusher-08.mp4",
       "poster": "videos/lib/skull_crusher-08.jpg",
       "width": 406,
       "height": 720,
       "durationSec": 10.7,
       "sizeBytes": 382979
-    },
-    {
-      "src": "videos/lib/skull_crusher-09.mp4",
-      "poster": "videos/lib/skull_crusher-09.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 14,
-      "sizeBytes": 363798
-    },
-    {
-      "src": "videos/lib/skull_crusher-10.mp4",
-      "poster": "videos/lib/skull_crusher-10.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 7.1,
-      "sizeBytes": 225610
     }
   ],
   "lib-overhead_triceps_extension": [
@@ -2280,22 +2120,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "height": 720,
       "durationSec": 8.7,
       "sizeBytes": 326894
-    },
-    {
-      "src": "videos/lib/overhead_triceps_extension-06.mp4",
-      "poster": "videos/lib/overhead_triceps_extension-06.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 11.9,
-      "sizeBytes": 422593
-    },
-    {
-      "src": "videos/lib/overhead_triceps_extension-07.mp4",
-      "poster": "videos/lib/overhead_triceps_extension-07.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 5.4,
-      "sizeBytes": 221984
     }
   ],
   "lib-triceps_kickback": [
@@ -2406,14 +2230,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "height": 720,
       "durationSec": 9.4,
       "sizeBytes": 325181
-    },
-    {
-      "src": "videos/lib/bench_dip-04.mp4",
-      "poster": "videos/lib/bench_dip-04.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 10.5,
-      "sizeBytes": 294689
     }
   ],
   "lib-dumbbell_curl": [
@@ -2618,14 +2434,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "sizeBytes": 419823
     },
     {
-      "src": "videos/lib/dumbbell_curl-26.mp4",
-      "poster": "videos/lib/dumbbell_curl-26.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 6.7,
-      "sizeBytes": 205383
-    },
-    {
       "src": "videos/lib/dumbbell_curl-27.mp4",
       "poster": "videos/lib/dumbbell_curl-27.jpg",
       "width": 406,
@@ -2674,14 +2482,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "height": 720,
       "durationSec": 14.3,
       "sizeBytes": 591744
-    },
-    {
-      "src": "videos/lib/preacher_curl-06.mp4",
-      "poster": "videos/lib/preacher_curl-06.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 8.2,
-      "sizeBytes": 224173
     },
     {
       "src": "videos/lib/preacher_curl-07.mp4",
@@ -2904,38 +2704,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "height": 720,
       "durationSec": 10.6,
       "sizeBytes": 289564
-    },
-    {
-      "src": "videos/lib/rear_delt_fly-25.mp4",
-      "poster": "videos/lib/rear_delt_fly-25.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 5.1,
-      "sizeBytes": 214021
-    },
-    {
-      "src": "videos/lib/rear_delt_fly-26.mp4",
-      "poster": "videos/lib/rear_delt_fly-26.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 11.3,
-      "sizeBytes": 348471
-    },
-    {
-      "src": "videos/lib/rear_delt_fly-27.mp4",
-      "poster": "videos/lib/rear_delt_fly-27.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 5.7,
-      "sizeBytes": 307229
-    },
-    {
-      "src": "videos/lib/rear_delt_fly-28.mp4",
-      "poster": "videos/lib/rear_delt_fly-28.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 6.1,
-      "sizeBytes": 282173
     }
   ],
   "lib-lateral_raise": [
@@ -3004,14 +2772,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "sizeBytes": 309874
     },
     {
-      "src": "videos/lib/lateral_raise-09.mp4",
-      "poster": "videos/lib/lateral_raise-09.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 10.4,
-      "sizeBytes": 310507
-    },
-    {
       "src": "videos/lib/lateral_raise-10.mp4",
       "poster": "videos/lib/lateral_raise-10.jpg",
       "width": 406,
@@ -3074,14 +2834,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "height": 720,
       "durationSec": 6.9,
       "sizeBytes": 220407
-    },
-    {
-      "src": "videos/lib/lateral_raise-18.mp4",
-      "poster": "videos/lib/lateral_raise-18.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 5.1,
-      "sizeBytes": 246813
     },
     {
       "src": "videos/lib/lateral_raise-19.mp4",
@@ -3744,14 +3496,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "height": 720,
       "durationSec": 10.1,
       "sizeBytes": 523470
-    },
-    {
-      "src": "videos/lib/leg_press-11.mp4",
-      "poster": "videos/lib/leg_press-11.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 13.2,
-      "sizeBytes": 465917
     }
   ],
   "lib-leg_curl": [
@@ -3972,14 +3716,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "sizeBytes": 278654
     },
     {
-      "src": "videos/lib/hip_thrust-02.mp4",
-      "poster": "videos/lib/hip_thrust-02.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 6.4,
-      "sizeBytes": 266444
-    },
-    {
       "src": "videos/lib/hip_thrust-03.mp4",
       "poster": "videos/lib/hip_thrust-03.jpg",
       "width": 406,
@@ -4089,10 +3825,6 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
       {
         "topic": "Cable Crunch Mistakes (FIX THESE!) Mistake : Misaligned Forearms Letting your forearms dri",
         "url": "https://www.tiktok.com/@deltabolic/video/7468103892346162437"
-      },
-      {
-        "topic": "com ( ) Don’t Do Cable Crunches Like This!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7575749385187904769"
       },
       {
         "topic": "FIX Your Cable Crunch Mistakes!",
@@ -4235,32 +3967,12 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
         "url": "https://www.tiktok.com/@deltabolic/video/7578681299326504208"
       },
       {
-        "topic": "com ( ) Do Lat Pulldowns LIKE THIS!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7586860337199090960"
-      },
-      {
-        "topic": "Do Lat Pulldowns LIKE THIS!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7602436025993989393"
-      },
-      {
         "topic": "official- . You’re Doing Lat Pulldowns WRONG!",
         "url": "https://www.tiktok.com/@deltabolic/video/7606895439022984449"
       },
       {
-        "topic": "Stop Using Your Triceps on the Lat Pulldown!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7623915507929959697"
-      },
-      {
-        "topic": "Straight-Arm Pulldown COMPLETE Guide",
-        "url": "https://www.tiktok.com/@deltabolic/video/7636953632805506320"
-      },
-      {
         "topic": "Lat Pulldown - Elbows Tucked vs Flared If you tuck in your elbows and drive your elbows to",
         "url": "https://www.tiktok.com/@deltabolic/video/7668819778538081553"
-      },
-      {
-        "topic": "Don’t Do THIS on the Lat Pulldown!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7669146131384782096"
       }
     ],
     "totalAvailable": 25
@@ -4340,16 +4052,8 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
         "url": "https://www.tiktok.com/@deltabolic/video/7579784401383361793"
       },
       {
-        "topic": "com ( ) The PERFECT Cable Row",
-        "url": "https://www.tiktok.com/@deltabolic/video/7581633130717531409"
-      },
-      {
         "topic": "Cable Row Handles & Muscles Worked Single D-Handle — Best for isolating the lats V-Handle ",
         "url": "https://www.tiktok.com/@deltabolic/video/7603928125751282960"
-      },
-      {
-        "topic": "Stop Using Your Biceps on Cable Rows!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7624689912972889345"
       },
       {
         "topic": "FIX Your Cable Row Mistakes!",
@@ -4768,16 +4472,8 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
         "url": "https://www.tiktok.com/@deltabolic/video/7243972025310596357"
       },
       {
-        "topic": "AVOID placing the bar too high on the palm of your hand Rest the bar on the base of the pa",
-        "url": "https://www.tiktok.com/@deltabolic/video/7244334326920400133"
-      },
-      {
         "topic": "STOP FLARING YOUR ELBOWS during bench press!",
         "url": "https://www.tiktok.com/@deltabolic/video/7255380351885905157"
-      },
-      {
-        "topic": "STOP locking out your elbows on the bench press!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7328124394126068997"
       },
       {
         "topic": "Follow these 6 form tips for the perfect bench press.",
@@ -4812,10 +4508,6 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
         "url": "https://www.tiktok.com/@deltabolic/video/7577905654845787409"
       },
       {
-        "topic": "com ( ) Bench Press Grip Widths & Muscles Worked Any bench press grip will train your ches",
-        "url": "https://www.tiktok.com/@deltabolic/video/7580924307560254736"
-      },
-      {
         "topic": "com ( ) DON’T DO THIS on the Bench Press!",
         "url": "https://www.tiktok.com/@deltabolic/video/7585742931269520641"
       },
@@ -4830,10 +4522,6 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
       {
         "topic": "How to Perform the Perfect Close-Grip Bench Press 1 ⃣ Grip the bar slightly narrower than ",
         "url": "https://www.tiktok.com/@deltabolic/video/7614352185425415440"
-      },
-      {
-        "topic": "Fix Your Bench Press!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7625058981471472913"
       },
       {
         "topic": "Bench Press Grip Widths (KNOW THE DIFFERENCE!) Wide Grip – more chest involvement, but als",
@@ -4925,10 +4613,6 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
         "url": "https://www.tiktok.com/@deltabolic/video/7170072779159588102"
       },
       {
-        "topic": "STOP raising your shoulders during pushups!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7229117703041174790"
-      },
-      {
         "topic": "Stop doing pushups like this, with the elbows pointing directly to the side and the arms a",
         "url": "https://www.tiktok.com/@deltabolic/video/7314024919380069638"
       },
@@ -4955,10 +4639,6 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
       {
         "topic": "com ( ) Don’t Do Push-Ups Like This!",
         "url": "https://www.tiktok.com/@deltabolic/video/7581595657069169936"
-      },
-      {
-        "topic": "com Do Push-Ups LIKE THIS!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7585770367348673793"
       },
       {
         "topic": "Fix THESE Pushup Mistakes!",
@@ -5052,10 +4732,6 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
       {
         "topic": "Machine Chest Fly Mistakes Mistake : Keeping your elbows level with your shoulders This ca",
         "url": "https://www.tiktok.com/@deltabolic/video/7664414076881128721"
-      },
-      {
-        "topic": "Fix THESE Cable Chest Fly Mistakes!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7666620266960801040"
       }
     ],
     "totalAvailable": 21
@@ -5109,10 +4785,6 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
       {
         "topic": "The PERFECT Dumbbell Chest Press 1 ⃣ Roll your shoulders back and keep your chest up.",
         "url": "https://www.tiktok.com/@deltabolic/video/7564918676189662481"
-      },
-      {
-        "topic": "Don’t Do Dumbbell Chest Press Like This!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7622766689603685633"
       }
     ],
     "totalAvailable": 12
@@ -5196,10 +4868,6 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
       {
         "topic": "AVOID THIS MISTAKE on the Dumbbell Fly!",
         "url": "https://www.tiktok.com/@deltabolic/video/7482506524871380279"
-      },
-      {
-        "topic": "You’re Doing Dumbbell Flyes Wrong!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7622835195439320337"
       }
     ],
     "totalAvailable": 5
@@ -5393,20 +5061,8 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
         "url": "https://www.tiktok.com/@deltabolic/video/7481056083109285125"
       },
       {
-        "topic": "The PERFECT Skull Crusher Tip : a thumbless grip — this makes it easier to keep your elbow",
-        "url": "https://www.tiktok.com/@deltabolic/video/7580540364319132945"
-      },
-      {
         "topic": "FIX Your Lying Triceps Extension!",
         "url": "https://www.tiktok.com/@deltabolic/video/7604656042290515201"
-      },
-      {
-        "topic": "STOP Doing Skull Crushers LIKE THIS!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7612098282692611345"
-      },
-      {
-        "topic": "Fix Your Lying Triceps Extensions!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7636116644674161921"
       }
     ],
     "totalAvailable": 10
@@ -5436,14 +5092,6 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
       {
         "topic": "com ( ) Don’t Do Cable Overhead Extensions LIKE THIS!",
         "url": "https://www.tiktok.com/@deltabolic/video/7599473749439663361"
-      },
-      {
-        "topic": "Overhead Triceps Extension Complete Guide",
-        "url": "https://www.tiktok.com/@deltabolic/video/7627614725223812369"
-      },
-      {
-        "topic": "Most People Set This Up WRONG Most people set the pulley at the lowest position for overhe",
-        "url": "https://www.tiktok.com/@deltabolic/video/7627989099143597329"
       }
     ],
     "totalAvailable": 7
@@ -5523,10 +5171,6 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
       {
         "topic": "The PERFECT Bench Dip Form!",
         "url": "https://www.tiktok.com/@deltabolic/video/7512952024208526598"
-      },
-      {
-        "topic": "Muscle .com ( ) The PERFECT Bench Dip",
-        "url": "https://www.tiktok.com/@deltabolic/video/7567933458475928840"
       }
     ],
     "totalAvailable": 4
@@ -5638,10 +5282,6 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
         "url": "https://www.tiktok.com/@deltabolic/video/7587577174572469521"
       },
       {
-        "topic": "You’re (Probably) Doing Incline Bicep Curls Wrong!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7615013821366816017"
-      },
-      {
         "topic": "Bicep Curl Mistakes (FIX THESE!) Mistake : Letting your elbows drift too far forward This ",
         "url": "https://www.tiktok.com/@deltabolic/video/7648401303642590471"
       }
@@ -5673,10 +5313,6 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
       {
         "topic": "com ( ) DO THIS to Avoid a Biceps Tendon Tear The preacher curl is generally safe when per",
         "url": "https://www.tiktok.com/@deltabolic/video/7558280905333280001"
-      },
-      {
-        "topic": "com ( ) The PERFECT Machine Preacher Curl 1 ⃣ Keep your wrists neutral — this keeps tensio",
-        "url": "https://www.tiktok.com/@deltabolic/video/7560124224904416513"
       },
       {
         "topic": "PERFECT Preacher Curl Form 1 ⃣ Keep your wrists neutral — don’t let them bend back 2 ⃣ Kee",
@@ -5812,22 +5448,6 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
       {
         "topic": "com ( ) The PERFECT Rear Delt Machine Fly (DO THIS!) 1 ⃣ Use a pronated grip (palms facing",
         "url": "https://www.tiktok.com/@deltabolic/video/7593889719436496144"
-      },
-      {
-        "topic": "Rear Delt Fly Machine Mistake A common mistake on the rear delt fly (pec deck) is squeezin",
-        "url": "https://www.tiktok.com/@deltabolic/video/7600597121871531280"
-      },
-      {
-        "topic": "Rear Delt Dumbbell Fly – Proper Form Guide",
-        "url": "https://www.tiktok.com/@deltabolic/video/7610208047830437137"
-      },
-      {
-        "topic": "Don’t Make This Face Pull Mistake!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7635443784578387217"
-      },
-      {
-        "topic": "Reverse Machine Fly Mistake If your goal is to isolate your rear delts as much as possible",
-        "url": "https://www.tiktok.com/@deltabolic/video/7636159246161169665"
       }
     ],
     "totalAvailable": 28
@@ -5871,10 +5491,6 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
         "url": "https://www.tiktok.com/@deltabolic/video/7153285645732039941"
       },
       {
-        "topic": "STOP elevating your shoulders during lateral raises!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7230619955937561862"
-      },
-      {
         "topic": "STOP DOING LATERAL RAISES LIKE THIS, standing completely straight with your arms fully ext",
         "url": "https://www.tiktok.com/@deltabolic/video/7294419546859916550"
       },
@@ -5905,10 +5521,6 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
       {
         "topic": "Stop Making This Lateral Raise Mistake!",
         "url": "https://www.tiktok.com/@deltabolic/video/7594268968643284225"
-      },
-      {
-        "topic": "Stop shrugging your shoulders during lateral raises.",
-        "url": "https://www.tiktok.com/@deltabolic/video/7635387543650913537"
       },
       {
         "topic": "FIX THESE Lateral Raise Mistakes Mistake : Keeping your arms locked straight and raising t",
@@ -6328,10 +5940,6 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
       {
         "topic": "official - . Leg Press Mistakes You NEED to Fix Mistake : Lower back rounding & butt lifti",
         "url": "https://www.tiktok.com/@deltabolic/video/7642092035922464017"
-      },
-      {
-        "topic": "You’re Doing the Leg Press WRONG!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7651794944499240193"
       }
     ],
     "totalAvailable": 11
@@ -6483,10 +6091,6 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
         "url": "https://www.tiktok.com/@deltabolic/video/7490726393131699462"
       },
       {
-        "topic": "Hip Thrust Foot Placement & Muscles Worked No matter where you place your feet, the hip th",
-        "url": "https://www.tiktok.com/@deltabolic/video/7643944699027328273"
-      },
-      {
         "topic": "official - . The PERFECT Machine Hip Thrust",
         "url": "https://www.tiktok.com/@deltabolic/video/7670695056315092244"
       }
@@ -6559,7 +6163,7 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
 export const LIBRARY_TOTAL_BYTES = 192023654
 
 /** מספר סרטוני המאגר שנכנסו לבנייה */
-export const LIBRARY_COUNT = 487
+export const LIBRARY_COUNT = 454
 
 /** התקרה שהופעלה בייבוא, או null כשהכל נכנס */
 export const LIBRARY_MAX_PER_EXERCISE: number | null = null
