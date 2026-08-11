@@ -8,7 +8,7 @@ import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { getAllPrs, getSubstituteCandidates } from '@/db/queries'
 import { EQUIPMENT_LABELS, MUSCLE_GROUPS } from '@/db/types'
 import type { Exercise, PersonalRecord } from '@/db/types'
-import { formatWeight } from '@/domain/units'
+import { formatClock, formatWeight } from '@/domain/units'
 import { distinguisher, duplicateNames } from '@/domain/naming'
 import { normalize } from '@/lib/text'
 
@@ -33,7 +33,11 @@ function prText(ex: Exercise, prs: PersonalRecord[]): string | null {
   const own = prs.filter((p) => p.exerciseId === ex.id)
   if (ex.weightMode === 'bodyweight') {
     const reps = own.find((p) => p.kind === 'maxReps')
-    return reps ? `שיא: ${reps.value} חזרות` : null
+    if (!reps) return null
+    // פלאנק נמדד בשניות. "שיא: 80 חזרות" הוא בדיוק סוג המספר שמאבד אמון.
+    return ex.metric === 'seconds'
+      ? `שיא: ${formatClock(reps.value)}`
+      : `שיא: ${reps.value} חזרות`
   }
   const max = own.find((p) => p.kind === 'maxWeight')
   return max ? `שיא: ${formatWeight(max.value, ex.weightMode)}` : null

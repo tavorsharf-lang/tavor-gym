@@ -588,11 +588,19 @@ export const useWorkout = create<WorkoutState>((set, get) => {
       המטמון שבזיכרון מתעדכן איתה כי הכרטיס קורא ממנו ולא מ-liveQuery.
     */
     async saveNote(exerciseId, note) {
-      const current = get().exercisesById[exerciseId]
-      if (!current) return
       const trimmed = note.trim()
+      /*
+        קריאה מהמסד ולא מהמטמון שבזיכרון.
+
+        `exercisesById` הוא תצלום שנלקח בתחילת האימון. כתיבה חזרה שלו הייתה
+        מחזירה לאחור כל עריכה שנעשתה בינתיים במסך הקטלוג — שם, טווח, מצב
+        משקל — כי ה-put דורס את כל השורה. השדה היחיד שהפעולה הזו אמורה לגעת
+        בו הוא ההערה.
+      */
+      const stored = await db.exercises.get(exerciseId)
+      if (!stored) return
       const next: Exercise = {
-        ...current,
+        ...stored,
         personalNote: trimmed || undefined,
         updatedAt: Date.now(),
       }
@@ -794,7 +802,13 @@ export const useWorkout = create<WorkoutState>((set, get) => {
 
 // ─── סלקטורים ──────────────────────────────────────────────────────────────
 
-/** קבוצות השריר שכבר נעבדו באימון הזה — הבסיס להצעת סט החימום */
+/**
+ * קבוצות השריר שכבר *עבדו* באימון הזה — הבסיס להצעת סט החימום.
+ *
+ * רק סטי עבודה נספרים, וזה הכרחי ולא ניואנס: סט חימום שנרשם הוא בדיוק החימום
+ * שאנחנו באמצע, ולכן ספירה שלו סימנה את השריר כמחומם וקיפלה את הרמפה אחרי
+ * השלב הראשון — שלבים 2 ו-3 לא הוצעו לעולם. חימום נגמר כשמתחילים לעבוד.
+ */
 export function touchedGroups(
   workout: ActiveWorkout | null,
   exercisesById: Record<string, Exercise>
@@ -802,7 +816,8 @@ export function touchedGroups(
   const out = new Set<MuscleGroup>()
   if (!workout) return out
   for (const item of workout.queue) {
-    if (!(workout.setsByKey[item.key]?.length ?? 0)) continue
+    const sets = workout.setsByKey[item.key] ?? []
+    if (!sets.some((s) => s.type === 'work')) continue
     const ex = exercisesById[item.exerciseId]
     if (ex) out.add(ex.muscleGroup)
   }

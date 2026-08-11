@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { App } from './App'
 import { db, ensureReady } from './db/db'
-import { useWorkout } from './state/activeWorkoutStore'
+import { touchedGroups, useWorkout } from './state/activeWorkoutStore'
+import { suggestWarmup } from './domain/warmup'
 
 /**
  * זרימת אימון מקצה לקצה, בתוך jsdom.
@@ -465,5 +466,59 @@ describe('פעולות התור נשמרות לדיסק', () => {
     expect(useWorkout.getState().workout!.restEndsAt!).toBeGreaterThan(Date.now())
     // המינימום של restTotalSeconds הוא 5 שניות, לא מספר שלילי
     expect(useWorkout.getState().workout!.restTotalSeconds).toBeGreaterThanOrEqual(5)
+  }, 20000)
+})
+
+/**
+ * רמפת החימום קרסה אחרי השלב הראשון: סט חימום שנרשם סימן את השריר כ"כבר
+ * עבדנו עליו", ולכן שלבים 2 ו-3 לא הוצעו לעולם. חימום נגמר כשמתחילים לעבוד.
+ */
+describe('רמפת חימום מתקדמת בין השלבים', () => {
+  beforeEach(resetAll)
+
+  it('סט חימום לא מסמן את השריר כמחומם, וסט עבודה כן', async () => {
+    await useWorkout.getState().start('C', []) // אימון רגליים — לחיצת רגליים ראשונה
+    const key = useWorkout.getState().workout!.currentKey!
+    const byId = () => useWorkout.getState().exercisesById
+    const groups = () => touchedGroups(useWorkout.getState().workout, byId())
+
+    expect(groups().has('legs')).toBe(false)
+
+    await useWorkout.getState().logSet(key, 'warmup', 60, 10)
+    expect(groups().has('legs')).toBe(false)
+
+    await useWorkout.getState().logSet(key, 'work', 160, 12)
+    expect(groups().has('legs')).toBe(true)
+  }, 20000)
+
+  it('שלושת שלבי הרמפה מוצעים בזה אחר זה', async () => {
+    await useWorkout.getState().start('C', [])
+    const w = () => useWorkout.getState().workout!
+    const key = w().currentKey!
+    const exercise = useWorkout.getState().exercisesById['leg-press']
+
+    const nextStep = () => {
+      const plan = suggestWarmup({
+        exercise,
+        touchedGroups: touchedGroups(w(), useWorkout.getState().exercisesById),
+        plannedWeightKg: 160,
+        enabled: true,
+        percent: 55,
+      })
+      const done = (w().setsByKey[key] ?? []).filter((s) => s.type === 'warmup').length
+      return plan[done] ?? null
+    }
+
+    const seen: number[] = []
+    for (let i = 0; i < 3; i++) {
+      const step = nextStep()
+      expect(step).not.toBeNull()
+      seen.push(step!.weightKg)
+      await useWorkout.getState().logSet(key, 'warmup', step!.weightKg, step!.reps)
+    }
+
+    // שלושה שלבים עולים, ואחריהם אין מה להציע
+    expect(seen).toEqual([60, 95, 125])
+    expect(nextStep()).toBeNull()
   }, 20000)
 })

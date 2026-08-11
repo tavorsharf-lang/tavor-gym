@@ -509,3 +509,106 @@ describe('סטים חריגים לא שוברים את ההמלצה', () => {
     expect(recommendWeight(exercise, [session]).action).toBe('hold')
   })
 })
+
+/**
+ * הסינון של משקל העבודה — המקרים שהגרסה הראשונה שלו החמיצה.
+ *
+ * שתי הטעויות היו: סובלנות סימטרית של קפיצה אחת, שהחמיצה את החריג *הנפוץ
+ * ביותר* (ניסיון שיא הוא בדרך כלל מדרגה אחת מעל); וסינון שהשאיר סט בודד
+ * בפירמידה, ואז "כל הסטים הגיעו לראש הטווח" נעשה נכון טריוויאלית.
+ */
+describe('סינון משקל העבודה — מקרי הגבול', () => {
+  const legPress = makeExercise({ weightIncrementKg: 5, targetReps: { min: 8, max: 12 } })
+
+  it('ניסיון שיא של מדרגה אחת מעל משקל העבודה לא מבטל עלייה', () => {
+    const session = makeSession(
+      's1',
+      1000,
+      [
+        [160, 12],
+        [160, 12],
+        [160, 12],
+        [165, 3],
+      ],
+      rate(1)
+    )
+    const r = recommendWeight(legPress, [session])
+    expect(r.action).toBe('increase')
+    expect(r.weightKg).toBe(165)
+  })
+
+  it('פירמידה יורדת לא הופכת ל"כל הסטים הגיעו לראש הטווח"', () => {
+    // 60 טוב ואז קריסה. כל המשקלים שונים, ולכן אין קבוצת משקל עבודה — מודדים הכל.
+    const exercise = makeExercise({ targetReps: { min: 8, max: 12 } })
+    const session = makeSession('s1', 1000, [
+      [60, 12],
+      [55, 5],
+      [50, 5],
+    ])
+    const r = recommendWeight(exercise, [session])
+    expect(r.action).not.toBe('increase')
+    expect(r.reason).not.toContain('כל הסטים')
+  })
+
+  it('שני סטים באותו משקל כן מהווים קבוצת עבודה', () => {
+    const exercise = makeExercise({ targetReps: { min: 8, max: 12 } })
+    const session = makeSession('s1', 1000, [
+      [60, 12],
+      [60, 12],
+      [70, 2],
+    ])
+    expect(recommendWeight(exercise, [session]).action).toBe('increase')
+  })
+
+  it('סט עבודה יחיד נמדד כמו שהוא', () => {
+    const exercise = makeExercise({ targetReps: { min: 8, max: 12 } })
+    const session = makeSession('s1', 1000, [[60, 5]])
+    expect(recommendWeight(exercise, [session]).action).toBe('hold')
+  })
+})
+
+/** ההפסקה גוברת גם בתרגילי משקל גוף — שניים מהם בכל אימון פול-באדי */
+describe('ריסון הפסקה במשקל גוף', () => {
+  const pushup = makeExercise({
+    weightMode: 'bodyweight',
+    weightIncrementKg: 0,
+    seedWeightKg: null,
+    targetReps: { min: 8, max: 12 },
+  })
+
+  it('אחרי שלושה חודשים לא מציעים לשבור את השיא', () => {
+    const session = makeSession('s1', 1000, [
+      [0, 12],
+      [0, 12],
+    ])
+    const now = 1000 + 90 * DAY
+    const r = recommendWeight(pushup, [session], undefined, now)
+    expect(r.action).toBe('decrease')
+    expect(r.targetCount).toBeLessThan(12)
+    expect(r.reason).toContain('שבועות')
+  })
+
+  it('בלי הפסקה ההתנהגות לא משתנה', () => {
+    const session = makeSession('s1', 1000, [
+      [0, 12],
+      [0, 12],
+    ])
+    const r = recommendWeight(pushup, [session], undefined, 1000 + 3 * DAY)
+    expect(r.action).toBe('increase')
+    expect(r.targetCount).toBe(13)
+  })
+
+  it('פלאנק אחרי הפסקה — יעד נמוך יותר בשניות', () => {
+    const plank = makeExercise({
+      weightMode: 'bodyweight',
+      weightIncrementKg: 0,
+      seedWeightKg: null,
+      metric: 'seconds',
+      targetReps: { min: 75, max: 75 },
+    })
+    const session = makeSession('s1', 1000, [[0, 90]])
+    const r = recommendWeight(plank, [session], undefined, 1000 + 90 * DAY)
+    expect(r.action).toBe('decrease')
+    expect(r.targetCount).toBeLessThan(90)
+  })
+})

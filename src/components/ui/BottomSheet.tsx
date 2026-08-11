@@ -89,10 +89,14 @@ export function BottomSheet({
       const first = items[0]
       const last = items[items.length - 1]
       const active = document.activeElement
-      if (e.shiftKey && (active === first || !panelRef.current?.contains(active))) {
+      // פוקוס שאינו בתוך הפאנל — בדרך כלל <body> אחרי נגיעה באזור לא ממוקד —
+      // חייב להיתפס בשני הכיוונים. בלי זה Tab היה מעביר אותו לאלמנט הראשון
+      // במסמך, כלומר לתוכן שמאחורי ה-backdrop.
+      const outside = !panelRef.current?.contains(active)
+      if (e.shiftKey && (outside || active === first)) {
         e.preventDefault()
         last.focus()
-      } else if (!e.shiftKey && active === last) {
+      } else if (!e.shiftKey && (outside || active === last)) {
         e.preventDefault()
         first.focus()
       }

@@ -23,6 +23,12 @@ import { normalize } from '@/lib/text'
 /** כמה אימונים מרונדרים בכל פעם. גדול מספיק שרוב הפעמים לא צריך "הצג עוד". */
 const PAGE_SIZE = 50
 
+/**
+ * החלון האחרון שנפתח, ששורד ניווט למסך אחר וחזרה.
+ * מודול ולא state: המסך מתפרק, ו-`useScrollMemory` צריך שהגובה יחזור כמו שהיה.
+ */
+let historyWindow = PAGE_SIZE
+
 const HEADER_BOTTOM = 'calc(var(--safe-t) + 4.25rem)'
 /** תחתית שורת החיפוש הנעוצה — משם מתחילות כותרות החודשים */
 const SEARCH_BOTTOM = 'calc(var(--safe-t) + 8rem)'
@@ -105,7 +111,16 @@ export function HistoryScreen(): JSX.Element {
     כ-470 כרטיסים בפתיחה אחת של הטאב, כל אחד עם כותרת דביקה ו-backdrop-blur.
     ההרחבה היא append בלבד, ולכן `useScrollMemory` ממשיך לעבוד כרגיל.
   */
-  const [visible, setVisible] = useState(PAGE_SIZE)
+  /*
+    כמה מרונדר — נשמר בין ביקורים במסך.
+
+    כניסה לאימון וחזרה מפרקות את המסך, ו-state רגיל היה מתאפס ל-50. אז הדף
+    מתקצר לשליש מגובהו, `useScrollMemory` מנסה לגלול ליעד ששמר, לא מצליח
+    להגיע אליו, שורף 30 פריימים ומוותר — והמשתמש נוחת בתחתית 50 הכרטיסים
+    הראשונים במקום על האימון שממנו יצא. מודול ולא state כי הוא חייב לשרוד את
+    הפירוק, בדיוק כמו מפת הגלילה עצמה.
+  */
+  const [visible, setVisible] = useState(historyWindow)
   const shown = useMemo(() => (sessions ?? []).slice(0, visible), [sessions, visible])
   const hiddenCount = (sessions?.length ?? 0) - shown.length
 
@@ -114,6 +129,7 @@ export function HistoryScreen(): JSX.Element {
   const [seenFilter, setSeenFilter] = useState(filterKey)
   if (seenFilter !== filterKey) {
     setSeenFilter(filterKey)
+    historyWindow = PAGE_SIZE
     setVisible(PAGE_SIZE)
   }
 
@@ -320,7 +336,12 @@ export function HistoryScreen(): JSX.Element {
       {hiddenCount > 0 ? (
         <button
           type="button"
-          onClick={() => setVisible((n) => n + PAGE_SIZE)}
+          onClick={() =>
+            setVisible((n) => {
+              historyWindow = n + PAGE_SIZE
+              return historyWindow
+            })
+          }
           className="btn-ghost mt-2 flex min-h-14 w-full items-center justify-center rounded-card text-sm font-bold"
         >
           <span className="tnum">הצג עוד {Math.min(hiddenCount, PAGE_SIZE)}</span>

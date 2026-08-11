@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { JSX } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ArrowDown, ArrowUp, Flame, Minus } from 'lucide-react'
-import { getAllExercises, getSessionsSince } from '@/db/queries'
+import { getAllExercises, getSessionsSince, hasAnyFinishedSession } from '@/db/queries'
 import type { GroupVolume, WeeklyBreakdown } from '@/domain/stats'
 import { compareWeeks, emptyGroupVolumes, weeklyBreakdown } from '@/domain/stats'
 import { formatVolume } from '@/domain/units'
@@ -154,12 +154,19 @@ export function VolumeDashboard(): JSX.Element {
       שבוע נוסף אחורה כי `previousWeekStart` צריך בסיס להשוואה.
     */
     const from = weekChain(startOfWeek(Date.now()), WEEKS_BACK + 1)[0]
-    const [{ sessions, sets }, exercises] = await Promise.all([
+    const [{ sessions, sets }, exercises, everTrained] = await Promise.all([
       getSessionsSince(from),
       // כולל תרגילים שהוצאו מהקטלוג — אחרת נפח היסטורי היה נעלם מהקבוצה שלו
       getAllExercises(true),
+      /*
+        "האם התאמנת אי פעם" הוא לא "האם התאמנת בשמונת השבועות האחרונים".
+        מאז שהשאילתה מוגבלת לחלון, מי שחזר אחרי הפסקה של יותר משמונה שבועות
+        קיבל "אין עדיין מה למדוד" — בדיוק המשתמש שכל האפליקציה בנויה סביבו.
+        count על טבלת האימונים לא קורא רשומות ולכן הוא זול.
+      */
+      hasAnyFinishedSession(),
     ])
-    return { sessions, sets, exercises }
+    return { sessions, sets, exercises, everTrained }
   }, [])
 
   const weeks = useMemo(() => {
@@ -204,7 +211,7 @@ export function VolumeDashboard(): JSX.Element {
   const copy = COPY[range]
   const neglectedCount = view.comparisons.filter((c) => c.neglected).length
   const maxVolume = Math.max(...view.comparisons.map((c) => c.current), 1)
-  const hasHistory = (data?.sessions.length ?? 0) > 0
+  const hasHistory = data?.everTrained ?? false
 
   return (
     <section>

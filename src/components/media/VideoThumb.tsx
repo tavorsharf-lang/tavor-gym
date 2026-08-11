@@ -69,7 +69,18 @@ export function VideoThumb({
   const box = size === 'sm' ? 'h-14 w-14' : 'h-20 w-20'
   const inner = (
     <>
-      <img src={url} alt="" className="h-full w-full object-cover" loading="lazy" />
+      {/*
+        תמונות המאגר אינן ב-precache (הן 7.4MB), ולכן אופליין הן פשוט לא
+        נטענות. בלי onError הדפדפן היה מצייר ריבוע תמונה שבורה בכל שורה —
+        גרוע יותר משורה בלי תמונה בכלל.
+      */}
+      <img
+        src={url}
+        alt=""
+        className="h-full w-full object-cover"
+        loading="lazy"
+        onError={() => setUrl(null)}
+      />
       <span className="absolute inset-0 flex items-center justify-center bg-ink-950/35">
         <Play size={size === 'sm' ? 16 : 20} className="text-bone-50 drop-shadow" fill="currentColor" />
       </span>

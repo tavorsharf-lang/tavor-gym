@@ -101,7 +101,8 @@ SUBJECT="$(git log -1 --pretty=%s)"
   fi
   git push --quiet --force origin "$BRANCH"
 )
-echo "▸ נדחף ל-$BRANCH"
+PUSHED_SHA="$(git -C "$ROOT/$WORKTREE" rev-parse HEAD)"
+echo "▸ נדחף ל-$BRANCH ($PUSHED_SHA)"
 
 # ── שער 2: פורסם באמת? ──
 #
@@ -129,8 +130,17 @@ while :; do
   fi
 
   if [ "$GH_OK" -eq 1 ]; then
-    STATUS="$(gh api "repos/$REPO/pages/builds/latest" --jq '.status' 2>/dev/null || echo '?')"
-    if [ "$STATUS" = "errored" ]; then
+    BUILD="$(gh api "repos/$REPO/pages/builds/latest" --jq '.status + " " + (.commit // "")' 2>/dev/null || echo '?')"
+    STATUS="${BUILD%% *}"
+    BUILD_SHA="${BUILD#* }"
+    #
+    # 'errored' מפיל רק אם הוא שייך לדחיפה *הזו*.
+    #
+    # ‎builds/latest מחזיר את הבנייה האחרונה שהסתיימה, לא בהכרח את זו שנוצרה
+    # לפני שנייה. אחרי בנייה קודמת שנכשלה — בדיוק התרחיש שהקובץ הזה קיים
+    # בשבילו — האיטרציה הראשונה הייתה קוראת את הכישלון הישן ומפילה פריסה
+    # תקינה תוך שנייה, בלי לתת ל-Pages בכלל להתחיל.
+    if [ "$STATUS" = "errored" ] && [ "$BUILD_SHA" = "$PUSHED_SHA" ]; then
       echo "✗ בניית Pages נכשלה. הרץ שוב — קומיט חדש לענף בדרך כלל מעורר בנייה תקינה." >&2
       exit 1
     fi

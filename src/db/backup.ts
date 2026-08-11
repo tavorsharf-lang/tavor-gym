@@ -162,8 +162,19 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
   // גיבוי שנוצר לפני גרסה 4 לא מכיר את הקישור למאגר. בלי השתילה כאן, שחזור
   // היה מוחק את הקישורים במקום להשאיר אותם כמו שהיו לפני הייבוא.
   const exercises = (data.exercises ?? []).map(withLibraryLink).map(withTimedMetric)
-  const routines = (data.routines ?? []).map(withTimedPlanItems)
-  const blocks = (data.blocks ?? []).map(withTimedPlanItems)
+  /*
+    רק פריטי התוכנית של תרגילים שהגיעו מהקובץ *בלי* metric מתוקנים.
+
+    בלי התנאי הזה כל ייבוא היה כותב את היעד המקורי לכל פריט פלאנק — כלומר
+    שחזור של גיבוי עדכני היה מוחק יעד שהמשתמש קבע בעצמו בעורך התוכניות
+    (75 במקום 90), ומשאיר את הקטלוג והתוכנית סותרים זה את זה. תיקון-קדימה
+    אמור לגעת רק במה שבאמת ישן.
+  */
+  const legacyTimed = new Set(
+    (data.exercises ?? []).filter((e) => TIMED_SEED[e.id] && !e.metric).map((e) => e.id)
+  )
+  const routines = (data.routines ?? []).map((r) => withTimedPlanItems(r, legacyTimed))
+  const blocks = (data.blocks ?? []).map((b) => withTimedPlanItems(b, legacyTimed))
   /*
     סטים בלי סשן לא נכנסים.
 
@@ -173,6 +184,7 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
     נראים בהיסטוריה ולכן בלתי ניתנים למחיקה. הסינון כאן מנקה בדרך אגב גם
     יתומים שכבר יושבים בגיבויים ישנים.
   */
+  let rebuiltPrCount = 0
   const sessionIds = new Set((data.sessions ?? []).map((s) => s.id))
   const setLogs = (data.setLogs ?? []).filter((s) => sessionIds.has(s.sessionId))
 
@@ -220,7 +232,9 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
           שהסטים שלו לא בגיבוי, או קובץ ערוך — היה שורד כשיא רפאים שמדכא קונפטי
           של שיאים אמיתיים. הסטים הם מקור האמת היחיד, וזה מה שהופך את זה לאמת.
         */
-        await db.prs.bulkPut(rebuildPrs(exercises, setLogs))
+        const rebuilt = rebuildPrs(exercises, setLogs)
+        rebuiltPrCount = rebuilt.length
+        await db.prs.bulkPut(rebuilt)
       }
     )
   } catch (err) {
@@ -230,9 +244,21 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
   // ההגדרות הוחלפו, ואיתן רשימת הסרטונים שנמחקו — המטמון שבזיכרון כבר לא נכון
   invalidateHiddenVideos()
 
+  /*
+    הסיכום מדווח על מה שנכתב למסד, לא על מה שהיה בקובץ. שני החלקים נחתכו בדרך:
+    סטים בלי סשן סוננו, והשיאים נבנו מחדש מהסטים במקום להיכתב מהקובץ. דיווח
+    לפי הקובץ היה מבטיח מספרים שלא קיימים במסד.
+  */
+  const written: Partial<Record<TableKey, number>> = {
+    exercises: exercises.length,
+    routines: routines.length,
+    blocks: blocks.length,
+    setLogs: setLogs.length,
+    prs: rebuiltPrCount,
+  }
   const counts: Record<string, number> = {}
   for (const key of Object.keys(TABLE_LABELS) as TableKey[]) {
-    counts[TABLE_LABELS[key]] = (data[key] as unknown[]).length
+    counts[TABLE_LABELS[key]] = written[key] ?? (data[key] as unknown[]).length
   }
   return { ok: true, counts }
 }
@@ -253,12 +279,15 @@ function withTimedMetric(exercise: Exercise): Exercise {
   return { ...exercise, metric: 'seconds', targetReps: { ...range } }
 }
 
-function withTimedPlanItems<T extends { items: PlanItem[] }>(plan: T): T {
-  if (!plan.items?.some((it) => TIMED_SEED[it.exerciseId])) return plan
+function withTimedPlanItems<T extends { items: PlanItem[] }>(
+  plan: T,
+  legacyIds: ReadonlySet<string>
+): T {
+  if (legacyIds.size === 0 || !plan.items?.some((it) => legacyIds.has(it.exerciseId))) return plan
   return {
     ...plan,
     items: plan.items.map((it) =>
-      TIMED_SEED[it.exerciseId] ? { ...it, targetReps: { ...TIMED_SEED[it.exerciseId] } } : it
+      legacyIds.has(it.exerciseId) ? { ...it, targetReps: { ...TIMED_SEED[it.exerciseId] } } : it
     ),
   }
 }

@@ -86,6 +86,12 @@ export function VideoPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseId, libraryId, open, hiddenVersion])
 
+  // כישלון שייך לסרטון שנכשל, לא לנגן. בלי האיפוס הזה סרטון אחד שלא הותקן
+  // נעל את כל השאר על מסך "לא זמין אופליין" — גם את אלה שיושבים במכשיר.
+  useEffect(() => {
+    setFailed(false)
+  }, [index])
+
   // הגיליון נסגר יחד עם הנגן, אחרת הוא היה ממתין פתוח לפתיחה הבאה
   useEffect(() => {
     if (!open) setConfirmingDelete(false)

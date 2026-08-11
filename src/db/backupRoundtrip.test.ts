@@ -170,6 +170,69 @@ describe('ייבוא נתונים', () => {
   })
 
   /**
+   * תיקון-קדימה אמור לגעת רק במה שבאמת ישן. גרסה קודמת שלו כתבה את היעד
+   * המקורי לכל פריט פלאנק בכל ייבוא — כלומר שחזור של גיבוי עדכני מחק יעד
+   * שהמשתמש קבע בעצמו בעורך התוכניות, והשאיר קטלוג ותוכנית סותרים.
+   */
+  it('גיבוי עדכני לא מאבד יעד פלאנק שהמשתמש שינה', async () => {
+    await db.exercises.update('abs', { targetReps: { min: 90, max: 90 } })
+    const routines = await db.routines.toArray()
+    for (const r of routines) {
+      if (!r.items.some((it) => it.exerciseId === 'abs')) continue
+      await db.routines.put({
+        ...r,
+        items: r.items.map((it) =>
+          it.exerciseId === 'abs' ? { ...it, targetReps: { min: 90, max: 90 } } : it
+        ),
+      })
+    }
+
+    const json = await backupJson()
+    await importData(new File([JSON.stringify(json)], 'b.json'))
+
+    expect((await db.exercises.get('abs'))?.targetReps).toEqual({ min: 90, max: 90 })
+    const absItems = (await db.routines.toArray())
+      .flatMap((r) => r.items)
+      .filter((it) => it.exerciseId === 'abs')
+    expect(absItems.length).toBeGreaterThan(0)
+    expect(absItems.every((it) => it.targetReps.min === 90)).toBe(true)
+  })
+
+  it('הסיכום מדווח על מה שנכתב ולא על מה שהיה בקובץ', async () => {
+    const json = await backupJson()
+    json.sessions = []
+    json.setLogs = [
+      {
+        sessionId: 's-open',
+        exerciseId: 'leg-press',
+        setIndex: 0,
+        type: 'work',
+        weightKg: 100,
+        reps: 10,
+        completedAt: 1,
+      },
+    ]
+    json.prs = [
+      {
+        exerciseId: 'leg-press',
+        kind: 'maxWeight',
+        value: 999,
+        weightKg: 999,
+        reps: 1,
+        sessionId: 'ghost',
+        achievedAt: 1,
+      },
+    ]
+
+    const result = await importData(new File([JSON.stringify(json)], 'b.json'))
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    // הסט היתום סונן והשיא נבנה מחדש — שניהם אפס במסד
+    expect(result.counts['סטים']).toBe(0)
+    expect(result.counts['שיאים']).toBe(0)
+  })
+
+  /**
    * גיבוי שנוצר באמצע אימון פתוח מכיל את הסטים שלו בלי שורת session. בלי
    * הסינון הם היו הופכים ליתומים קבועים — נספרים בגרפים ובשיאים, בלתי נראים
    * בהיסטוריה, ובלתי ניתנים למחיקה.

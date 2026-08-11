@@ -285,7 +285,9 @@ export function ExerciseCard({
   // ואז השדות נטענים מחדש — אבל עריכה ידנית בין לבין נשמרת.
   const seedSig = `${item.key}|${sets.length}|${lastWork?.logId ?? 0}|${lastWork?.weightKg ?? 0}|${
     lastWork?.reps ?? 0
-  }|${recommendation.weightKg ?? 0}|${previousTop?.weightKg ?? 0}|${fallbackCount}`
+  }|${recommendation.weightKg ?? 0}|${recommendation.targetCount ?? 0}|${
+    previousTop?.weightKg ?? 0
+  }|${previousTop?.reps ?? 0}|${fallbackCount}`
   const [seenSig, setSeenSig] = useState(seedSig)
   if (seenSig !== seedSig) {
     setSeenSig(seedSig)

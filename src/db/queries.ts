@@ -183,6 +183,18 @@ export async function getSessionsSince(
   return { sessions, sets }
 }
 
+/**
+ * האם קיים ולו אימון אחד בהיסטוריה.
+ *
+ * `count()` על הטבלה ולא שאילתה על endedAt: השדה הזה אינו מאונדקס, ושורה
+ * בטבלת sessions נכתבת ממילא רק ב-finish — אימון פתוח חי ב-activeWorkout
+ * בלבד. הפונקציה משמשת רק כדי להחליט אם להראות מצב ריק, ולכן גם אם גיבוי
+ * ערוך ידנית היה מכניס שורה חריגה, המחיר הוא לוח שמוצג במקום מסך ריק.
+ */
+export async function hasAnyFinishedSession(): Promise<boolean> {
+  return (await db.sessions.count()) > 0
+}
+
 export async function getSession(id: string): Promise<Session | undefined> {
   return db.sessions.get(id)
 }
