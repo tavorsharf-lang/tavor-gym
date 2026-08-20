@@ -29,6 +29,7 @@ import { RemoveExerciseSheet } from '@/components/exercises/RemoveExerciseSheet'
 import { clipById } from '@/db/mediaDb'
 import { useHiddenVideoIds } from '@/db/hiddenVideos'
 import { groupContextId, useVideoPrefs } from '@/db/videoPrefs'
+import { cancelScrollRestore } from '@/hooks/useScrollMemory'
 import { normalize } from '@/lib/text'
 
 /**
@@ -150,7 +151,12 @@ export function ExerciseLibraryScreen({
       החלפות מתג, ועם replace שני המצבים חולקים location.key אחד — ואז
       useScrollMemory משחזר אופסט של רשימת 76 לתוך רשימת 28. איפוס מפורש הוא
       מה שמחליף את השחזור, כי הרשימה מתחלפת ולא נגללת.
+
+      הביטול לפני האיפוס הכרחי: אם המתג נלחץ בזמן ששחזור-אחורה עוד רץ
+      (הרשימה נטענת מ-IndexedDB עד 2.5 שניות), לולאת ה-settle הייתה דורסת
+      את האיפוס בפריים הבא ומנחיתה עמוק ברשימה הלא-נכונה.
     */
+    cancelScrollRestore()
     window.scrollTo(0, 0)
   }
 
@@ -497,7 +503,12 @@ function Row({
 
       {mode === 'all' ? (
         entry.state === 'mine' ? (
-          <IconButton label={`הוצא את ${entry.name} מהתרגילים שלי`} disabled={busy} onClick={onRemove}>
+          <IconButton
+            label={`הוצא את ${entry.name} מהתרגילים שלי`}
+            disabled={busy}
+            outlined
+            onClick={onRemove}
+          >
             <Minus size={18} />
           </IconButton>
         ) : (

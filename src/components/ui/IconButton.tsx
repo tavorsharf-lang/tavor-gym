@@ -20,6 +20,14 @@ export interface IconButtonProps {
   danger?: boolean
   /** מסמן שהפעולה כבר בוצעה — כתום, כמו הפעולה הראשית */
   active?: boolean
+  /**
+   * מסגרת במנוחה, לא רק בלחיצה.
+   *
+   * בשורה של פקדים (עורך התרגיל, עורך התוכניות) ההקשר מספיק והאייקון עומד
+   * בפני עצמו. פקד *בודד* בקצה שורה בלי מסגרת נקרא כתו ולא ככפתור — מקף בודד
+   * ליד שורת תרגיל לא נראה לחיץ בכלל.
+   */
+  outlined?: boolean
   children: ReactNode
 }
 
@@ -29,13 +37,16 @@ export function IconButton({
   disabled = false,
   danger = false,
   active = false,
+  outlined = false,
   children,
 }: IconButtonProps): JSX.Element {
   const tone = danger
     ? 'text-hard-400 active:bg-hard-400/12'
     : active
       ? 'border border-flame-500/45 bg-flame-500/12 text-flame-300 active:bg-flame-500/20'
-      : 'text-bone-400 active:bg-ink-800'
+      : outlined
+        ? 'border border-ink-600 bg-ink-850 text-bone-300 active:bg-ink-800'
+        : 'text-bone-400 active:bg-ink-800'
 
   return (
     <button

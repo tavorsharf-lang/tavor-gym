@@ -20,6 +20,16 @@ import { BottomSheet, Button } from '@/components/ui'
  * ההפתעה שמיגרציה 5 מזהירה ממנה.
  */
 
+/*
+  ספרה אחרי אות שימוש נקראת רע בעברית: "נמצא ב2 תוכניות". במספרים קטנים
+  המילה היא הפתרון הנכון, ולא מקף. תוכנית נקבה, בלוק זכר.
+*/
+const FEM = ['', 'אחת', 'שתי', 'שלוש', 'ארבע', 'חמש', 'שש', 'שבע', 'שמונה', 'תשע', 'עשר']
+const MASC = ['', 'אחד', 'שני', 'שלושה', 'ארבעה', 'חמישה', 'שישה', 'שבעה', 'שמונה', 'תשעה', 'עשרה']
+
+const countF = (n: number): string => FEM[n] ?? `${n}`
+const countM = (n: number): string => MASC[n] ?? `${n}`
+
 export interface RemoveExerciseSheetProps {
   open: boolean
   onClose: () => void
@@ -41,8 +51,8 @@ export function RemoveExerciseSheet({
   const routines = usage.filter((u) => u.kind === 'routine').length
   const blocks = usage.length - routines
   const what = [
-    routines > 0 ? (routines === 1 ? 'תוכנית אחת' : `${routines} תוכניות`) : null,
-    blocks > 0 ? (blocks === 1 ? 'בלוק אחד' : `${blocks} בלוקים`) : null,
+    routines > 0 ? (routines === 1 ? 'תוכנית אחת' : `${countF(routines)} תוכניות`) : null,
+    blocks > 0 ? (blocks === 1 ? 'בלוק אחד' : `${countM(blocks)} בלוקים`) : null,
   ]
     .filter(Boolean)
     .join(' וב')
