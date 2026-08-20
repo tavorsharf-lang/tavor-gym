@@ -90,14 +90,14 @@ const CASES: Case[] = [
   {
     name: 'משקל גוף שהגיע לראש הטווח — יעד קונקרטי גבוה יותר',
     exercise: makeExercise({ weightMode: 'bodyweight', weightIncrementKg: 0, seedWeightKg: null }),
-    history: [makeSession('s1', 1000, [[0, 15]], rate(1))],
+    history: [makeSession('s1', 1000, [[0, 15]], rate(2))],
     expected: { action: 'increase', weightKg: null, tone: 'up' },
     reasonIncludes: ['13'],
   },
   {
     name: 'משקל גוף מתחת לראש הטווח — היעד הוא הסט הטוב של הפעם הקודמת',
     exercise: makeExercise({ weightMode: 'bodyweight', weightIncrementKg: 0, seedWeightKg: null }),
-    history: [makeSession('s1', 1000, [[0, 9], [0, 7]], rate(2))],
+    history: [makeSession('s1', 1000, [[0, 9], [0, 7]], rate(3))],
     expected: { action: 'hold', weightKg: null, tone: 'steady' },
     reasonIncludes: ['9'],
   },
@@ -111,14 +111,35 @@ const CASES: Case[] = [
   {
     name: 'ראש הטווח בדירוג קל — עולים קפיצה אחת',
     exercise: makeExercise(),
-    history: [makeSession('s1', 1000, TOP_SETS, rate(1))],
+    history: [makeSession('s1', 1000, TOP_SETS, rate(2))],
     expected: { action: 'increase', weightKg: 62.5, tone: 'up' },
     reasonIncludes: ['62.5', 'קל'],
   },
   {
+    // הדרגה החדשה בתחתית הסולם: ההצהרה לבדה מספיקה לקפיצה כפולה, בלי RIR
+    name: 'ראש הטווח בדירוג קל מאוד — קפיצה כפולה גם בלי RIR',
+    exercise: makeExercise(),
+    history: [makeSession('s1', 1000, TOP_SETS, rate(1))],
+    expected: { action: 'increase', weightKg: 65, tone: 'up' },
+    reasonIncludes: ['קל מאוד', '65'],
+  },
+  {
+    name: 'קל מאוד אבל RIR 0 — הכשל גובר גם על הדרגה החדשה',
+    exercise: makeExercise(),
+    history: [makeSession('s1', 1000, TOP_SETS, rate(1, 0))],
+    expected: { action: 'hold', weightKg: 60, tone: 'steady' },
+  },
+  {
+    // הדרגה החדשה בראש הסולם מתנהגת כמו קשה: מגיעים לטווח אבל לא עולים
+    name: 'ראש הטווח בדירוג קשה מאוד — נשארים',
+    exercise: makeExercise(),
+    history: [makeSession('s1', 1000, TOP_SETS, rate(5))],
+    expected: { action: 'hold', weightKg: 60, tone: 'steady' },
+  },
+  {
     name: 'ראש הטווח בדירוג בינוני — עולים קפיצה אחת',
     exercise: makeExercise(),
-    history: [makeSession('s1', 1000, TOP_SETS, rate(2))],
+    history: [makeSession('s1', 1000, TOP_SETS, rate(3))],
     expected: { action: 'increase', weightKg: 62.5, tone: 'up' },
     reasonIncludes: ['בינוני', '62.5'],
   },
@@ -132,35 +153,35 @@ const CASES: Case[] = [
   {
     name: 'ראש הטווח אבל היה קשה — נשארים',
     exercise: makeExercise(),
-    history: [makeSession('s1', 1000, TOP_SETS, rate(3))],
+    history: [makeSession('s1', 1000, TOP_SETS, rate(4))],
     expected: { action: 'hold', weightKg: 60, tone: 'steady' },
     reasonIncludes: ['קשה', '60'],
   },
   {
     name: 'דירוג קל אבל RIR 0 — הכשל גובר, נשארים',
     exercise: makeExercise(),
-    history: [makeSession('s1', 1000, TOP_SETS, rate(1, 0))],
+    history: [makeSession('s1', 1000, TOP_SETS, rate(2, 0))],
     expected: { action: 'hold', weightKg: 60, tone: 'steady' },
     reasonIncludes: ['ראש הטווח'],
   },
   {
     name: 'קל עם RIR 3 — קפיצה כפולה',
     exercise: makeExercise(),
-    history: [makeSession('s1', 1000, TOP_SETS, rate(1, 3))],
+    history: [makeSession('s1', 1000, TOP_SETS, rate(2, 3))],
     expected: { action: 'increase', weightKg: 65, tone: 'up' },
     reasonIncludes: ['קל מדי', '3', '65'],
   },
   {
     name: 'קל עם RIR 4 — גם כן קפיצה כפולה',
     exercise: makeExercise(),
-    history: [makeSession('s1', 1000, TOP_SETS, rate(1, 4))],
+    history: [makeSession('s1', 1000, TOP_SETS, rate(2, 4))],
     expected: { action: 'increase', weightKg: 65, tone: 'up' },
     reasonIncludes: ['קל מדי', '4'],
   },
   {
     name: 'קל עם RIR 2 — קפיצה רגילה בלבד',
     exercise: makeExercise(),
-    history: [makeSession('s1', 1000, TOP_SETS, rate(1, 2))],
+    history: [makeSession('s1', 1000, TOP_SETS, rate(2, 2))],
     expected: { action: 'increase', weightKg: 62.5, tone: 'up' },
   },
   {
@@ -175,9 +196,9 @@ const CASES: Case[] = [
           [60, 8],
           [60, 6],
         ],
-        rate(3)
+        rate(4)
       ),
-      makeSession('s1', 1000, TOP_SETS, rate(2)),
+      makeSession('s1', 1000, TOP_SETS, rate(3)),
     ],
     expected: { action: 'hold', weightKg: 60, tone: 'steady' },
     reasonIncludes: ['6', '8', '60'],
@@ -193,7 +214,7 @@ const CASES: Case[] = [
           [60, 7],
           [60, 6],
         ],
-        rate(3)
+        rate(4)
       ),
       makeSession(
         's1',
@@ -202,7 +223,7 @@ const CASES: Case[] = [
           [60, 8],
           [60, 7],
         ],
-        rate(3)
+        rate(4)
       ),
     ],
     expected: { action: 'decrease', weightKg: 52.5, tone: 'down' },
@@ -220,7 +241,7 @@ const CASES: Case[] = [
           [60, 10],
           [60, 9],
         ],
-        rate(2)
+        rate(3)
       ),
     ],
     expected: { action: 'hold', weightKg: 60, tone: 'steady' },
@@ -232,15 +253,15 @@ const CASES: Case[] = [
     name: 'אימון עם סטי חימום בלבד מדולג לגמרי',
     exercise: makeExercise(),
     history: [
-      makeSession('s2', 2000, [[35, 12, 'warmup']], rate(3)),
-      makeSession('s1', 1000, TOP_SETS, rate(2)),
+      makeSession('s2', 2000, [[35, 12, 'warmup']], rate(4)),
+      makeSession('s1', 1000, TOP_SETS, rate(3)),
     ],
     expected: { action: 'increase', weightKg: 62.5, tone: 'up' },
   },
   {
     name: 'כל ההיסטוריה חימום — כאילו אין היסטוריה',
     exercise: makeExercise(),
-    history: [makeSession('s1', 1000, [[35, 12, 'warmup']], rate(1))],
+    history: [makeSession('s1', 1000, [[35, 12, 'warmup']], rate(2))],
     expected: { action: 'none', weightKg: 60, tone: 'neutral' },
   },
   {
@@ -254,7 +275,7 @@ const CASES: Case[] = [
           [22.5, 12],
           [22.5, 12],
         ],
-        rate(2)
+        rate(3)
       ),
     ],
     expected: { action: 'increase', weightKg: 25, tone: 'up' },
@@ -271,7 +292,7 @@ const CASES: Case[] = [
           [61, 12],
           [61, 12],
         ],
-        rate(1, 3)
+        rate(2, 3)
       ),
     ],
     expected: { action: 'increase', weightKg: 65, tone: 'up' },
@@ -280,8 +301,8 @@ const CASES: Case[] = [
     name: 'קפיצות של 5 ק״ג — ירידה מתעגלת לרשת של 5',
     exercise: makeExercise({ weightIncrementKg: 5, targetReps: { min: 6, max: 10 } }),
     history: [
-      makeSession('s2', 2000, [[100, 5]], rate(3)),
-      makeSession('s1', 1000, [[100, 5]], rate(3)),
+      makeSession('s2', 2000, [[100, 5]], rate(4)),
+      makeSession('s1', 1000, [[100, 5]], rate(4)),
     ],
     expected: { action: 'decrease', weightKg: 90, tone: 'down' },
   },
@@ -322,7 +343,7 @@ describe('recommendWeight', () => {
 
   it('לא משנה את הקלט', () => {
     const exercise = makeExercise()
-    const history = [makeSession('s1', 1000, TOP_SETS, rate(2))]
+    const history = [makeSession('s1', 1000, TOP_SETS, rate(3))]
     const snapshot = JSON.stringify(history)
     recommendWeight(exercise, history)
     expect(JSON.stringify(history)).toBe(snapshot)
@@ -331,7 +352,7 @@ describe('recommendWeight', () => {
 
   it('היסטוריה שהגיעה בסדר הפוך עדיין מזהה את האימון האחרון', () => {
     const exercise = makeExercise()
-    const older = makeSession('s1', 1000, TOP_SETS, rate(2))
+    const older = makeSession('s1', 1000, TOP_SETS, rate(3))
     const newer = makeSession(
       's2',
       2000,
@@ -339,7 +360,7 @@ describe('recommendWeight', () => {
         [60, 9],
         [60, 9],
       ],
-      rate(2)
+      rate(3)
     )
     expect(recommendWeight(exercise, [older, newer]).action).toBe('hold')
   })
@@ -382,7 +403,7 @@ describe('טווח החזרות של התוכנית גובר על זה שבקט�
           [160, 8],
           [160, 8],
         ],
-        rate(2)
+        rate(3)
       ),
     ]
 
@@ -409,7 +430,7 @@ describe('טווח החזרות של התוכנית גובר על זה שבקט�
         completedAt: 2000,
       },
     ]
-    const real = makeSession('s1', 1000, [[60, 10]], rate(2))
+    const real = makeSession('s1', 1000, [[60, 10]], rate(3))
 
     expect(lastWorkedSession([warmupOnly, real])?.sessionId).toBe('s1')
     expect(lastWorkedSession([])).toBeNull()
@@ -425,7 +446,7 @@ const DAY = 86_400_000
  */
 describe('ריסון אחרי הפסקה', () => {
   const exercise = makeExercise()
-  const topSets = makeSession('s1', 1000, TOP_SETS, rate(1))
+  const topSets = makeSession('s1', 1000, TOP_SETS, rate(2))
 
   it('בלי now המנוע מתנהג כמו קודם', () => {
     expect(recommendWeight(exercise, [topSets]).action).toBe('increase')
@@ -454,7 +475,7 @@ describe('ריסון אחרי הפסקה', () => {
 
   it('לא יורד מתחת לקפיצה אחת', () => {
     const light = makeExercise({ weightIncrementKg: 5 })
-    const session = makeSession('s1', 1000, [[5, 12], [5, 12], [5, 12]], rate(1))
+    const session = makeSession('s1', 1000, [[5, 12], [5, 12], [5, 12]], rate(2))
     const r = recommendWeight(light, [session], undefined, 1000 + 90 * DAY)
     expect(r.weightKg).toBe(5)
   })
@@ -478,7 +499,7 @@ describe('סטים חריגים לא שוברים את ההמלצה', () => {
         [60, 12],
         [70, 3],
       ],
-      rate(1)
+      rate(2)
     )
     const r = recommendWeight(exercise, [session])
     expect(r.action).toBe('increase')
@@ -493,19 +514,19 @@ describe('סטים חריגים לא שוברים את ההמלצה', () => {
         [60, 12],
         [40, 8],
       ],
-      rate(1)
+      rate(2)
     )
     expect(recommendWeight(exercise, [session]).action).toBe('increase')
   })
 
   it('שני אימונים עם סינגל שיא לא מייצרים הורדת 10%', () => {
-    const older = makeSession('s1', 1000, [[60, 12], [60, 12], [80, 2]], rate(1))
-    const newer = makeSession('s2', 2000, [[60, 12], [60, 12], [80, 2]], rate(1))
+    const older = makeSession('s1', 1000, [[60, 12], [60, 12], [80, 2]], rate(2))
+    const newer = makeSession('s2', 2000, [[60, 12], [60, 12], [80, 2]], rate(2))
     expect(recommendWeight(exercise, [older, newer]).action).toBe('increase')
   })
 
   it('נפילה אמיתית במשקל העבודה עדיין נתפסת', () => {
-    const session = makeSession('s1', 1000, [[60, 12], [60, 6], [70, 3]], rate(2))
+    const session = makeSession('s1', 1000, [[60, 12], [60, 6], [70, 3]], rate(3))
     expect(recommendWeight(exercise, [session]).action).toBe('hold')
   })
 })
@@ -530,7 +551,7 @@ describe('סינון משקל העבודה — מקרי הגבול', () => {
         [160, 12],
         [165, 3],
       ],
-      rate(1)
+      rate(2)
     )
     const r = recommendWeight(legPress, [session])
     expect(r.action).toBe('increase')

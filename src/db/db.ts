@@ -25,6 +25,7 @@ import {
 } from './seed'
 import { CATALOG_FIXES_V5, applyCatalogFix } from './catalogFix'
 import { withLibraryLink } from './libraryLinks'
+import { withSecondaryMuscles } from './muscleTags'
 
 /**
  * מסד הנתונים המובנה.
@@ -257,6 +258,76 @@ class GymDatabase extends Dexie {
         for (const exercise of await table.toArray()) {
           const linked = withLibraryLink(exercise)
           if (linked !== exercise) await table.put(linked)
+        }
+      })
+
+    /**
+     * גרסה 7 — סולם הדירוג עובר מ-3 דרגות ל-5.
+     *
+     * הסולם הישן (1 קל · 2 בינוני · 3 קשה) נכנס לאמצע הסולם החדש
+     * (1 קל מאוד · 2 קל · 3 בינוני · 4 קשה · 5 קשה מאוד), ולכן כל דירוג
+     * שמור עולה באחד: 1→2, 2→3, 3→4. בלי זה "בינוני" ישן היה נקרא "קל"
+     * חדש — ומנוע ההמלצות היה מעלה משקל על סמך אימון שדורג אחרת.
+     *
+     * הריצה חייבת לכסות גם אימון שהיה פתוח בזמן העדכון: ratingsByKey שלו
+     * נכתב לטבלת הדירוגים ב-finish, אחרי המיגרציה, עם הערכים שנשמרו לפניה.
+     */
+    this.version(7)
+      .stores({})
+      .upgrade(async (tx) => {
+        const ratings = tx.table<ExerciseRating, number>('ratings')
+        for (const row of await ratings.toArray()) {
+          if (row.rating <= 3) {
+            await ratings.put({ ...row, rating: (row.rating + 1) as ExerciseRating['rating'] })
+          }
+        }
+
+        const active = tx.table<ActiveWorkout, string>('activeWorkout')
+        for (const workout of await active.toArray()) {
+          const entries = Object.entries(workout.ratingsByKey)
+          if (!entries.length) continue
+          const ratingsByKey = Object.fromEntries(
+            entries.map(([key, r]) => [
+              key,
+              r.rating <= 3
+                ? { ...r, rating: (r.rating + 1) as ExerciseRating['rating'] }
+                : r,
+            ])
+          )
+          await active.put({ ...workout, ratingsByKey })
+        }
+      })
+
+    /**
+     * גרסה 8 — בניית אימון: שני שדות שמסך הכיסוי והאימונים השמורים עומדים עליהם.
+     *
+     *  1. `Routine.kind` — עד כאן כל שורה בטבלת התוכניות הייתה תוכנית קבועה,
+     *     כי לא הייתה דרך אחרת. עכשיו יש אימונים שמורים באותה טבלה, ובלי
+     *     ההבחנה הזו מתג התוכניות היה מכבה אותם והצעת "מה מתאמנים היום" הייתה
+     *     קופצת לאימון שמור חדש ברגע שנשמר (מה שמעולם לא בוצע גובר על כל ותק).
+     *     המילוי הוא לפי *היעדר* השדה ולא לפי רשימת המזהים הידועים: שורה
+     *     שנכנסה בדרך חריגה — גיבוי ערוך שיובא לפני העדכון — הייתה נשארת בלי
+     *     `kind` לנצח.
+     *  2. `Exercise.secondaryMuscles` — התיוג הידני מ-`muscleTags.ts` נשתל
+     *     ברשומות הקיימות. השומר הוא היעדר השדה ולא השוואת שם כמו ב-
+     *     `applyCatalogFix`: מערך ריק הוא החלטה לגיטימית של המשתמש ("אין לזה
+     *     עבודה משנית"), ותרגיל ששמו נערך עדיין ראוי לתגיות שלו.
+     *
+     * שני השדות מקבלים גם תיקון-קדימה בייבוא גיבוי (backup.ts), כי מיגרציה
+     * לא רצה שוב על מסד שכבר בגרסה 8 — וגיבוי ישן היה מחזיר שורות בלי השדות.
+     */
+    this.version(8)
+      .stores({})
+      .upgrade(async (tx) => {
+        const routines = tx.table<Routine, string>('routines')
+        for (const routine of await routines.toArray()) {
+          if (routine.kind === undefined) await routines.put({ ...routine, kind: 'program' })
+        }
+
+        const exercises = tx.table<Exercise, string>('exercises')
+        for (const exercise of await exercises.toArray()) {
+          const tagged = withSecondaryMuscles(exercise)
+          if (tagged !== exercise) await exercises.put(tagged)
         }
       })
 

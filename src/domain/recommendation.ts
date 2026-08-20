@@ -68,8 +68,8 @@ export interface WeightRecommendation {
  * הרגע המסוכן ביותר. אחרי שלושה שבועות יורדים מדרגה, ואחרי חודשיים יורדים
  * הרבה — שני המספרים הם נוהג מקובל ולא נוסחה.
  */
-const LAYOFF_DAYS = 21
-const LONG_LAYOFF_DAYS = 56
+export const LAYOFF_DAYS = 21
+export const LONG_LAYOFF_DAYS = 56
 
 /**
  * הסטים שבוצעו במשקל העבודה בלבד.
@@ -270,11 +270,13 @@ export function recommendWeight(
   const missedBottom = lowestReps < min
 
   const rating = last.rating
-  // RIR 0 הוא כשל — הוא גובר על "קל" שנלחץ בטעות
-  const hard = rating !== null && (rating.rating === 3 || rating.rir === 0)
-  // "קל" עם 3 חזרות ומעלה במחסנית — קפיצה כפולה. שומרים את ה-RIR עצמו לניסוח.
+  // RIR 0 הוא כשל — הוא גובר על "קל" שנלחץ בטעות. בסולם של 5: קשה (4) ומעלה
+  const hard = rating !== null && (rating.rating >= 4 || rating.rir === 0)
+  // "קל מאוד" הוא הצהרה מספיקה לקפיצה כפולה גם בלי RIR — זו כל הסיבה שהדרגה קיימת
+  const veryEasy = rating !== null && rating.rating === 1 && rating.rir !== 0
+  // "קל" (או קל מאוד) עם 3 חזרות ומעלה במחסנית — קפיצה כפולה. שומרים את ה-RIR לניסוח.
   const easyRir: Rir | null =
-    rating !== null && rating.rating === 1 && rating.rir !== null && rating.rir >= 3
+    rating !== null && rating.rating <= 2 && rating.rir !== null && rating.rir >= 3
       ? rating.rir
       : null
 
@@ -300,7 +302,8 @@ export function recommendWeight(
   }
 
   if (hitTopAll && !hard) {
-    const step = easyRir !== null ? increment * 2 : increment
+    const doubleJump = veryEasy || easyRir !== null
+    const step = doubleJump ? increment * 2 : increment
     const next = roundToIncrement(ref + step, increment)
     return {
       action: 'increase',
@@ -308,9 +311,11 @@ export function recommendWeight(
       reason:
         easyRir !== null
         ? `היה קל מדי — נשארו ${RIR_LABELS[easyRir]} חזרות במחסנית, אז עולים ל-${formatWeight(next, mode)}`
-        : rating === null
-          ? `כל הסטים הגיעו ל-${max} חזרות, ראש הטווח — עולים ל-${formatWeight(next, mode)}`
-          : `כל הסטים הגיעו ל-${max} חזרות בדירוג ${RATING_LABELS[rating.rating]} — עולים ל-${formatWeight(next, mode)}`,
+        : veryEasy
+          ? `דירגת קל מאוד — עולים בקפיצה כפולה ל-${formatWeight(next, mode)}`
+          : rating === null
+            ? `כל הסטים הגיעו ל-${max} חזרות, ראש הטווח — עולים ל-${formatWeight(next, mode)}`
+            : `כל הסטים הגיעו ל-${max} חזרות בדירוג ${RATING_LABELS[rating.rating]} — עולים ל-${formatWeight(next, mode)}`,
       tone: 'up',
     }
   }

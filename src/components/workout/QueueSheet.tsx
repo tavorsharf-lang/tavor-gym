@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, JSX } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import {
   DndContext,
   PointerSensor,
@@ -11,12 +12,21 @@ import {
 import type { DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Check, ChevronDown, ChevronUp, Circle, Clock, Flame, Plus, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Circle, Clock, Flame, Plus, SkipForward, X } from 'lucide-react'
 import { BottomSheet, EmptyState, toast } from '@/components/ui'
+import { getSettings } from '@/db/db'
+import { getLastPerformedMap, getSessionsSince } from '@/db/queries'
 import { MUSCLE_GROUPS, MUSCLE_GROUP_ORDER } from '@/db/types'
 import type { Exercise, ExerciseMetric, MuscleGroup, QueueItem } from '@/db/types'
+import {
+  coverageLookbackFrom,
+  coverageText,
+  liveCoverageInput,
+  muscleCoverage,
+} from '@/domain/coverage'
 import { formatRepRange } from '@/domain/units'
 import { distinguisher, duplicateNames } from '@/domain/naming'
+import { formatRelativeDay } from '@/lib/dates'
 import { useWorkout } from '@/state/activeWorkoutStore'
 
 /**
@@ -37,6 +47,7 @@ const STATUS_GLYPH: Record<QueueItem['status'], JSX.Element> = {
   done: <Check size={14} className="text-bone-400" aria-label="הושלם" />,
   deferred: <Clock size={14} className="text-flame-300" aria-label="ממתין — המתקן היה תפוס" />,
   pending: <Circle size={12} className="text-bone-600" aria-label="ממתין" />,
+  skipped: <SkipForward size={14} className="text-bone-500" aria-label="דילגת היום" />,
 }
 
 function QueueRow({
@@ -75,7 +86,7 @@ function QueueRow({
       className={[
         'card flex items-center gap-2 p-2',
         isDragging ? 'z-10 opacity-90 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.9)]' : '',
-        item.status === 'done' ? 'opacity-55' : '',
+        item.status === 'done' || item.status === 'skipped' ? 'opacity-55' : '',
       ].join(' ')}
     >
       <button
@@ -159,6 +170,46 @@ export function QueueSheet({ open, onClose }: QueueSheetProps): JSX.Element {
     return groups
   }, [exercisesById])
 
+  /*
+    אותם שני נתונים שמסך בניית האימון מציג, גם כאן.
+
+    הבחירה "איזה תרגיל להוסיף עכשיו" היא אותה בחירה בדיוק, ובלי המספרים האלה
+    היא נעשית מהזיכרון. שתי השאילתות רצות רק כשהבורר פתוח: `getLastPerformedMap`
+    סורקת את כל טבלת הסטים, ואין סיבה שהיא תרוץ בכל פתיחה של סדר האימון.
+  */
+  const settings = useLiveQuery(() => getSettings(), [])
+  const lastPerformed = useLiveQuery(
+    () => (picking ? getLastPerformedMap() : Promise.resolve(new Map())),
+    [picking],
+    new Map()
+  )
+  const history = useLiveQuery(
+    () =>
+      picking
+        ? getSessionsSince(coverageLookbackFrom(Date.now()))
+        : Promise.resolve({ sessions: [], sets: [] }),
+    [picking]
+  )
+
+  const coverageByGroup = useMemo(() => {
+    const now = Date.now()
+    /*
+      האימון שרץ נספר גם הוא.
+
+      שורת ה-session נכתבת רק בסיום, ולכן בלי זה הכותרת "רגליים · לא נגעת"
+      הייתה יושבת בדיוק מעל השורה שאומרת שעשית לחיצת רגליים לפני שתי דקות.
+    */
+    const live = liveCoverageInput(workout, now)
+    const rows = muscleCoverage(
+      Object.values(exercisesById),
+      [...(history?.sessions ?? []), ...live.sessions],
+      [...(history?.sets ?? []), ...live.sets],
+      now,
+      settings?.coverageWindowDays ?? 4
+    )
+    return new Map(rows.map((r) => [r.group, r]))
+  }, [exercisesById, history, settings, workout])
+
   function handleDragEnd(event: DragEndEvent): void {
     const { active, over } = event
     if (!over || active.id === over.id) return
@@ -174,9 +225,15 @@ export function QueueSheet({ open, onClose }: QueueSheetProps): JSX.Element {
   }
 
   function add(ex: Exercise): void {
-    void addExercise(ex.id)
-    setPicking(false)
-    toast(`${ex.name} נוסף לסוף התור`)
+    // ההוספה יכולה להיכשל (תרגיל שנמחק מהקטלוג בינתיים), ולכן הטוסט מחכה לה
+    void addExercise(ex.id).then((added) => {
+      if (!added) {
+        toast('לא הצלחתי להוסיף את התרגיל', { tone: 'warn' })
+        return
+      }
+      setPicking(false)
+      toast(`${ex.name} נוסף לסוף התור`)
+    })
   }
 
   const inQueue = new Set(queue.map((q) => q.exerciseId))
@@ -197,33 +254,55 @@ export function QueueSheet({ open, onClose }: QueueSheetProps): JSX.Element {
           </button>
 
           <div className="flex flex-col gap-5">
-            {catalog.map(({ group, items }) => (
-              <section key={group}>
-                <h3 className="meta mb-2">{MUSCLE_GROUPS[group].label}</h3>
-                <ul className="flex flex-col gap-2">
-                  {items.map((ex) => (
-                    <li key={ex.id}>
-                      <button
-                        type="button"
-                        onClick={() => add(ex)}
-                        className="card flex min-h-14 w-full items-center gap-3 px-3 text-start active:bg-ink-800"
+            {catalog.map(({ group, items }) => {
+              const cover = coverageByGroup.get(group)
+              return (
+                <section key={group}>
+                  <div className="mb-2 flex items-baseline justify-between gap-2">
+                    <h3 className="meta">{MUSCLE_GROUPS[group].label}</h3>
+                    {cover ? (
+                      <span
+                        className={[
+                          'meta tnum shrink-0',
+                          cover.uncovered ? 'text-flame-300' : '',
+                        ].join(' ')}
                       >
-                        <Plus size={16} className="shrink-0 text-flame-400" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-bold text-bone-50">
-                            {ex.name}
-                          </span>
-                          <span className="meta">{ex.subTarget}</span>
-                        </span>
-                        {inQueue.has(ex.id) ? (
-                          <span className="meta shrink-0">כבר בתור</span>
-                        ) : null}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
+                        {coverageText(cover)}
+                      </span>
+                    ) : null}
+                  </div>
+                  <ul className="flex flex-col gap-2">
+                    {items.map((ex) => {
+                      const last = lastPerformed.get(ex.id)
+                      return (
+                        <li key={ex.id}>
+                          <button
+                            type="button"
+                            onClick={() => add(ex)}
+                            className="card flex min-h-14 w-full items-center gap-3 px-3 text-start active:bg-ink-800"
+                          >
+                            <Plus size={16} className="shrink-0 text-flame-400" />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-bold text-bone-50">
+                                {ex.name}
+                              </span>
+                              <span className="meta">{ex.subTarget}</span>
+                            </span>
+                            {inQueue.has(ex.id) ? (
+                              <span className="meta shrink-0">כבר בתור</span>
+                            ) : (
+                              <span className="meta shrink-0 text-end">
+                                {last ? formatRelativeDay(last.at) : 'עוד לא בוצע'}
+                              </span>
+                            )}
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </section>
+              )
+            })}
           </div>
         </div>
       ) : (

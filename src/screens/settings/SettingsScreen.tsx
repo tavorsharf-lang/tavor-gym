@@ -6,6 +6,7 @@ import { Dumbbell, HardDrive, Film, ListChecks, Plus, TriangleAlert } from 'luci
 import { getSettings, saveSettings } from '@/db/db'
 import type { AppSettings } from '@/db/types'
 import { formatBytes, formatClock, formatKg, round2 } from '@/domain/units'
+import { formatDayCount } from '@/lib/dates'
 import { useStorageStatus } from '@/hooks/useStorageStatus'
 import { Screen } from '@/components/shell/ScreenHeader'
 import { Button, toast } from '@/components/ui'
@@ -208,10 +209,23 @@ export function SettingsScreen(): JSX.Element {
               />
             ) : null}
             <SettingToggle
+              label="טיימר מנוחה אחרי סט"
+              description="כבוי — למי שמתעד מנוחה בשעון. אפשר לכבות גם מתוך מסך המנוחה"
+              checked={settings.restTimerEnabled}
+              onChange={(v) => update({ restTimerEnabled: v })}
+            />
+            <SettingToggle
+              label='שאלון "איך היה" בסיום תרגיל'
+              description="כבוי — הדירוג לא מופיע בכלל. ניתן להחלפה גם ממסך האימון"
+              checked={settings.askRating}
+              onChange={(v) => update({ askRating: v })}
+            />
+            <SettingToggle
               label="שאל RIR אחרי הדירוג"
               description="כמה חזרות נשארו במחסנית — מדייק את ההמלצה למשקל הבא"
               checked={settings.askRir}
               onChange={(v) => update({ askRir: v })}
+              disabled={!settings.askRating}
             />
             <SettingToggle
               label="קונפטי בשיאים"
@@ -239,6 +253,16 @@ export function SettingsScreen(): JSX.Element {
               min={3}
               max={21}
               format={(v) => `${v} ימים`}
+            />
+            <SettingNumber
+              label="חלון בניית אימון"
+              description="כמה ימים אחורה מסך בניית האימון סופר כיסוי שרירים. 4 = היום ושלושת הימים שלפניו. מי שמתאמן פעמיים בשבוע כדאי שיגדיל, אחרת כל הגוף ייראה מוזנח"
+              value={settings.coverageWindowDays}
+              onChange={(v) => update({ coverageWindowDays: v })}
+              step={1}
+              min={2}
+              max={14}
+              format={formatDayCount}
             />
           </Section>
 
@@ -309,10 +333,10 @@ export function SettingsScreen(): JSX.Element {
 
           <Section title="ניהול">
             <SettingLink
-              label="קטלוג התרגילים"
-              description="שמות, דגשי ביצוע, קפיצות משקל"
+              label="התרגילים"
+              description="להוסיף, להוציא, ולערוך שמות ודגשים"
               icon={<Dumbbell size={18} />}
-              onClick={() => navigate('/settings/exercises')}
+              onClick={() => navigate('/exercises')}
             />
             <SettingLink
               label="תוכניות ובלוקים"

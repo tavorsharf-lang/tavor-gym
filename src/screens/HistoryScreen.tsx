@@ -93,7 +93,12 @@ export function HistoryScreen(): JSX.Element {
 
   const routines = useLiveQuery(() => getRoutines(), [], [])
   const blocks = useLiveQuery(() => getBlocks(), [], [])
-  const exercises = useLiveQuery(() => getAllExercises(), [], [])
+  /*
+    כולל תרגילים שהוצאו מ"התרגילים שלי". ההיסטוריה מדברת על העבר וההוצאה על
+    העתיד: בלי `true` תרגיל שהוצאת נעלם מבורר "לפי תרגיל", ואם הוא היה הסינון
+    הפעיל — הצ׳יפ מאבד את שמו בזמן שחיפוש חופשי עדיין מוצא את אותם אימונים.
+  */
+  const exercises = useLiveQuery(() => getAllExercises(true), [], [])
 
   const sessions = useLiveQuery<Session[] | undefined>(
     () => searchSessions({ routineId, blockId, exerciseId, query }),

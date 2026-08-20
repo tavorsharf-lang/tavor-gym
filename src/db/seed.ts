@@ -1,5 +1,6 @@
 import type { AppSettings, Block, Exercise, PlanItem, RepRange, Routine } from './types'
 import { withLibraryLink } from './libraryLinks'
+import { withSecondaryMuscles } from './muscleTags'
 
 /**
  * נתוני ההתחלה — הקטלוג, שלוש התוכניות והבלוקים הנלווים.
@@ -663,9 +664,12 @@ const RAW: ExerciseSeed[] = [
   },
 ]
 
-// withLibraryLink כאן ולא ב-populate: SEED_EXERCISES נכתב גם בהשלמת זריעה
-// שנכשלה וגם באיפוס יזום, ובשלושת המסלולים הקישור צריך להיות זהה
+// withLibraryLink ו-withSecondaryMuscles כאן ולא ב-populate: SEED_EXERCISES
+// נכתב גם בהשלמת זריעה שנכשלה וגם באיפוס יזום, ובשלושת המסלולים הרשומה צריכה
+// לצאת זהה. התיוג המשני חייב לעבור כאן במיוחד — מיגרציה 8 שותלת אותו רק
+// בשדרוג, ולכן בלי השורה הזו דווקא התקנה חדשה הייתה נשארת בלי שום תגית.
 export const SEED_EXERCISES: Exercise[] = RAW.map((e, i) =>
+  withSecondaryMuscles(
   withLibraryLink({
     ...e,
     // הסטים והמנוחה נכפים כאן ולא נכתבים בכל רשומה — כך אי אפשר להוסיף תרגיל
@@ -677,6 +681,7 @@ export const SEED_EXERCISES: Exercise[] = RAW.map((e, i) =>
     createdAt: now(),
     updatedAt: now(),
   })
+  )
 )
 
 /** בונה פריט תוכנית מברירות המחדל של התרגיל */
@@ -743,6 +748,7 @@ const R_HIGH = { min: 12, max: 20 } as const
 export const SEED_ROUTINES: Routine[] = [
   {
     id: 'F1',
+    kind: 'program',
     name: 'פול באדי א׳',
     subtitle: 'כל הגוף — חזרה הדרגתית',
     order: 0,
@@ -761,6 +767,7 @@ export const SEED_ROUTINES: Routine[] = [
   },
   {
     id: 'F2',
+    kind: 'program',
     name: 'פול באדי ב׳',
     subtitle: 'כל הגוף — וריאציה שנייה',
     order: 1,
@@ -779,6 +786,7 @@ export const SEED_ROUTINES: Routine[] = [
   },
   {
     id: 'A',
+    kind: 'program',
     name: 'אימון A',
     subtitle: 'חזה ויד אחורית',
     order: 2,
@@ -798,6 +806,7 @@ export const SEED_ROUTINES: Routine[] = [
   },
   {
     id: 'B',
+    kind: 'program',
     name: 'אימון B',
     subtitle: 'גב ויד קדמית',
     order: 3,
@@ -815,6 +824,7 @@ export const SEED_ROUTINES: Routine[] = [
   },
   {
     id: 'C',
+    kind: 'program',
     name: 'אימון C',
     subtitle: 'רגליים',
     order: 4,
@@ -864,15 +874,20 @@ export const DEFAULT_SETTINGS: AppSettings = {
   wakeLockEnabled: true,
   weeklyGoal: 3,
   blockStaleDays: 7,
+  coverageWindowDays: 4,
   plates: {
     barWeightKg: 20,
     perSideKg: [20, 15, 10, 5, 2.5, 1.25],
   },
+  askRating: true,
   askRir: true,
+  restTimerEnabled: true,
   confettiEnabled: true,
   autoWarmup: true,
   warmupPercent: 55,
   hiddenVideoIds: [],
+  videoMoves: {},
+  videoOrder: {},
   lastBackupAt: null,
   videosInstalledAt: null,
   storagePromptSeenAt: null,

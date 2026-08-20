@@ -3,6 +3,12 @@ import type { PlayableVideo, VideoAsset } from './types'
 import { VIDEO_MANIFEST, type BundledVideo } from './videoManifest'
 import { LIBRARY_CATALOG, LIBRARY_MANIFEST } from './libraryManifest'
 import { hideVideo, loadHiddenVideoIds, notifyVideosChanged } from './hiddenVideos'
+import {
+  forgetVideoPrefs,
+  isGroupContext,
+  loadVideoPrefs,
+  type VideoPrefs,
+} from './videoPrefs'
 
 /**
  * מסד המדיה — סרטוני הדגמה בלבד, כ-Blob.
@@ -101,6 +107,55 @@ const LIBRARY_TOPICS = new Map(
   LIBRARY_CATALOG.map((e) => [e.id, e.videos.map((v) => v.topic)])
 )
 
+/**
+ * אינדקס גלובלי: מזהה נכס ← הקליפ שלו והכותרת הטבעית שלו.
+ *
+ * קיים בשביל שיוך-מחדש: סרטון שהועבר לתרגיל אחר (או למדף קבוצה) צריך להישלף
+ * לפי המזהה בלבד, בלי לדעת באיזה מניפסט ובאיזה תרגיל הוא נולד. הכותרת
+ * הטבעית נוסעת איתו — נושא של סרטון מאגר נשאר הנושא שלו גם אחרי מעבר.
+ */
+interface IndexedClip {
+  clip: BundledVideo
+  /** נושא לסרטון מאגר, null להדגמה (שתקבל מספור לפי מיקומה החדש) */
+  topic: string | null
+}
+
+let clipIndex: Map<string, IndexedClip> | null = null
+
+/** מיוצא בשביל מדפי הקבוצות: לבדוק סינכרונית אם מזהה שיוך עדיין חי */
+export function clipById(assetId: string): IndexedClip | null {
+  if (!clipIndex) {
+    clipIndex = new Map()
+    for (const list of Object.values(VIDEO_MANIFEST)) {
+      for (const clip of list) clipIndex.set(bundledId(clip.src), { clip, topic: null })
+    }
+    for (const [libId, list] of Object.entries(LIBRARY_MANIFEST)) {
+      const topics = LIBRARY_TOPICS.get(libId) ?? []
+      list.forEach((clip, i) => {
+        clipIndex!.set(bundledId(clip.src), { clip, topic: topics[i] ?? null })
+      })
+    }
+  }
+  return clipIndex.get(assetId) ?? null
+}
+
+/**
+ * ממיין רשימה לפי סדר מותאם. מזהה שלא ברשימת הסדר נכנס אחרי הממוינים,
+ * בסדר ברירת המחדל שלו — המיון יציב, ולכן "לא סידרתי" לא משנה כלום.
+ */
+function applyOrder<T>(list: T[], idOf: (item: T) => string, order: readonly string[]): T[] {
+  if (!order.length) return list
+  const rank = new Map(order.map((id, i) => [id, i]))
+  return list
+    .map((item, i) => ({ item, i }))
+    .sort((a, b) => {
+      const ra = rank.get(idOf(a.item)) ?? order.length + a.i
+      const rb = rank.get(idOf(b.item)) ?? order.length + b.i
+      return ra - rb
+    })
+    .map(({ item }) => item)
+}
+
 /*
   אין כאן נפילה לאחור ל-LIBRARY_LINKS בכוונה.
 
@@ -135,34 +190,63 @@ interface LabelledClip {
 function labelledClips(
   exerciseId: string,
   libraryId?: string,
-  hidden?: ReadonlySet<string>
+  hidden?: ReadonlySet<string>,
+  prefs?: VideoPrefs | null
 ): LabelledClip[] {
-  const fromLibraryManifest = LIBRARY_MANIFEST[exerciseId]
-  // תרגיל מהמאגר עצמו: אין לו הדגמות משלו, רק סרטוני הסבר
-  if (fromLibraryManifest) {
-    const topics = LIBRARY_TOPICS.get(exerciseId) ?? []
-    return withoutHidden(
-      fromLibraryManifest.map((clip, i) => ({ clip, label: topics[i] ?? `הסבר ${i + 1}` })),
-      hidden
-    )
+  const moves = prefs?.moves ?? {}
+  const order = prefs?.order?.[exerciseId] ?? []
+
+  /*
+    הרשימה הביתית של ההקשר, לפני שיוכים מותאמים. תווית ריקה = הדגמה שתקבל
+    מספור לפי מיקומה הסופי; מדף קבוצה מתחיל ריק — כל התוכן שלו מגיע מהעברות.
+  */
+  let base: LabelledClip[]
+  if (isGroupContext(exerciseId)) {
+    base = []
+  } else {
+    const fromLibraryManifest = LIBRARY_MANIFEST[exerciseId]
+    if (fromLibraryManifest) {
+      // תרגיל מהמאגר עצמו: אין לו הדגמות משלו, רק סרטוני הסבר
+      const topics = LIBRARY_TOPICS.get(exerciseId) ?? []
+      base = fromLibraryManifest.map((clip, i) => ({ clip, label: topics[i] ?? `הסבר ${i + 1}` }))
+    } else {
+      const own = VIDEO_MANIFEST[exerciseId] ?? []
+      const seen = new Set(own.map((v) => v.src))
+      const topics = libraryId ? (LIBRARY_TOPICS.get(libraryId) ?? []) : []
+      // הגנה מפני כפילות אם אי פעם יופיע אותו קובץ בשני המניפסטים
+      const explainers = (libraryId ? (LIBRARY_MANIFEST[libraryId] ?? []) : [])
+        .map((clip, i) => ({ clip, label: topics[i] ?? `הסבר ${i + 1}` }))
+        .filter(({ clip }) => !seen.has(clip.src))
+      base = [...own.map((clip) => ({ clip, label: '' })), ...explainers]
+    }
   }
 
-  const own = VIDEO_MANIFEST[exerciseId] ?? []
-  const seen = new Set(own.map((v) => v.src))
-  const topics = libraryId ? (LIBRARY_TOPICS.get(libraryId) ?? []) : []
-  // הגנה מפני כפילות אם אי פעם יופיע אותו קובץ בשני המניפסטים
-  const explainers = (libraryId ? (LIBRARY_MANIFEST[libraryId] ?? []) : [])
-    .map((clip, i) => ({ clip, label: topics[i] ?? `הסבר ${i + 1}` }))
-    .filter(({ clip }) => !seen.has(clip.src))
+  // סרטון שהועבר החוצה נעלם מהבית שלו — כולל מהצירוף דרך libraryId
+  const stay = base.filter(({ clip }) => {
+    const to = moves[bundledId(clip.src)]
+    return to === undefined || to === exerciseId
+  })
 
-  // המספור של ההדגמות נגזר *אחרי* הסינון: "הדגמה 2" כשאין הדגמה 1 היא חור
-  // שנראה כמו תקלה, והמספר הזה הוא מיקום ברשימה ולא זהות של הסרטון.
-  const visibleOwn = withoutHidden(
-    own.map((clip) => ({ clip, label: '' })),
-    hidden
-  ).map(({ clip }, i) => ({ clip, label: `הדגמה ${i + 1}` }))
+  // סרטונים שהועברו לכאן מהקשרים אחרים. מזהה מת (ייבוא מחודש) מדולג בשקט.
+  const present = new Set(stay.map(({ clip }) => clip.src))
+  const movedIn: LabelledClip[] = []
+  for (const [assetId, target] of Object.entries(moves)) {
+    if (target !== exerciseId) continue
+    const indexed = clipById(assetId)
+    if (!indexed || present.has(indexed.clip.src)) continue
+    movedIn.push({ clip: indexed.clip, label: indexed.topic ?? '' })
+  }
 
-  return [...visibleOwn, ...withoutHidden(explainers, hidden)]
+  const visible = withoutHidden([...stay, ...movedIn], hidden)
+  const ordered = applyOrder(visible, ({ clip }) => bundledId(clip.src), order)
+
+  // המספור של ההדגמות נגזר *אחרי* הסינון והמיון: "הדגמה 2" כשאין הדגמה 1
+  // היא חור שנראה כמו תקלה, והמספר הוא מיקום ברשימה ולא זהות של הסרטון.
+  let demo = 0
+  return ordered.map(({ clip, label }) => ({
+    clip,
+    label: label || `הדגמה ${++demo}`,
+  }))
 }
 
 function withoutHidden(list: LabelledClip[], hidden?: ReadonlySet<string>): LabelledClip[] {
@@ -174,9 +258,11 @@ export function bundledVideosFor(
   exerciseId: string,
   libraryId?: string,
   /** מזהי נכסים שהמשתמש מחק. ראה db/hiddenVideos.ts */
-  hidden?: ReadonlySet<string>
+  hidden?: ReadonlySet<string>,
+  /** סדר ושיוך מותאמים. ראה db/videoPrefs.ts */
+  prefs?: VideoPrefs | null
 ): BundledVideo[] {
-  return labelledClips(exerciseId, libraryId, hidden).map(({ clip }) => clip)
+  return labelledClips(exerciseId, libraryId, hidden, prefs).map(({ clip }) => clip)
 }
 
 /**
@@ -189,9 +275,10 @@ export function bundledVideosFor(
 export function videoLabelsFor(
   exerciseId: string,
   libraryId?: string,
-  hidden?: ReadonlySet<string>
+  hidden?: ReadonlySet<string>,
+  prefs?: VideoPrefs | null
 ): string[] {
-  return labelledClips(exerciseId, libraryId, hidden).map(({ label }) => label)
+  return labelledClips(exerciseId, libraryId, hidden, prefs).map(({ label }) => label)
 }
 
 /**
@@ -208,9 +295,9 @@ export async function loadVideosFor(
   exerciseId: string,
   libraryId?: string
 ): Promise<PlayableVideo[]> {
-  const hidden = await loadHiddenVideoIds()
-  const clips = bundledVideosFor(exerciseId, libraryId, hidden)
-  const labels = videoLabelsFor(exerciseId, libraryId, hidden)
+  const [hidden, prefs] = await Promise.all([loadHiddenVideoIds(), loadVideoPrefs()])
+  const clips = bundledVideosFor(exerciseId, libraryId, hidden, prefs)
+  const labels = videoLabelsFor(exerciseId, libraryId, hidden, prefs)
 
   /*
     החיפוש המקומי לפי מזהה הנכס ולא לפי exerciseId, וזה הכרחי מאז שתרגיל בתוכנית
@@ -253,10 +340,18 @@ export async function loadVideosFor(
     }
   })
 
-  // הסרטונים שהמשתמש ייבא בעצמו, אחרי המצורפים
-  const own = await mediaDb.videos.where('exerciseId').equals(exerciseId).toArray()
-  for (const v of own) {
-    if (v.origin !== 'imported' || hidden.has(v.id)) continue
+  /*
+    הסרטונים שהמשתמש ייבא בעצמו, אחרי המצורפים.
+
+    הבית של סרטון מיובא הוא ה-exerciseId שנשמר עליו, אבל ההעברה גוברת —
+    לשני הכיוונים: מיובא שהועבר החוצה לא מופיע כאן, ומיובא שהועבר לכאן
+    (או למדף הקבוצה הזה) מופיע גם אם נשמר תחת תרגיל אחר. הסריקה על כל
+    המיובאים ולא בשאילתת אינדקס — מדובר בעשרות בודדות, לא באלפים.
+  */
+  const imported = await mediaDb.videos.where('origin').equals('imported').toArray()
+  for (const v of imported) {
+    const home = prefs.moves[v.id] ?? v.exerciseId
+    if (home !== exerciseId || hidden.has(v.id)) continue
     out.push({
       id: v.id,
       label: v.label || 'סרטון שלי',
@@ -268,24 +363,31 @@ export async function loadVideosFor(
     })
   }
 
-  return out
+  // הסדר המותאם חל על הרשימה המלאה — מצורפים ומיובאים יחד, כפי שהיא מוצגת
+  return applyOrder(out, (v) => v.id, prefs.order[exerciseId] ?? [])
 }
 
-/** התמונה הממוזערת הראשונה של תרגיל, לתצוגה במסך האימון */
+/**
+ * התמונה הממוזערת הראשונה של תרגיל, לתצוגה במסך האימון.
+ *
+ * "ראשון" כאן מכבד את הסדר המותאם: המשתמש שקבע איזה סרטון ראשון קבע בזה גם
+ * את התמונה על הכרטיס — זו אותה החלטה בדיוק.
+ */
 export async function loadThumbnailFor(
   exerciseId: string,
   libraryId?: string
 ): Promise<string | null> {
-  const hidden = await loadHiddenVideoIds()
-  const bundled = bundledVideosFor(exerciseId, libraryId, hidden)
+  const [hidden, prefs] = await Promise.all([loadHiddenVideoIds(), loadVideoPrefs()])
+  const bundled = bundledVideosFor(exerciseId, libraryId, hidden, prefs)
   if (bundled.length) {
     const cached = await mediaDb.videos.get(bundledId(bundled[0].src))
     if (cached?.thumbnailBlob) return URL.createObjectURL(cached.thumbnailBlob)
     return assetUrl(bundled[0].poster)
   }
   // תרגיל שכל ההדגמות שלו נמחקו לא חוזר להציג תמונה דרך הדלת האחורית
-  const own = (await mediaDb.videos.where('exerciseId').equals(exerciseId).toArray()).find(
-    (v) => !hidden.has(v.id)
+  const imported = await mediaDb.videos.where('origin').equals('imported').toArray()
+  const own = imported.find(
+    (v) => (prefs.moves[v.id] ?? v.exerciseId) === exerciseId && !hidden.has(v.id)
   )
   if (own?.thumbnailBlob) return URL.createObjectURL(own.thumbnailBlob)
   return null
@@ -306,6 +408,8 @@ export async function deleteVideo(id: string): Promise<void> {
   */
   if (!id.startsWith('bundled:')) {
     await mediaDb.videos.delete(id)
+    // מזהה מיובא הוא אקראי ולא יחזור לעולם — העדפות שמצביעות עליו הן זבל
+    await forgetVideoPrefs(id)
     notifyVideosChanged()
     return
   }

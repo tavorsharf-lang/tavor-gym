@@ -60,10 +60,14 @@ describe('מיזוג הדגמות התוכנית עם המאגר', () => {
 
 describe('אתרי הקריאה של הנגן והתמונה', () => {
   /**
-   * שני מסכי המאגר מעבירים מזהה מאגר כ-`exerciseId`, ו-`labelledClips` מזהה
+   * מסך תרגיל המאגר מעביר מזהה מאגר כ-`exerciseId`, ו-`labelledClips` מזהה
    * אותו לבד. שם `libraryId` נפרד הוא מיותר ולא חסר.
+   *
+   * ‏`LibraryScreen` היה כאן עד שהוא התאחד לתוך `ExerciseLibraryScreen`. המסך
+   * המאוחד *כן* חייב להעביר `libraryId`, כי אותה שורה מרנדרת גם תרגיל קטלוג
+   * מקושר וגם רשומת מאגר — ולכן הוא ברשימה שנבדקת ולא ברשימה שמדלגים עליה.
    */
-  const LIBRARY_SCREENS = ['screens/LibraryScreen.tsx', 'screens/LibraryExerciseScreen.tsx']
+  const LIBRARY_SCREENS = ['screens/LibraryExerciseScreen.tsx']
 
   const CALL_SITES = [
     'screens/WorkoutScreen.tsx',
@@ -85,6 +89,13 @@ describe('אתרי הקריאה של הנגן והתמונה', () => {
         const props = m[1]
         if (!props.includes('exerciseId=')) continue
         if (props.includes('libraryId=')) continue
+        /*
+          מדף של קבוצת שריר אינו תרגיל ואין לו מקבילה במאגר — `groupContextId`
+          מייצר מזהה הקשר משלו, ו-`libraryId` שם היה חסר משמעות ולא חסר.
+          החריגה היא לפי אתר הקריאה ולא לפי קובץ, כי אותו מסך מרנדר גם שורות
+          תרגיל שכן חייבות להעביר את הקישור.
+        */
+        if (props.includes('groupContextId(')) continue
         const line = text.slice(0, m.index).split('\n').length
         missing.push(`${rel}:${line}`)
       }

@@ -302,11 +302,26 @@ function HistoryRow({
 
 // ─── המסך ──────────────────────────────────────────────────────────────────
 
+/** אילו תרגילים פתחו "הצג את כל ההיסטוריה" — חי ברמת מודול כדי לשרוד ניווט */
+const expandedHistory = new Set<string>()
+
 export function ExerciseScreen(): JSX.Element {
   const { exerciseId = '' } = useParams<{ exerciseId: string }>()
   const navigate = useNavigate()
   const [playerOpen, setPlayerOpen] = useState(false)
-  const [showAllHistory, setShowAllHistory] = useState(false)
+  /*
+    "הצג הכל" שורד ניווט — משתנה מודול ולא useState בלבד, באותו דפוס של
+    historyWindow במסך ההיסטוריה: מי שפתח את כל ההיסטוריה, נכנס לאימון וחזר,
+    צריך למצוא מסך באותו גובה — אחרת שחזור הגלילה מכוון ליעד שכבר לא קיים.
+  */
+  const [showAllHistory, setShowAllHistoryState] = useState(
+    () => expandedHistory.has(exerciseId)
+  )
+  const setShowAllHistory = (open: boolean): void => {
+    if (open) expandedHistory.add(exerciseId)
+    else expandedHistory.delete(exerciseId)
+    setShowAllHistoryState(open)
+  }
 
   // null = התרגיל לא קיים · undefined = עוד נטען
   const data = useLiveQuery(async () => {

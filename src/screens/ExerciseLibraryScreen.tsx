@@ -2,75 +2,283 @@ import { useMemo, useState } from 'react'
 import type { JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ChevronLeft, Search, X } from 'lucide-react'
-import { getAllExercises, getLastPerformedMap } from '@/db/queries'
+import { ChevronLeft, Clapperboard, Minus, Plus, Search, X } from 'lucide-react'
+import {
+  addFromLibrary,
+  compareByName,
+  compareEntries,
+  createBlankExercise,
+  detachFromPlans,
+  findPlanUsage,
+  getCatalogEntries,
+  removeFromMine,
+  restoreToMine,
+} from '@/db/catalog'
+import type { CatalogEntry, PlanUsage } from '@/db/catalog'
+import { getLastPerformedMap } from '@/db/queries'
 import type { Exercise, MuscleGroup } from '@/db/types'
 import { EQUIPMENT_LABELS, MUSCLE_GROUPS, MUSCLE_GROUP_BY_SIZE } from '@/db/types'
 import { formatSetShort } from '@/domain/units'
 import { distinguisher, duplicateNames } from '@/domain/naming'
 import { formatRelativeDay } from '@/lib/dates'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
-import { EmptyState } from '@/components/ui'
+import { EmptyState, IconButton, toast } from '@/components/ui'
 import { VideoThumb } from '@/components/media/VideoThumb'
+import { VideoPlayer } from '@/components/media/VideoPlayer'
+import { RemoveExerciseSheet } from '@/components/exercises/RemoveExerciseSheet'
+import { clipById } from '@/db/mediaDb'
+import { useHiddenVideoIds } from '@/db/hiddenVideos'
+import { groupContextId, useVideoPrefs } from '@/db/videoPrefs'
 import { normalize } from '@/lib/text'
 
 /**
- * ספריית התרגילים — כל מה שאפשר לעשות בחדר, במקום אחד.
+ * מסך התרגילים — רשימה אחת, שני מצבים.
  *
- * מסודר מהשריר הגדול לקטן, כי ככה גם בונים אימון וככה קל לסרוק.
+ * עד כאן היו כאן שני מסכים: "כל התרגילים" (הקטלוג של תבור, עם משקלים
+ * והיסטוריה) ו"מאגר תרגילים" (62 תרגילים מיוצר תוכן, ללימוד). הפיצול היה לפי
+ * *מקור* — מי יצר את הרשומה — וזו הבחנה שמעניינת את מי שבנה את האפליקציה ולא
+ * את מי שעומד מול מכונה. המתג כאן מפצל לפי *תפקיד*: מה אני מרים מול מה קיים.
  *
- * השם באנגלית יושב כשורה שנייה קטנה מתחת לעברי. הוא מה שכתוב על המדבקה של
- * המכונה ומה שמחפשים בו סרטון, והוא זה שמפריד בין "לחיצת חזה במכונה" אחת
- * לשנייה. כשגם הוא זהה — שתי החתירות — המשקל בשורת המשנה עושה את ההפרדה.
+ * ‏`isActive` הוא "בתרגילים שלי". זו לא סמנטיקה חדשה — כל חמשת המקומות שבהם
+ * הדגל משנה התנהגות כבר עשו בדיוק את זה. מה שהיה חסר הוא המקום שבו מציירים
+ * שורה שאיננה שלי, וזה מצב "הכל".
  *
- * כל שורה מראה גם כמה הרמת בפעם האחרונה, כי זו השאלה שבשבילה נכנסים לכאן.
+ * "הכל" הוא `getCatalogEntries()` המלא ולא `LIBRARY_CATALOG`, וזה הכרחי:
+ * ל-14 מ-28 תרגילי הזריעה אין מקבילה במאגר, וגם לא לאף תרגיל שהמשתמש יצר.
+ * לו המצב היה מרנדר את קטלוג המאגר, הוצאת "לחיצת שוק" הייתה מוחקת אותה
+ * מהאפליקציה במקום להעביר אותה למצב אחר.
+ *
+ * מה שהמסך הזה *לא* עושה: הוא לא מכניס תרגילי מאגר ל-`db.exercises`. האיחוד
+ * הוא של הקריאה בלבד, ולכן תרגיל לימוד לא יכול להגיע לבחירת תרגיל באימון או
+ * לסטטיסטיקה. `catalog.ts` נושא את הנימוק המלא.
  */
 
-export function ExerciseLibraryScreen(): JSX.Element {
-  const navigate = useNavigate()
-  const [query, setQuery] = useState('')
+export type ExercisesMode = 'mine' | 'all'
 
-  const exercises = useLiveQuery(() => getAllExercises(true), [], [])
+export function ExerciseLibraryScreen({
+  initialMode = 'mine',
+}: {
+  initialMode?: ExercisesMode
+} = {}): JSX.Element {
+  const navigate = useNavigate()
+  const [mode, setMode] = useState<ExercisesMode>(initialMode)
+  const [query, setQuery] = useState('')
+  const [busy, setBusy] = useState<ReadonlySet<string>>(new Set())
+  const [pending, setPending] = useState<{ entry: CatalogEntry; usage: PlanUsage[] } | null>(null)
+  /** מדף הסרטונים של קבוצה שפתוח כרגע בנגן */
+  const [playingGroup, setPlayingGroup] = useState<MuscleGroup | null>(null)
+
+  /*
+    מדפי הסרטונים של קבוצות השריר: סרטון שהועבר אל `group:<שריר>` (מתוך פאנל
+    הניהול בנגן) מופיע כאן, בכרטיס אחד בראש הקבוצה. הספירה סינכרונית לגמרי —
+    ההעברות חיות בהגדרות, והאינדקס של המניפסטים בזיכרון — ולכן אין כאן שאילתה
+    לכל קבוצה ואין קפיצת גובה שנלחמת בשחזור הגלילה.
+  */
+  const videoPrefs = useVideoPrefs()
+  const hiddenVideos = useHiddenVideoIds()
+  const shelfCounts = useMemo(() => {
+    const counts = new Map<MuscleGroup, number>()
+    for (const [assetId, target] of Object.entries(videoPrefs.moves)) {
+      if (!target.startsWith('group:')) continue
+      if (hiddenVideos.has(assetId)) continue
+      // מזהה מצורף חייב להתקיים במניפסט הנוכחי; מזהה מיובא תמיד חי (מחיקה מנקה אותו)
+      if (assetId.startsWith('bundled:') && !clipById(assetId)) continue
+      const group = target.slice('group:'.length) as MuscleGroup
+      counts.set(group, (counts.get(group) ?? 0) + 1)
+    }
+    return counts
+  }, [videoPrefs, hiddenVideos])
+
+  /*
+    ערך התחלה [] ולא LIBRARY_CATALOG. `useLiveQuery` מחזיר undefined גם ל"טוען"
+    וגם ל"אין תוצאה", ורשימה שמתחילה מהמאגר הייתה מציגה כפתור "הוסף" על תרגילים
+    שכבר קיימים — בדיוק הבאג שהוליד את שער `linkKnown` במסך תרגיל המאגר.
+    כאן זה מובטח מבנית: כפתור קיים רק על שורה שהגיעה מהמסד.
+  */
+  const entries = useLiveQuery(() => getCatalogEntries(), [], [] as CatalogEntry[])
+  // פעם אחת לרשימה. הפונקציה סורקת את כל טבלת הסטים — קריאה לשורה הייתה אסון.
   const lastPerformed = useLiveQuery(() => getLastPerformedMap(), [], new Map())
 
+  const catalogExercises = useMemo(
+    () => entries.map((e) => e.exercise).filter((e): e is Exercise => e !== null),
+    [entries]
+  )
   // מחושב על כל הקטלוג ולא על תוצאות החיפוש — תרגיל לא משנה זהות לפי מה שהוקלד
-  const duplicates = useMemo(() => duplicateNames(exercises), [exercises])
+  const duplicates = useMemo(() => duplicateNames(catalogExercises), [catalogExercises])
+
+  const matches = (entry: CatalogEntry, q: string): boolean =>
+    !q ||
+    normalize(entry.name).includes(q) ||
+    normalize(entry.nameEn ?? '').includes(q) ||
+    normalize(entry.exercise?.subTarget ?? '').includes(q) ||
+    normalize(MUSCLE_GROUPS[entry.muscleGroup].label).includes(q)
+
+  const q = normalize(query)
+  const mine = useMemo(() => entries.filter((e) => e.state === 'mine'), [entries])
 
   const groups = useMemo(() => {
-    const q = normalize(query)
-    const byGroup = new Map<MuscleGroup, Exercise[]>()
-
-    for (const ex of exercises) {
-      const hit =
-        !q ||
-        normalize(ex.name).includes(q) ||
-        normalize(ex.nameEn ?? '').includes(q) ||
-        normalize(ex.subTarget).includes(q) ||
-        normalize(MUSCLE_GROUPS[ex.muscleGroup].label).includes(q)
-      if (!hit) continue
-      const list = byGroup.get(ex.muscleGroup)
-      if (list) list.push(ex)
-      else byGroup.set(ex.muscleGroup, [ex])
+    const source = mode === 'mine' ? mine : entries
+    const byGroup = new Map<MuscleGroup, CatalogEntry[]>()
+    for (const entry of source) {
+      if (!matches(entry, q)) continue
+      const list = byGroup.get(entry.muscleGroup)
+      if (list) list.push(entry)
+      else byGroup.set(entry.muscleGroup, [entry])
     }
-
     return MUSCLE_GROUP_BY_SIZE.filter((g) => byGroup.has(g)).map((group) => ({
       group,
-      // תרגילים כבויים יורדים לתחתית הקבוצה במקום להיעלם
-      list: (byGroup.get(group) ?? []).sort(
-        (a, b) => Number(b.isActive) - Number(a.isActive) || a.order - b.order
-      ),
+      /*
+        "שלי" ממוין לפי סדר הקטלוג — הוא רשימת התוכנית. "הכל" ממוין אלפביתית
+        בלי שום תלות בחברות, כי `useLiveQuery` מרענן את הרשימה בכל כתיבה:
+        מיון "שלי קודם" היה מזיז את השורה מתחת לאצבע ברגע ההוספה, כלומר
+        הלחיצה הבאה ברצף נוחתת על תרגיל אחר.
+      */
+      list: (byGroup.get(group) ?? []).sort(mode === 'mine' ? compareEntries : compareByName),
     }))
-  }, [exercises, query])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, mine, mode, q])
 
   const total = groups.reduce((n, g) => n + g.list.length, 0)
+  // כמה תוצאות יש בצד השני — מה שהופך "לא נמצא" להצעה ולא לקיר
+  const allHits = useMemo(() => entries.filter((e) => matches(e, q)).length, [entries, q])
+
+  const switchMode = (next: ExercisesMode): void => {
+    if (next === mode) return
+    setMode(next)
+    /*
+      מצב הוא state ולא ניווט: `navigate` בלי replace היה גורם ל"חזרה" לבטל
+      החלפות מתג, ועם replace שני המצבים חולקים location.key אחד — ואז
+      useScrollMemory משחזר אופסט של רשימת 76 לתוך רשימת 28. איפוס מפורש הוא
+      מה שמחליף את השחזור, כי הרשימה מתחלפת ולא נגללת.
+    */
+    window.scrollTo(0, 0)
+  }
+
+  const withBusy = async (id: string, work: () => Promise<void>): Promise<void> => {
+    if (busy.has(id)) return
+    setBusy((prev) => new Set(prev).add(id))
+    try {
+      await work()
+    } finally {
+      setBusy((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    }
+  }
+
+  const handleAdd = (entry: CatalogEntry): void => {
+    void withBusy(entry.id, async () => {
+      try {
+        if (entry.exercise) {
+          await restoreToMine(entry.exercise.id)
+          toast(`${entry.name} חזר לתרגילים שלך`, { tone: 'success' })
+          return
+        }
+        if (!entry.library) return
+        const { exercise, outcome } = await addFromLibrary(entry.library)
+        if (outcome === 'already') {
+          toast(`${exercise.name} כבר בתרגילים שלך`)
+          return
+        }
+        toast(outcome === 'restored' ? `${exercise.name} חזר לתרגילים שלך` : `${exercise.name} נוסף`, {
+          tone: 'success',
+          actionLabel: 'לעריכה',
+          onAction: () => navigate(`/settings/exercises/${exercise.id}`),
+        })
+      } catch {
+        toast('לא הצלחתי להוסיף את התרגיל', { tone: 'warn' })
+      }
+    })
+  }
+
+  const handleCreate = async (): Promise<void> => {
+    try {
+      const created = await createBlankExercise()
+      // ישר לעורך: לרשומה ריקה אין שם, שריר או ציוד, ובלעדיהם היא לא שווה כלום
+      navigate(`/settings/exercises/${created.id}`)
+    } catch {
+      toast('לא הצלחתי ליצור תרגיל חדש', { tone: 'warn' })
+    }
+  }
+
+  const handleRemoveTap = (entry: CatalogEntry): void => {
+    if (!entry.exercise) return
+    void withBusy(entry.id, async () => {
+      const usage = await findPlanUsage(entry.exercise!.id)
+      // בלי חברות בתוכנית אין החלטה לקבל — הטוסט עם "בטל" הוא כל הרשת שצריך
+      if (usage.length === 0) {
+        await doRemove(entry, false)
+        return
+      }
+      setPending({ entry, usage })
+    })
+  }
+
+  const doRemove = async (entry: CatalogEntry, detach: boolean): Promise<void> => {
+    if (!entry.exercise) return
+    const id = entry.exercise.id
+    try {
+      await removeFromMine(id)
+      if (detach) await detachFromPlans(id)
+      toast(`${entry.name} הוצא מהתרגילים שלך`, {
+        actionLabel: 'בטל',
+        // הביטול מחזיר רק את הדגל. פריט תוכנית שנותק כבר לא חוזר, ולכן
+        // "הוצא גם מהתוכניות" הוא הכפתור המשני בגיליון ולא ברירת המחדל.
+        onAction: () => void restoreToMine(id),
+      })
+    } catch {
+      toast('לא הצלחתי להוציא את התרגיל', { tone: 'warn' })
+    }
+  }
+
+  // הגיליון נסגר לפני הכתיבה כדי שהאישור לא יישאר תלוי מעל הרשימה שמשתנה
+  const confirmRemove = (detach: boolean): void => {
+    const target = pending
+    setPending(null)
+    if (target) void doRemove(target.entry, detach)
+  }
+
+  const subtitle =
+    mode === 'mine'
+      ? `${mine.length} תרגילים · לפי קבוצת שריר`
+      : `${entries.length} תרגילים · שלי ומה שאפשר להוסיף`
 
   return (
-    <Screen>
-      <ScreenHeader
-        title="כל התרגילים"
-        subtitle={`${exercises.length} תרגילים · לפי קבוצת שריר`}
+    <Screen dock={false}>
+      <ScreenHeader title="תרגילים" subtitle={subtitle} />
 
-      />
+      {/*
+        aria-pressed ולא role=tab: אין כאן tabpanel ואין ניווט חצים, ולכן
+        סמנטיקת טאבים הייתה מבטיחה לקורא-מסך התנהגות שלא קיימת. אותו נימוק
+        ואותה צורה כמו בורר הטווח במסך הנתונים.
+      */}
+      <div
+        role="group"
+        aria-label="אילו תרגילים"
+        className="mb-4 flex gap-1 rounded-pill border border-ink-700 bg-ink-900 p-1"
+      >
+        {([
+          { key: 'mine' as const, label: 'שלי' },
+          { key: 'all' as const, label: 'הכל' },
+        ]).map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            aria-pressed={mode === tab.key}
+            onClick={() => switchMode(tab.key)}
+            className={[
+              'min-h-12 flex-1 rounded-pill text-sm font-bold transition-colors',
+              mode === tab.key
+                ? 'border border-flame-500/40 bg-flame-500/12 text-flame-300'
+                : 'text-bone-400 active:bg-ink-800',
+            ].join(' ')}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       <div className="relative mb-5">
         <Search
@@ -82,7 +290,7 @@ export function ExerciseLibraryScreen(): JSX.Element {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="חיפוש תרגיל, שריר או מיקוד"
+          placeholder={mode === 'mine' ? 'חיפוש בתרגילים שלי' : 'חיפוש בכל התרגילים'}
           aria-label="חיפוש תרגיל"
           className="h-13 w-full rounded-card border border-ink-700 bg-ink-900/70 pe-4 ps-11 text-bone-50 outline-none transition-colors placeholder:text-bone-500 focus:border-flame-500/60"
         />
@@ -100,9 +308,12 @@ export function ExerciseLibraryScreen(): JSX.Element {
       </div>
 
       {total === 0 ? (
-        <EmptyState
-          title="לא נמצא תרגיל"
-          hint={`אין תרגיל שמתאים ל"${query}". אפשר להוסיף תרגיל חדש בהגדרות ← קטלוג התרגילים.`}
+        <EmptyStateFor
+          mode={mode}
+          query={query}
+          allHits={allHits}
+          onGoAll={() => switchMode('all')}
+          onCreate={() => void handleCreate()}
         />
       ) : (
         <div className="space-y-7">
@@ -115,78 +326,266 @@ export function ExerciseLibraryScreen(): JSX.Element {
                 <span className="meta">{list.length}</span>
               </div>
 
+              {(shelfCounts.get(group) ?? 0) > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setPlayingGroup(group)}
+                  className="mb-2 flex min-h-13 w-full items-center gap-3 rounded-card border border-flame-500/25 bg-flame-500/[0.06] px-3 text-start active:bg-flame-500/10"
+                >
+                  <Clapperboard size={18} className="shrink-0 text-flame-400" />
+                  <span className="min-w-0 flex-1 text-sm font-bold text-bone-100">
+                    סרטוני {MUSCLE_GROUPS[group].label} — כמה תרגילים בסרטון אחד
+                  </span>
+                  <span className="meta tnum shrink-0">{shelfCounts.get(group)}</span>
+                  <ChevronLeft size={16} className="shrink-0 text-bone-600" />
+                </button>
+              ) : null}
+
               <div className="card divide-y divide-ink-800/70 overflow-hidden">
-                {list.map((ex) => {
-                  const last = lastPerformed.get(ex.id)
-                  const apart = distinguisher(ex, duplicates)
-                  return (
-                    <button
-                      key={ex.id}
-                      type="button"
-                      onClick={() => navigate(`/exercise/${ex.id}`)}
-                      className={`flex w-full items-center gap-3 p-3 text-start transition-colors active:bg-ink-800 ${
-                        ex.isActive ? '' : 'opacity-45'
-                      }`}
-                    >
-                      {/* השורה כולה נלחצת — התמונה דקורטיבית ולא כפתור בתוך כפתור */}
-                      <VideoThumb exerciseId={ex.id} libraryId={ex.libraryId} size="sm" />
-
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[0.9375rem] font-bold text-bone-50">
-                          {ex.name}
-                        </span>
-                        {ex.nameEn ? (
-                          // dir=ltr לריצת הטקסט, אבל היישור נשאר לקצה ההתחלתי
-                          // של השורה העברית — אחרת השם קופץ לקצה הנגדי ומתנתק
-                          // מהשם שהוא אמור לתייג
-                          <span
-                            dir="ltr"
-                            className="mt-0.5 block truncate text-end text-[0.6875rem] font-semibold text-bone-500"
-                          >
-                            {ex.nameEn}
-                          </span>
-                        ) : null}
-                        {/*
-                          המבדיל יושב מחוץ למחרוזת הקטומה ובלי shrink. כשהוא היה
-                          בסוף שורה אחת קטומה, דווקא הוא היה נחתך — ובשתי שורות
-                          בעלות אותו שם זה בדיוק מה שצריך להישאר על המסך.
-                        */}
-                        <span className="meta mt-0.5 flex items-baseline gap-1.5">
-                          {apart ? (
-                            <span className="shrink-0 font-bold text-bone-400">{apart}</span>
-                          ) : null}
-                          <span className="truncate">
-                            {ex.subTarget} · {EQUIPMENT_LABELS[ex.equipment]}
-                            {ex.isActive ? '' : ' · כבוי'}
-                          </span>
-                        </span>
-                      </span>
-
-                      <span className="shrink-0 text-end">
-                        {last ? (
-                          <>
-                            <span
-                              dir="ltr"
-                              className="tnum block text-sm font-extrabold text-bone-200"
-                            >
-                              {formatSetShort(last.weightKg, last.reps, ex.weightMode, ex.metric)}
-                            </span>
-                            <span className="meta mt-0.5 block">{formatRelativeDay(last.at)}</span>
-                          </>
-                        ) : (
-                          <span className="meta">עוד לא בוצע</span>
-                        )}
-                      </span>
-
-                      <ChevronLeft size={18} className="shrink-0 text-bone-600" />
-                    </button>
-                  )
-                })}
+                {list.map((entry) => (
+                  <Row
+                    key={entry.id}
+                    entry={entry}
+                    mode={mode}
+                    duplicates={duplicates}
+                    lastPerformed={lastPerformed}
+                    busy={busy.has(entry.id)}
+                    onOpen={() =>
+                      navigate(
+                        entry.exercise ? `/exercise/${entry.exercise.id}` : `/library/${entry.id}`
+                      )
+                    }
+                    onAdd={() => handleAdd(entry)}
+                    onRemove={() => handleRemoveTap(entry)}
+                  />
+                ))}
               </div>
             </section>
           ))}
+
+          {/*
+            תרגיל שאינו מהמאגר — כפיפת פטיש, לחיצת שוק, מקבילים. זה המסלול
+            היחיד ליצור אותו, והוא היה קבור בהגדרות ← קטלוג התרגילים, מסך
+            שלא היה אלא עותק שלישי של אותה רשימה.
+
+            בתחתית ולא בראש: רוב הכניסות לכאן הן לחפש משהו שכבר קיים, ורק מי
+            שגלל עד הסוף ולא מצא באמת צריך אותו. ורק במצב "הכל" — "שלי" הוא
+            רשימת עיון נקייה.
+          */}
+          {mode === 'all' ? (
+            <button
+              type="button"
+              onClick={() => void handleCreate()}
+              className="card flex min-h-14 w-full items-center justify-center gap-2 p-3 text-sm font-bold text-bone-400 active:bg-ink-800"
+            >
+              <Plus size={16} />
+              תרגיל חדש משלי
+            </button>
+          ) : null}
         </div>
       )}
+
+      <RemoveExerciseSheet
+        open={pending !== null}
+        onClose={() => setPending(null)}
+        exerciseName={pending?.entry.name ?? ''}
+        usage={pending?.usage ?? []}
+        onConfirm={confirmRemove}
+      />
+
+      {playingGroup ? (
+        <VideoPlayer
+          exerciseId={groupContextId(playingGroup)}
+          exerciseName={`סרטוני ${MUSCLE_GROUPS[playingGroup].label}`}
+          open
+          onClose={() => setPlayingGroup(null)}
+        />
+      ) : null}
     </Screen>
+  )
+}
+
+/**
+ * שורה אחת. אותו מבנה בשני המצבים — מה שמתחלף הוא רק הפקד האחרון, כך שגובה
+ * השורה לא זז כשמחליפים מצב.
+ *
+ * העוטף הוא div והכפתור בפנים, כי `IconButton` לא יכול לשבת בתוך כפתור אחר.
+ * מאותה סיבה `VideoThumb` מגיע בלי `onOpen` ולכן מרנדר span.
+ */
+function Row({
+  entry,
+  mode,
+  duplicates,
+  lastPerformed,
+  busy,
+  onOpen,
+  onAdd,
+  onRemove,
+}: {
+  entry: CatalogEntry
+  mode: ExercisesMode
+  duplicates: ReadonlySet<string>
+  lastPerformed: Map<string, { weightKg: number; reps: number; at: number; sets: number }>
+  busy: boolean
+  onOpen: () => void
+  onAdd: () => void
+  onRemove: () => void
+}): JSX.Element {
+  const ex = entry.exercise
+  const last = ex ? lastPerformed.get(ex.id) : undefined
+  const apart = ex ? distinguisher(ex, duplicates) : null
+  const out = entry.state === 'removed' || entry.state === 'removedOwn'
+
+  return (
+    <div className="flex items-center">
+      <button
+        type="button"
+        onClick={onOpen}
+        className={[
+          'flex min-w-0 flex-1 items-center gap-3 p-3 text-start transition-colors active:bg-ink-800',
+          out ? 'opacity-60' : '',
+        ].join(' ')}
+      >
+        <VideoThumb exerciseId={ex?.id ?? entry.id} libraryId={ex?.libraryId} size="sm" keepFrame />
+
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[0.9375rem] font-bold text-bone-50">
+            {entry.name}
+          </span>
+          {entry.nameEn ? (
+            // dir=ltr לריצת הטקסט, אבל היישור נשאר לקצה ההתחלתי של השורה
+            // העברית — אחרת השם קופץ לקצה הנגדי ומתנתק מהשם שהוא מתייג
+            <span
+              dir="ltr"
+              className="mt-0.5 block truncate text-end text-[0.6875rem] font-semibold text-bone-500"
+            >
+              {entry.nameEn}
+            </span>
+          ) : null}
+          {/*
+            המבדיל יושב מחוץ למחרוזת הקטומה ובלי shrink: כשהוא היה בסוף שורה
+            אחת קטומה, דווקא הוא היה נחתך — ובשתי שורות בעלות אותו שם זה בדיוק
+            מה שצריך להישאר על המסך.
+          */}
+          <span className="meta mt-0.5 flex items-baseline gap-1.5">
+            {apart ? <span className="shrink-0 font-bold text-bone-400">{apart}</span> : null}
+            <span className="truncate">
+              {ex
+                ? `${ex.subTarget} · ${EQUIPMENT_LABELS[ex.equipment]}${out ? ' · לא בתרגילים שלי' : ''}`
+                : `${entry.library?.videos.length ?? 0} סרטוני הסבר`}
+            </span>
+          </span>
+        </span>
+
+        <span className="shrink-0 text-end">
+          {ex ? (
+            last ? (
+              <>
+                <span dir="ltr" className="tnum block text-sm font-extrabold text-bone-200">
+                  {formatSetShort(last.weightKg, last.reps, ex.weightMode, ex.metric)}
+                </span>
+                <span className="meta mt-0.5 block">{formatRelativeDay(last.at)}</span>
+              </>
+            ) : (
+              <span className="meta">עוד לא בוצע</span>
+            )
+          ) : null}
+        </span>
+
+        {mode === 'mine' ? <ChevronLeft size={18} className="shrink-0 text-bone-600" /> : null}
+      </button>
+
+      {mode === 'all' ? (
+        entry.state === 'mine' ? (
+          <IconButton label={`הוצא את ${entry.name} מהתרגילים שלי`} disabled={busy} onClick={onRemove}>
+            <Minus size={18} />
+          </IconButton>
+        ) : (
+          <IconButton
+            label={`הוסף את ${entry.name} לתרגילים שלי`}
+            disabled={busy}
+            active
+            onClick={onAdd}
+          >
+            <Plus size={18} />
+          </IconButton>
+        )
+      ) : null}
+    </div>
+  )
+}
+
+/**
+ * "לא נמצא" הוא המקום שבו האיחוד משתלם: חיפוש שנכשל ב"שלי" ומצליח ב"הכל" הוא
+ * בדיוק הרגע שבו המשתמש מגלה שהתרגיל קיים ורק לא אצלו. שתי הרשימות המסוננות
+ * ממילא מחושבות, אז המספר בחינם.
+ */
+function EmptyStateFor({
+  mode,
+  query,
+  allHits,
+  onGoAll,
+  onCreate,
+}: {
+  mode: ExercisesMode
+  query: string
+  allHits: number
+  onGoAll: () => void
+  onCreate: () => void
+}): JSX.Element {
+  if (!query) {
+    return (
+      <EmptyState
+        title="אין לך עדיין תרגילים"
+        hint="כל מה שהוצאת נמצא ב״הכל״, עם המשקלים וההיסטוריה שלו."
+        action={
+          <button
+            type="button"
+            onClick={onGoAll}
+            className="min-h-12 rounded-pill border border-flame-500/40 bg-flame-500/12 px-5 text-sm font-bold text-flame-300"
+          >
+            עבור להכל
+          </button>
+        }
+      />
+    )
+  }
+
+  if (mode === 'mine' && allHits > 0) {
+    return (
+      <EmptyState
+        title="לא נמצא בתרגילים שלך"
+        hint={`יש ${allHits} תרגילים שמתאימים ל"${query}" — הם פשוט לא אצלך.`}
+        action={
+          <button
+            type="button"
+            onClick={onGoAll}
+            className="min-h-12 rounded-pill border border-flame-500/40 bg-flame-500/12 px-5 text-sm font-bold text-flame-300"
+          >
+            חפש בהכל
+          </button>
+        }
+      />
+    )
+  }
+
+  /*
+    חיפוש שנכשל גם ב"הכל" הוא הרגע היחיד שבו באמת מגלים שהתרגיל חסר — ולכן
+    כאן הכפתור ליצירה, ולא בראש המסך שבו הוא רק רעש.
+  */
+  return (
+    <EmptyState
+      title="לא נמצא תרגיל"
+      hint={`אין תרגיל שמתאים ל"${query}" — לא אצלך ולא במאגר.`}
+      action={
+        <button
+          type="button"
+          onClick={onCreate}
+          className="min-h-12 rounded-pill border border-flame-500/40 bg-flame-500/12 px-5 text-sm font-bold text-flame-300"
+        >
+          צור תרגיל משלי
+        </button>
+      }
+    />
   )
 }

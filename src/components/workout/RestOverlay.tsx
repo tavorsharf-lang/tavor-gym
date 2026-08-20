@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Minus, Plus, X } from 'lucide-react'
+import { Minus, Plus, TimerOff, X } from 'lucide-react'
 import { useRestTimer } from '@/hooks/useRestTimer'
 import type { AudioCue } from '@/hooks/useAudioCue'
 import { formatClock } from '@/domain/units'
@@ -21,6 +21,7 @@ export function RestOverlay({
   audio,
   onAdjust,
   onSkip,
+  onDisable,
   nextLabel,
 }: {
   endsAt: number | null
@@ -28,6 +29,12 @@ export function RestOverlay({
   audio: AudioCue
   onAdjust: (deltaSeconds: number) => void
   onSkip: () => void
+  /**
+   * כיבוי טיימר המנוחה מכאן והלאה — לא רק דילוג על המנוחה הזו.
+   * למי שמתעד מנוחה בשעון: המסך הזה מיותר, והכפתור בראש המסך מכבה אותו
+   * לכל האימון. ההדלקה חזרה ממסך האימון או מההגדרות.
+   */
+  onDisable: () => void
   /** מה מחכה אחרי המנוחה, למשל "סט 3 מתוך 4" */
   nextLabel?: string
 }) {
@@ -75,6 +82,20 @@ export function RestOverlay({
       {flash && (
         <div className="pointer-events-none absolute inset-0 animate-flash bg-flame-500" />
       )}
+
+      {/* בראש המסך, הרחק מכפתורי הפעולה שבתחתית — לחיצה עליו היא החלטה, לא רפלקס */}
+      <div
+        className="relative flex justify-center"
+        style={{ paddingTop: 'calc(var(--safe-t) + 0.75rem)' }}
+      >
+        <button
+          onClick={onDisable}
+          className="flex min-h-11 items-center gap-2 rounded-pill border border-ink-700 bg-ink-900/70 px-4 text-xs font-bold text-bone-400 active:bg-ink-800"
+        >
+          <TimerOff size={14} />
+          אני עם שעון — כבה את טיימר המנוחה
+        </button>
+      </div>
 
       <div className="relative flex flex-1 flex-col items-center justify-center px-6">
         <p className="meta mb-6 uppercase">מנוחה</p>

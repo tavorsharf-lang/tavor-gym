@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { JSX, ReactNode } from 'react'
+import type { JSX } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ChevronDown, ChevronUp, ListPlus, Trash2 } from 'lucide-react'
+import { Blocks, ChevronDown, ChevronUp, ListPlus, Trash2 } from 'lucide-react'
 import { db } from '@/db/db'
 import { activateRoutines, getAllExercises, getBlocks, getRoutines } from '@/db/queries'
 import type { Exercise, MuscleGroup, PlanItem, RoutineId } from '@/db/types'
 import { MUSCLE_GROUPS, MUSCLE_GROUP_ORDER } from '@/db/types'
 import { countLabel, countMax, countStep, formatClock, formatRepRange } from '@/domain/units'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
-import { BottomSheet, Button, EmptyState, toast } from '@/components/ui'
+import { BottomSheet, Button, EmptyState, IconButton, toast } from '@/components/ui'
 import { SettingNumber } from '@/components/settings/SettingRow'
 import { normalize } from '@/lib/text'
 
@@ -19,29 +19,6 @@ import { normalize } from '@/lib/text'
  * הכי הרבה, ולכן החיצים יושבים בשורה עצמה ולא מוסתרים מאחורי פתיחה.
  */
 
-function IconButton({
-  label,
-  onClick,
-  disabled = false,
-  children,
-}: {
-  label: string
-  onClick: () => void
-  disabled?: boolean
-  children: ReactNode
-}): JSX.Element {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className="flex size-12 shrink-0 items-center justify-center rounded-xl text-bone-400 transition-colors active:bg-ink-800 disabled:opacity-25"
-    >
-      {children}
-    </button>
-  )
-}
 
 export function PlanEditorScreen(): JSX.Element {
   const routines = useLiveQuery(() => getRoutines(), [])
@@ -54,6 +31,7 @@ export function PlanEditorScreen(): JSX.Element {
   const [pickerQuery, setPickerQuery] = useState('')
   const [nameDraft, setNameDraft] = useState('')
   const [subtitleDraft, setSubtitleDraft] = useState('')
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   const loaded = routines !== undefined && blocks !== undefined
   const routine = (routines ?? []).find((r) => r.id === selectedId) ?? null
@@ -173,14 +151,26 @@ export function PlanEditorScreen(): JSX.Element {
     }))
   }, [exercises, pickerQuery])
 
+  /*
+    אימון שנמחק נשאר במסד עם `isActive: false`.
+
+    מחיקה אמיתית של השורה הייתה מייתמת את השם של כל אימון בהיסטוריה שבוצע
+    לפיה — הם היו הופכים ל"אימון חופשי" למפרע, ומסנן ההיסטוריה שלהם היה נעלם.
+    ההסתרה כאן היא כל מה שהמשתמש רואה, וההיסטוריה שומרת על השם שלה.
+  */
+  const visibleRoutines = (routines ?? []).filter((r) => r.kind !== 'custom' || r.isActive)
+
   const tabs = [
-    // אות בודדת לפיצול, שם מלא לפול-באדי — "F1" לא אומר כלום בעברית
-    ...(routines ?? []).map((r) => ({
+    // אות בודדת לפיצול, שם מלא לפול-באדי — "F1" לא אומר כלום בעברית.
+    // הבדיקה נשענת על `kind` ולא על אורך המזהה, אחרת מזהה קצר של אימון שמור
+    // היה מצויר כאות של תוכנית קבועה.
+    ...visibleRoutines.map((r) => ({
       id: r.id as string,
-      label: r.id.length === 1 ? r.id : r.name,
-      dim: !r.isActive,
+      label: r.kind === 'program' && r.id.length === 1 ? r.id : r.name,
+      dim: r.kind === 'custom' ? false : !r.isActive,
+      custom: r.kind === 'custom',
     })),
-    ...(blocks ?? []).map((b) => ({ id: b.id, label: b.name, dim: false })),
+    ...(blocks ?? []).map((b) => ({ id: b.id, label: b.name, dim: false, custom: false })),
   ]
 
   const fullBodyActive = (routines ?? []).some((r) => r.id === 'F1' && r.isActive)
@@ -189,6 +179,17 @@ export function PlanEditorScreen(): JSX.Element {
     await activateRoutines(ids)
     setSelectedId(ids[0])
     toast(`${label} — זו התוכנית שתוצע במסך הבית`, { tone: 'success' })
+  }
+
+  const deleteRoutine = async (): Promise<void> => {
+    if (!routine || routine.kind !== 'custom') return
+    await db.routines.put({ ...routine, isActive: false })
+    setDeleteOpen(false)
+    setSelectedId('F1')
+    toast(`${routine.name} נמחק`, {
+      actionLabel: 'בטל',
+      onAction: () => void db.routines.put({ ...routine, isActive: true }),
+    })
   }
 
   return (
@@ -249,13 +250,15 @@ export function PlanEditorScreen(): JSX.Element {
             aria-pressed={selectedId === tab.id}
             onClick={() => setSelectedId(tab.id)}
             className={[
-              'flex min-h-12 shrink-0 items-center rounded-pill border px-5 text-sm font-extrabold transition-colors',
+              'flex min-h-12 shrink-0 items-center gap-1.5 rounded-pill border px-5 text-sm font-extrabold transition-colors',
               selectedId === tab.id
                 ? 'border-flame-500/50 bg-flame-500/12 text-flame-300'
                 : 'border-ink-700 bg-ink-850 text-bone-400 active:bg-ink-800',
               tab.dim && selectedId !== tab.id ? 'opacity-45' : '',
             ].join(' ')}
           >
+            {/* אימון שנבנה נראה אחרת מתוכנית קבועה — הן לא אותו סוג דבר */}
+            {tab.custom ? <Blocks size={14} aria-hidden="true" /> : null}
             {tab.label}
           </button>
         ))}
@@ -304,6 +307,23 @@ export function PlanEditorScreen(): JSX.Element {
                 />
               </div>
             ) : null}
+            {/*
+              רק אימון שנבנה אפשר למחוק. חמש התוכניות הקבועות הן השלד שההצעה
+              היומית והמתג עומדים עליו, ומחיקה שלהן הייתה משאירה מסך בית ריק.
+            */}
+            {routine?.kind === 'custom' ? (
+              <div className="px-4 py-3">
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  fullWidth
+                  icon={<Trash2 size={18} />}
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  מחק את האימון הזה
+                </Button>
+              </div>
+            ) : null}
           </div>
 
           <div className="card mb-4 overflow-hidden">
@@ -327,12 +347,23 @@ export function PlanEditorScreen(): JSX.Element {
                           className="flex min-h-14 min-w-0 flex-1 flex-col justify-center rounded-xl px-2 text-start active:bg-ink-800/60"
                         >
                           <span className="truncate text-sm font-bold text-bone-50">
-                            {exercise?.name ?? 'תרגיל שנמחק'}
+                            {exercise?.name ?? 'תרגיל שהוסר'}
                           </span>
                           <span className="meta tnum mt-1">
                             {item.targetSets} × {formatRepRange(item.targetReps, exercise?.metric)} ·{' '}
                             {formatClock(item.restSeconds)}
                           </span>
+                          {/*
+                            תרגיל שהוצא מ"התרגילים שלי" נשאר כאן ומחכה, אבל
+                            `start()` מסנן אותו מהתור. בלי התג הזה האימון של מחר
+                            מתקצר בלי שום סימן — התוכנית מציגה שמונה תרגילים,
+                            ובחדר יוצאים שבעה.
+                          */}
+                          {exercise && !exercise.isActive ? (
+                            <span className="mt-1.5 inline-flex w-fit items-center rounded-pill border border-ink-700 bg-ink-850 px-2 py-0.5 text-[0.6875rem] font-bold text-bone-400">
+                              לא בתרגילים שלי
+                            </span>
+                          ) : null}
                         </button>
                         <IconButton
                           label={`העלה את ${exercise?.name ?? 'התרגיל'}`}
@@ -473,6 +504,25 @@ export function PlanEditorScreen(): JSX.Element {
             </div>
           ))
         )}
+      </BottomSheet>
+
+      <BottomSheet
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title={`למחוק את ${routine?.name ?? 'האימון'}?`}
+      >
+        <p className="text-sm leading-relaxed text-bone-400">
+          האימון ייעלם מהרשימה, והאימונים שכבר ביצעת לפיו יישארו בהיסטוריה עם השם שלהם. אפשר לבטל
+          מיד אחרי.
+        </p>
+        <div className="mt-5 mb-2 flex flex-col gap-2">
+          <Button variant="danger" size="lg" fullWidth onClick={() => void deleteRoutine()}>
+            כן, מחק
+          </Button>
+          <Button variant="ghost" size="lg" fullWidth onClick={() => setDeleteOpen(false)}>
+            השאר
+          </Button>
+        </div>
       </BottomSheet>
     </Screen>
   )

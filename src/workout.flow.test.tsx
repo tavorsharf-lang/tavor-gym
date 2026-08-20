@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { App } from './App'
 import { db, ensureReady } from './db/db'
-import { touchedGroups, useWorkout } from './state/activeWorkoutStore'
+import { openItems, skippedItems, touchedGroups, useWorkout } from './state/activeWorkoutStore'
 import { suggestWarmup } from './domain/warmup'
 
 /**
@@ -414,11 +414,13 @@ describe('פעולות התור נשמרות לדיסק', () => {
     expect(useWorkout.getState().workout?.queue.length).toBe(lengthBefore)
   }, 20000)
 
-  it('completeCurrent סוגר את התרגיל ופותח את הבא', async () => {
+  it('completeCurrent עם סטים סוגר כ-done ופותח את הבא', async () => {
     await useWorkout.getState().start('F1', [])
     const first = useWorkout.getState().workout!.currentKey!
     const second = useWorkout.getState().workout!.queue[1].key
 
+    // סגירה עם סט אחד — בדיוק התרחיש של "סיים תרגיל" אחרי סט בודד
+    await useWorkout.getState().logSet(first, 'work', 40, 8)
     await useWorkout.getState().completeCurrent()
 
     const w = useWorkout.getState().workout!
@@ -430,13 +432,55 @@ describe('פעולות התור נשמרות לדיסק', () => {
     expect(useWorkout.getState().workout?.currentKey).toBe(second)
   }, 20000)
 
+  it('completeCurrent בלי אף סט הוא דילוג, לא השלמה', async () => {
+    await useWorkout.getState().start('F1', [])
+    const first = useWorkout.getState().workout!.currentKey!
+
+    await useWorkout.getState().completeCurrent()
+
+    // סימון done על תרגיל ריק היה עוקף בשקט את האזהרה של גיליון הסיום
+    expect(
+      useWorkout.getState().workout?.queue.find((q) => q.key === first)?.status
+    ).toBe('skipped')
+  }, 20000)
+
   it('completeCurrent על התרגיל האחרון משאיר את התור בלי פריט פעיל', async () => {
     await useWorkout.getState().start('F1', [])
     const total = useWorkout.getState().workout!.queue.length
     for (let i = 0; i < total; i++) await useWorkout.getState().completeCurrent()
 
     expect(useWorkout.getState().workout?.currentKey).toBeNull()
-    expect(useWorkout.getState().workout?.queue.every((q) => q.status === 'done')).toBe(true)
+    // תרגילים ריקים נסגרים כ"דולגו" — אף אחד לא נשאר פתוח
+    expect(
+      useWorkout.getState().workout?.queue.every((q) => q.status === 'skipped')
+    ).toBe(true)
+  }, 20000)
+
+  it('skipItem מדלג על תרגיל ולא חוסם סיום, ולחיצה חוזרת פותחת אותו', async () => {
+    await useWorkout.getState().start('F1', [])
+    const first = useWorkout.getState().workout!.currentKey!
+    const second = useWorkout.getState().workout!.queue[1].key
+
+    await useWorkout.getState().skipItem(first)
+
+    let w = useWorkout.getState().workout!
+    expect(w.queue.find((q) => q.key === first)?.status).toBe('skipped')
+    expect(w.currentKey).toBe(second)
+    // תרגיל שדולג אינו "פתוח" — הוא לא מופיע באזהרת הסיום
+    expect(openItems(w).some((q) => q.key === first)).toBe(false)
+    expect(skippedItems(w).some((q) => q.key === first)).toBe(true)
+
+    // הדילוג שורד קריסה
+    await reload()
+    expect(
+      useWorkout.getState().workout?.queue.find((q) => q.key === first)?.status
+    ).toBe('skipped')
+
+    // נגיעה בתרגיל שדולג מחזירה אותו לפעיל
+    await useWorkout.getState().setCurrent(first)
+    w = useWorkout.getState().workout!
+    expect(w.queue.find((q) => q.key === first)?.status).toBe('active')
+    expect(w.currentKey).toBe(first)
   }, 20000)
 
   it('adjustRest מזיז את הדדליין ושורד קריסה', async () => {

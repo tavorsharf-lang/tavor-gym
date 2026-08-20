@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
-import { Clock, Flame, TriangleAlert } from 'lucide-react'
+import { Clock, Flame, SkipForward, TriangleAlert } from 'lucide-react'
 import { BottomSheet, Button, toast } from '@/components/ui'
 import type { Exercise, QueueItem } from '@/db/types'
 import { useWorkout } from '@/state/activeWorkoutStore'
@@ -21,6 +21,8 @@ interface FinishSheetProps {
   onClose: () => void
   onConfirm: () => void
   openItems: QueueItem[]
+  /** תרגילים שדולגו במפורש — מוצגים כמידע, לא כאזהרה: ההחלטה כבר התקבלה */
+  skippedItems: QueueItem[]
   exercisesById: Record<string, Exercise>
 }
 
@@ -50,6 +52,7 @@ export function FinishSheet({
   onClose,
   onConfirm,
   openItems,
+  skippedItems,
   exercisesById,
 }: FinishSheetProps): JSX.Element {
   const setNotes = useWorkout((s) => s.setNotes)
@@ -112,6 +115,23 @@ export function FinishSheet({
   const pending = openItems.filter((q) => q.status !== 'deferred')
   const nameOf = (item: QueueItem): string => exercisesById[item.exerciseId]?.name ?? 'תרגיל'
 
+  /** שקט ואינפורמטיבי — דילוג מפורש הוא החלטה שהתקבלה, לא בעיה לתקן */
+  const skippedNote = skippedItems.length ? (
+    <div className="card mt-3 p-4">
+      <h3 className="meta mb-1 flex items-center gap-1.5">
+        <SkipForward size={12} aria-hidden="true" />
+        דילגת עליהם היום — לא יתועדו
+      </h3>
+      <ul>
+        {skippedItems.map((item) => (
+          <li key={item.key} className="py-1 text-sm font-semibold text-bone-400">
+            {nameOf(item)}
+          </li>
+        ))}
+      </ul>
+    </div>
+  ) : null
+
   const notesField = (
     <div className="mt-6">
       <label htmlFor="finish-notes" className="meta mb-2 block">
@@ -171,6 +191,8 @@ export function FinishSheet({
             </div>
           </div>
 
+          {skippedNote}
+
           {notesField}
 
           <Button variant="flame" size="hero" fullWidth className="mt-6" onClick={confirm}>
@@ -207,6 +229,8 @@ export function FinishSheet({
               </div>
             ) : null}
           </div>
+
+          {skippedNote}
 
           {notesField}
 

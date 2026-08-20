@@ -111,6 +111,11 @@ export async function getRoutines(): Promise<Routine[]> {
   return db.routines.orderBy('order').toArray()
 }
 
+/** תוכנית אחת לפי מזהה, קבועה או שמורה */
+export async function getRoutine(id: RoutineId): Promise<Routine | undefined> {
+  return db.routines.get(id)
+}
+
 /**
  * רק התוכניות שפעילות עכשיו — זה מה שמסך הבית ובחירת האימון עובדים איתו.
  * בלי הסינון הזה, "מה מתאמנים היום" היה מערבב פול-באדי עם פיצול.
@@ -131,22 +136,68 @@ export async function getPlanItemFor(exerciseId: string): Promise<PlanItem | nul
   return null
 }
 
+/**
+ * התוכניות הקבועות שפעילות עכשיו — פול-באדי *או* הפיצול, לא שתיהן.
+ *
+ * האימונים השמורים מסוננים החוצה כאן, וזה הגידור המרכזי של כל הפיצ׳ר: הם
+ * תמיד `isActive`, ולכן בלי הסינון אימון שמור חדש היה נכנס לרשת התוכניות
+ * במסך הבית, לגיליון הפתיחה, ול-`suggestRoutine` — שם "מעולם לא בוצע" גובר
+ * על כל ותק, כלומר הוא היה חוטף את ההצעה היומית מיד עם השמירה.
+ *
+ * הבדיקה היא `kind !== 'custom'` ולא `=== 'program'` בכוונה: שורה משחזור
+ * גיבוי ישן מגיעה בלי `kind`, וברירת המחדל שלה חייבת להיות "תוכנית קבועה".
+ *
+ * ביטוח הנפילה-לאחור ("אם כובו כולן, עדיף להציע הכל") מחושב בתוך המחיצה של
+ * התוכניות הקבועות בלבד. לפני כן הוא היה נשבר ברגע שקיים אימון שמור אחד:
+ * הוא תמיד פעיל, ולכן `active.length > 0` היה מתקיים לנצח והביטוח לא היה
+ * נכנס לפעולה אף פעם.
+ */
 export async function getActiveRoutines(): Promise<Routine[]> {
-  const all = await db.routines.orderBy('order').toArray()
+  const all = (await db.routines.orderBy('order').toArray()).filter((r) => r.kind !== 'custom')
   const active = all.filter((r) => r.isActive)
-  // ביטוח: אם כובו כולן בטעות, עדיף להציע הכל מאשר מסך בית ריק
   return active.length > 0 ? active : all
 }
 
-/** מפעיל קבוצת תוכניות אחת ומכבה את השאר, בפעולה אחת */
+/**
+ * האימונים שהמשתמש בנה ושמר.
+ *
+ * ל-`isActive` יש כאן משמעות שונה מזו שיש לו בתוכנית קבועה: שם הוא "התוכנית
+ * הפעילה כרגע" ומתחלף במתג, וכאן הוא "לא נמחק". מחיקה של אימון שמור היא רכה
+ * בכוונה — מחיקת השורה הייתה מייתמת את השם של כל אימון בהיסטוריה שבוצע לפיו,
+ * והם היו הופכים ל"אימון חופשי" למפרע.
+ */
+export async function getCustomRoutines(): Promise<Routine[]> {
+  return (await db.routines.orderBy('order').toArray()).filter(
+    (r) => r.kind === 'custom' && r.isActive
+  )
+}
+
+/**
+ * מפעיל קבוצת תוכניות אחת ומכבה את השאר, בפעולה אחת.
+ * אימונים שמורים לא נוגעים — מעבר בין פול-באדי לפיצול הוא החלטה על התוכניות
+ * הקבועות, ואין שום סיבה שהוא יכבה אימון שהמשתמש בנה בעצמו.
+ */
 export async function activateRoutines(ids: readonly RoutineId[]): Promise<void> {
   const wanted = new Set<string>(ids)
   await db.transaction('rw', db.routines, async () => {
     for (const routine of await db.routines.toArray()) {
+      if (routine.kind === 'custom') continue
       const next = wanted.has(routine.id)
       if (routine.isActive !== next) await db.routines.put({ ...routine, isActive: next })
     }
   })
+}
+
+/**
+ * המספר הבא בסדר התצוגה של התוכניות.
+ *
+ * ‏`db.routines.orderBy('order')` הוא סריקת אינדקס, ודקסי משמיטה ממנה שורה
+ * שהמפתח שלה `undefined` — כלומר אימון שמור בלי `order` נשמר בהצלחה ואז
+ * פשוט לא מופיע בשום מסך. השדה חובה, ולכן הוא נקבע כאן ולא בקריאה.
+ */
+export async function nextRoutineOrder(): Promise<number> {
+  const all = await db.routines.toArray()
+  return all.reduce((max, r) => Math.max(max, r.order ?? 0), -1) + 1
 }
 
 export async function getBlocks(): Promise<Block[]> {

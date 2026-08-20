@@ -35,14 +35,22 @@ interface Choice {
 const CHOICES: Choice[] = [
   {
     value: 1,
-    label: 'קל',
-    hint: 'יכולתי עוד הרבה',
-    idle: 'border-pr-400/25 bg-pr-400/6 text-pr-400',
-    picked: 'border-pr-400/70 bg-pr-400/16 text-pr-400',
+    label: 'קל מאוד',
+    hint: 'בקושי הרגשתי — אפשר לקפוץ',
+    idle: 'border-pr-400/35 bg-pr-400/10 text-pr-400',
+    picked: 'border-pr-400/80 bg-pr-400/20 text-pr-400',
     bars: 'bg-pr-400',
   },
   {
     value: 2,
+    label: 'קל',
+    hint: 'יכולתי עוד הרבה',
+    idle: 'border-pr-400/20 bg-pr-400/5 text-pr-400',
+    picked: 'border-pr-400/70 bg-pr-400/16 text-pr-400',
+    bars: 'bg-pr-400',
+  },
+  {
+    value: 3,
     label: 'בינוני',
     hint: 'היה מאמץ אמיתי',
     idle: 'border-ink-700 bg-ink-800 text-bone-200',
@@ -50,9 +58,17 @@ const CHOICES: Choice[] = [
     bars: 'bg-bone-200',
   },
   {
-    value: 3,
+    value: 4,
     label: 'קשה',
     hint: 'בקושי סיימתי',
+    idle: 'border-flame-500/25 bg-flame-500/6 text-flame-300',
+    picked: 'border-flame-400/70 bg-flame-500/16 text-flame-300',
+    bars: 'bg-flame-400',
+  },
+  {
+    value: 5,
+    label: 'קשה מאוד',
+    hint: 'על סף כשל — אולי יותר מדי',
     idle: 'border-hard-400/25 bg-hard-400/6 text-hard-400',
     picked: 'border-hard-400/70 bg-hard-400/16 text-hard-400',
     bars: 'bg-hard-400',
@@ -114,7 +130,7 @@ export function RatingSheet({
     <BottomSheet open={open} onClose={dismiss} title="איך היה?">
       <p className="-mt-1 mb-4 text-sm font-semibold text-bone-400">{exercise.name}</p>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         {CHOICES.map((choice) => {
           const selected = rating === choice.value
           return (
@@ -124,27 +140,27 @@ export function RatingSheet({
               onClick={() => pickRating(choice.value)}
               aria-pressed={selected}
               className={[
-                'flex min-h-24 w-full items-center gap-4 rounded-card border px-5 text-start',
+                'flex min-h-[4.25rem] w-full items-center gap-4 rounded-card border px-5 text-start',
                 'transition-transform duration-100 active:scale-[0.985]',
                 selected ? choice.picked : choice.idle,
                 selected ? 'ring-1 ring-current/50' : '',
               ].join(' ')}
             >
-              {/* שלושה פסים שמתמלאים לפי עוצמת המאמץ — קריא גם בלי לקרוא */}
-              <span className="flex shrink-0 flex-col-reverse gap-1" aria-hidden="true">
-                {[1, 2, 3].map((level) => (
+              {/* חמישה פסים שמתמלאים לפי עוצמת המאמץ — קריא גם בלי לקרוא */}
+              <span className="flex shrink-0 flex-col-reverse gap-0.5" aria-hidden="true">
+                {[1, 2, 3, 4, 5].map((level) => (
                   <span
                     key={level}
                     className={[
-                      'block h-1.5 w-6 rounded-pill',
+                      'block h-1 w-6 rounded-pill',
                       level <= choice.value ? choice.bars : 'bg-current opacity-15',
                     ].join(' ')}
                   />
                 ))}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-2xl leading-tight font-extrabold">{choice.label}</span>
-                <span className="mt-1 block text-sm font-medium text-bone-500">{choice.hint}</span>
+                <span className="block text-xl leading-tight font-extrabold">{choice.label}</span>
+                <span className="mt-0.5 block text-[0.8125rem] font-medium text-bone-500">{choice.hint}</span>
               </span>
             </button>
           )

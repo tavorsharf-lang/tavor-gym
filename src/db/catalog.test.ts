@@ -2,7 +2,16 @@ import 'fake-indexeddb/auto'
 import Dexie from 'dexie'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db, ensureReady } from '@/db/db'
-import { getCatalogEntries, getCatalogEntry } from '@/db/catalog'
+import {
+  addFromLibrary,
+  compareByName,
+  detachFromPlans,
+  findPlanUsage,
+  getCatalogEntries,
+  getCatalogEntry,
+  removeFromMine,
+  restoreToMine,
+} from '@/db/catalog'
 import { LIBRARY_CATALOG } from '@/db/libraryManifest'
 import { LIBRARY_LINKS } from '@/db/libraryLinks'
 import { SEED_EXERCISES } from '@/db/seed'
@@ -114,6 +123,125 @@ describe('הקטלוג המאוחד', () => {
     const legPress = exercises.find((e) => e.id === 'leg-press')!
     const candidates = await getSubstituteCandidates(legPress)
     expect(candidates.some((e) => e.id.startsWith('lib-'))).toBe(false)
+  })
+})
+
+/**
+ * שכבת הכתיבה של המסך המאוחד.
+ *
+ * ‏`isActive` הוא "בתרגילים שלי", והבדיקות כאן נועלות את המשמעות הזו משני
+ * הכיוונים: מה שההוצאה *כן* משנה (הדגל, וכל חמשת הצרכנים שתלויים בו) ומה
+ * שהיא לעולם לא נוגעת בו (הרשומה, ההיסטוריה, השיאים, פריטי התוכנית).
+ */
+describe('הוספה והוצאה מהתרגילים שלי', () => {
+  beforeEach(async () => {
+    await db.delete()
+    await db.open()
+    await ensureReady()
+  })
+
+  const lunge = LIBRARY_CATALOG.find((e) => e.id === 'lib-lunge')!
+
+  it('הוצאה משאירה את הרשומה ואת מקומה בסדר, ומחזירה אותה בדיוק לשם', async () => {
+    const before = (await db.exercises.get('leg-press'))!
+    await removeFromMine('leg-press')
+
+    const out = (await db.exercises.get('leg-press'))!
+    expect(out.isActive).toBe(false)
+    // הכל חוץ מהדגל ומחותמת הזמן נשאר זהה — זו המשמעות של "ההיסטוריה נשמרת"
+    expect({ ...out, isActive: true, updatedAt: 0 }).toEqual({ ...before, updatedAt: 0 })
+
+    // ומיד לא מוצע יותר לאימון
+    expect((await getAllExercises()).some((e) => e.id === 'leg-press')).toBe(false)
+    const legCurl = (await db.exercises.get('leg-curl'))!
+    expect((await getSubstituteCandidates(legCurl)).some((e) => e.id === 'leg-press')).toBe(false)
+
+    await restoreToMine('leg-press')
+    const back = (await db.exercises.get('leg-press'))!
+    expect(back.isActive).toBe(true)
+    // `order` לא נגעו בו, ולכן התרגיל חוזר למקומו בקבוצה ולא לתחתיתה
+    expect(back.order).toBe(before.order)
+  })
+
+  it('תרגיל שהוצא ממשיך להופיע ברשימה המאוחדת, במצב removed או removedOwn', async () => {
+    // ללחיצת רגליים יש תאום במאגר, לכפיפת פטיש אין
+    await removeFromMine('leg-press')
+    await removeFromMine('hammer-curl')
+    const entries = await getCatalogEntries()
+
+    expect(entries.find((e) => e.id === 'leg-press')?.state).toBe('removed')
+    expect(entries.find((e) => e.id === 'hammer-curl')?.state).toBe('removedOwn')
+    // וגם אחרי ההוצאה אף רשומה לא נכפלה מול המאגר
+    expect(entries.filter((e) => e.id === 'lib-leg_press').length).toBe(0)
+    expect(entries.length).toBe(
+      28 + LIBRARY_CATALOG.length - Object.keys(LIBRARY_LINKS).length
+    )
+  })
+
+  it('הוספה מהמאגר יוצרת תרגיל מקושר, ולחיצה שנייה לא יוצרת עוד אחד', async () => {
+    const first = await addFromLibrary(lunge)
+    expect(first.outcome).toBe('created')
+    expect(first.exercise.libraryId).toBe('lib-lunge')
+    expect(first.exercise.muscleGroup).toBe('legs')
+    expect(first.exercise.isActive).toBe(true)
+
+    const second = await addFromLibrary(lunge)
+    expect(second.outcome).toBe('already')
+    expect(second.exercise.id).toBe(first.exercise.id)
+    expect(await db.exercises.where('libraryId').equals('lib-lunge').count()).toBe(1)
+  })
+
+  it('הוספה של תרגיל מאגר שכבר קיים אצלך אבל הוצא — מחזירה אותו במקום ליצור כפילות', async () => {
+    const { exercise } = await addFromLibrary(lunge)
+    await removeFromMine(exercise.id)
+
+    const again = await addFromLibrary(lunge)
+    expect(again.outcome).toBe('restored')
+    expect(again.exercise.id).toBe(exercise.id)
+    expect((await db.exercises.get(exercise.id))?.isActive).toBe(true)
+    expect(await db.exercises.where('libraryId').equals('lib-lunge').count()).toBe(1)
+  })
+
+  it('מונה את התוכניות שהתרגיל נמצא בהן, כולל הכבויות', async () => {
+    const usage = await findPlanUsage('hammer-curl')
+    const names = usage.map((u) => u.id).sort()
+    // F2 פעילה, B כבויה — ושתיהן צריכות להופיע בגיליון ההחלטה
+    expect(names).toEqual(['B', 'F2'])
+    expect(usage.find((u) => u.id === 'F2')?.active).toBe(true)
+    expect(usage.find((u) => u.id === 'B')?.active).toBe(false)
+
+    // תרגיל שאינו באף תוכנית לא פותח גיליון בכלל
+    const { exercise } = await addFromLibrary(lunge)
+    expect(await findPlanUsage(exercise.id)).toEqual([])
+  })
+
+  it('ניתוק מהתוכניות מוציא את הפריט מכולן ודוחס את הסדר', async () => {
+    const f2Before = (await db.routines.get('F2'))!
+    await detachFromPlans('hammer-curl')
+
+    for (const id of ['F2', 'B']) {
+      const routine = (await db.routines.get(id))!
+      expect(routine.items.some((i) => i.exerciseId === 'hammer-curl')).toBe(false)
+      expect(routine.items.map((i) => i.order)).toEqual(routine.items.map((_, i) => i))
+    }
+    expect((await db.routines.get('F2'))!.items.length).toBe(f2Before.items.length - 1)
+
+    // הרשומה עצמה לא נגעה — ניתוק מתוכנית אינו מחיקת תרגיל
+    expect(await db.exercises.get('hammer-curl')).toBeTruthy()
+  })
+
+  it('מיון "הכל" אינו תלוי בחברות — שורה לא זזה כשמוסיפים או מוציאים', async () => {
+    const legs = (await getCatalogEntries())
+      .filter((e) => e.muscleGroup === 'legs')
+      .sort(compareByName)
+    const orderBefore = legs.map((e) => e.id)
+
+    await removeFromMine('leg-press')
+    const after = (await getCatalogEntries())
+      .filter((e) => e.muscleGroup === 'legs')
+      .sort(compareByName)
+
+    expect(after.map((e) => e.id)).toEqual(orderBefore)
   })
 })
 

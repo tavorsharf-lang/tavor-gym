@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import { createPortal } from 'react-dom'
 import {
+  ArrowDown,
+  ArrowUp,
   ChevronLeft,
   ChevronRight,
+  FolderInput,
   Loader2,
+  SlidersHorizontal,
   Trash2,
   TriangleAlert,
   WifiOff,
@@ -12,8 +16,11 @@ import {
 } from 'lucide-react'
 import { cacheStreamedVideo, deleteVideo, loadVideosFor, releaseVideos } from '@/db/mediaDb'
 import { useHiddenVideosVersion } from '@/db/hiddenVideos'
+import { groupContextId, saveVideoMove, saveVideoOrder, useVideoPrefsVersion } from '@/db/videoPrefs'
 import { videoMismatchNote } from '@/db/videoIssues'
-import type { PlayableVideo } from '@/db/types'
+import { db } from '@/db/db'
+import { MUSCLE_GROUPS, MUSCLE_GROUP_BY_SIZE } from '@/db/types'
+import type { Exercise, PlayableVideo } from '@/db/types'
 import { Button, toast } from '@/components/ui'
 
 /**
@@ -40,6 +47,7 @@ export function VideoPlayer({
   open,
   onClose,
   startIndex = 0,
+  startId,
 }: {
   exerciseId: string
   /** התרגיל המקביל במאגר — ממנו מגיעים סרטוני ההסבר */
@@ -49,12 +57,21 @@ export function VideoPlayer({
   onClose: () => void
   /** באיזה סרטון להיפתח. במאגר נכנסים לסרטון מסוים ולא לראשון. */
   startIndex?: number
+  /**
+   * פתיחה לפי מזהה נכס — עמידה לסדר מותאם ולסרטונים מיובאים שמשתחלים
+   * לרשימה. כשהוא קיים הוא גובר על startIndex.
+   */
+  startId?: string
 }) {
   const [videos, setVideos] = useState<PlayableVideo[]>([])
   const [index, setIndex] = useState(startIndex)
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  /** מזהה הנכס שמחכה לאישור מחיקה — מהכותרת או מפאנל הניהול */
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null)
+  const [managing, setManaging] = useState(false)
+  /** מזהה הנכס שבוחרים לו יעד העברה */
+  const [movingId, setMovingId] = useState<string | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   /*
     נקודת ההתחלה של המחווה ב-ref ולא במשתנה רגיל.
@@ -72,9 +89,10 @@ export function VideoPlayer({
   // אחרי מחיקה נשארים באותו מקום ברשימה במקום לקפוץ לסרטון הראשון
   const resumeAt = useRef<number | null>(null)
 
-  // מחיקת סרטון משנה את הרשימה מתחת לרגליים של המסך הזה — הגרסה היא מה
-  // שמחזיר אותו לטעון מחדש, בלי שהמחיקה תצטרך להכיר את מי שמציג
+  // מחיקת סרטון, שינוי סדר או העברה משנים את הרשימה מתחת לרגליים של המסך
+  // הזה — הגרסאות הן מה שמחזיר אותו לטעון מחדש, בלי שהשינוי יכיר את המציג
   const hiddenVersion = useHiddenVideosVersion()
+  const prefsVersion = useVideoPrefsVersion()
 
   useEffect(() => {
     if (!open) return
@@ -82,7 +100,8 @@ export function VideoPlayer({
     let cancelled = false
     setLoading(true)
     setFailed(false)
-    setIndex(resumeAt.current ?? startIndex)
+    const resume = resumeAt.current
+    setIndex(resume ?? startIndex)
     resumeAt.current = null
 
     loadVideosFor(exerciseId, libraryId).then((loaded) => {
@@ -92,7 +111,9 @@ export function VideoPlayer({
       }
       list = loaded
       setVideos(loaded)
-      setIndex((i) => Math.max(0, Math.min(i, loaded.length - 1)))
+      // פתיחה לפי מזהה גוברת: היא עמידה לסדר מותאם ולמיובאים שנכנסו באמצע
+      const byId = resume === null && startId ? loaded.findIndex((v) => v.id === startId) : -1
+      setIndex((i) => Math.max(0, Math.min(byId >= 0 ? byId : i, loaded.length - 1)))
       setLoading(false)
     })
 
@@ -101,10 +122,10 @@ export function VideoPlayer({
       releaseVideos(list)
       setVideos([])
     }
-    // startIndex לא ברשימת התלויות: הוא נקרא פעם אחת בפתיחה, וכל שינוי שלו
-    // בזמן שהנגן פתוח היה קופץ למשתמש מהסרטון שהוא צופה בו לסרטון אחר
+    // startIndex/startId לא ברשימת התלויות: הם נקראים פעם אחת בפתיחה, וכל שינוי
+    // שלהם בזמן שהנגן פתוח היה קופץ למשתמש מהסרטון שהוא צופה בו לסרטון אחר
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exerciseId, libraryId, open, hiddenVersion])
+  }, [exerciseId, libraryId, open, hiddenVersion, prefsVersion])
 
   // כישלון שייך לסרטון שנכשל, לא לנגן. בלי האיפוס הזה סרטון אחד שלא הותקן
   // נעל את כל השאר על מסך "לא זמין אופליין" — גם את אלה שיושבים במכשיר.
@@ -112,9 +133,13 @@ export function VideoPlayer({
     setFailed(false)
   }, [index])
 
-  // הגיליון נסגר יחד עם הנגן, אחרת הוא היה ממתין פתוח לפתיחה הבאה
+  // הגיליונות נסגרים יחד עם הנגן, אחרת הם היו ממתינים פתוחים לפתיחה הבאה
   useEffect(() => {
-    if (!open) setConfirmingDelete(false)
+    if (!open) {
+      setConfirmingDelete(null)
+      setManaging(false)
+      setMovingId(null)
+    }
   }, [open])
 
   // נעילת גלילת הרקע כל עוד הנגן פתוח
@@ -216,19 +241,62 @@ export function VideoPlayer({
     go(dx < 0 ? 1 : -1)
   }
 
+  const deleteTarget = confirmingDelete
+    ? (videos.find((v) => v.id === confirmingDelete) ?? null)
+    : null
+
   const confirmDelete = async (): Promise<void> => {
-    if (!current) return
-    const label = current.label
-    resumeAt.current = Math.max(0, Math.min(index, videos.length - 2))
-    setConfirmingDelete(false)
+    if (!deleteTarget) return
+    const label = deleteTarget.label
+    // נשארים על הסרטון שצפינו בו; אם מחקנו דווקא אותו — על שכנו
+    const remaining = videos.filter((v) => v.id !== deleteTarget.id)
+    const watching = current && current.id !== deleteTarget.id
+      ? remaining.findIndex((v) => v.id === current.id)
+      : Math.min(index, remaining.length - 1)
+    resumeAt.current = Math.max(0, watching)
+    setConfirmingDelete(null)
     try {
-      await deleteVideo(current.id)
+      await deleteVideo(deleteTarget.id)
       toast(`${label} נמחק`, { tone: 'warn' })
     } catch {
       // המחיקה לא קרתה, ולכן גם אין למה לחזור — בלי האיפוס הזה הפתיחה הבאה
       // של הנגן הייתה נוחתת על סרטון אחר מזה שביקשו
       resumeAt.current = null
       toast('לא הצלחתי למחוק את הסרטון', { tone: 'warn' })
+    }
+  }
+
+  /** הזזת סרטון מעלה/מטה ושמירת הסדר החדש להקשר הזה */
+  const moveInOrder = async (fromIndex: number, direction: -1 | 1): Promise<void> => {
+    const to = fromIndex + direction
+    if (to < 0 || to >= videos.length) return
+    const next = [...videos]
+    const [moved] = next.splice(fromIndex, 1)
+    next.splice(to, 0, moved)
+    // הרשימה תיטען מחדש דרך prefsVersion — נשארים על הסרטון שצפינו בו
+    resumeAt.current = current ? Math.max(0, next.findIndex((v) => v.id === current.id)) : 0
+    try {
+      await saveVideoOrder(exerciseId, next.map((v) => v.id))
+    } catch {
+      resumeAt.current = null
+      toast('שמירת הסדר נכשלה', { tone: 'warn' })
+    }
+  }
+
+  /** העברת סרטון ליעד אחר — תרגיל או מדף קבוצת שריר */
+  const moveTo = async (assetId: string, target: string, targetLabel: string): Promise<void> => {
+    const stays = videos.filter((v) => v.id !== assetId)
+    const watching = current && current.id !== assetId
+      ? stays.findIndex((v) => v.id === current.id)
+      : Math.min(index, stays.length - 1)
+    resumeAt.current = Math.max(0, watching)
+    setMovingId(null)
+    try {
+      await saveVideoMove(assetId, target)
+      toast(`הסרטון עבר אל ${targetLabel}`)
+    } catch {
+      resumeAt.current = null
+      toast('ההעברה נכשלה', { tone: 'warn' })
     }
   }
 
@@ -267,9 +335,18 @@ export function VideoPlayer({
             </p>
           ) : null}
         </div>
+        {videos.length > 0 ? (
+          <button
+            onClick={() => setManaging(true)}
+            aria-label="ניהול הסרטונים — סדר, העברה ומחיקה"
+            className="flex size-11 items-center justify-center rounded-full text-bone-500 active:bg-ink-800"
+          >
+            <SlidersHorizontal size={20} />
+          </button>
+        ) : null}
         {current ? (
           <button
-            onClick={() => setConfirmingDelete(true)}
+            onClick={() => setConfirmingDelete(current.id)}
             aria-label="מחק את הסרטון הזה"
             className="flex size-11 items-center justify-center rounded-full text-bone-500 active:bg-ink-800"
           >
@@ -421,11 +498,97 @@ export function VideoPlayer({
       )}
 
       {/*
-        האישור יושב בתוך הנגן ולא ב-BottomSheet: הנגן כבר תופס את המסך כולו
-        ב-portal משלו, וגיליון נוסף מעליו היה נפתח מאחוריו בחלק מהמצבים.
+        פאנל הניהול יושב בתוך הנגן ולא ב-BottomSheet: הנגן כבר תופס את המסך
+        כולו ב-portal משלו, וגיליון נוסף מעליו היה נפתח מאחוריו בחלק מהמצבים.
+        חיצים ולא גרירה — גרירה במגע על iOS standalone נלחמת בגלילה.
       */}
-      {confirmingDelete && current && (
-        <div className="animate-fade absolute inset-0 z-10 flex items-end bg-ink-950/85 backdrop-blur-sm">
+      {managing && (
+        <div className="animate-fade absolute inset-0 z-10 flex flex-col bg-ink-950/95 backdrop-blur-md">
+          <header
+            className="flex items-center gap-2 px-4 pb-2"
+            style={{ paddingTop: 'calc(var(--safe-t) + 0.75rem)' }}
+          >
+            <h3 className="min-w-0 flex-1 truncate text-base font-bold text-bone-50">
+              ניהול סרטונים — {exerciseName}
+            </h3>
+            <button
+              onClick={() => setManaging(false)}
+              aria-label="סגור את הניהול"
+              className="flex size-11 items-center justify-center rounded-full text-bone-400 active:bg-ink-800"
+            >
+              <X size={24} />
+            </button>
+          </header>
+
+          <p className="px-4 pb-2 text-xs leading-relaxed text-bone-500">
+            הראשון ברשימה הוא שנפתח ראשון ומופיע בתמונת הכרטיס. אפשר גם להעביר
+            סרטון לתרגיל אחר או למדף של קבוצת שריר, או למחוק אותו מכל האפליקציה.
+          </p>
+
+          <ul className="flex-1 space-y-2 overflow-y-auto px-4 pb-safe">
+            {videos.map((v, i) => (
+              <li key={v.id} className="card flex items-center gap-1 p-2">
+                <span className="min-w-0 flex-1 ps-1">
+                  <span
+                    dir="ltr"
+                    className="block truncate text-end text-[0.8125rem] font-semibold text-bone-100"
+                  >
+                    {v.label}
+                  </span>
+                  <span className="meta tnum mt-0.5 block">
+                    {Math.round(v.durationSec)} שניות{v.isLocal ? ' · במכשיר' : ''}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  disabled={i === 0}
+                  onClick={() => void moveInOrder(i, -1)}
+                  aria-label={`העלה למעלה: ${v.label}`}
+                  className="flex size-11 shrink-0 items-center justify-center rounded-xl text-bone-400 active:bg-ink-800 disabled:opacity-25"
+                >
+                  <ArrowUp size={18} />
+                </button>
+                <button
+                  type="button"
+                  disabled={i === videos.length - 1}
+                  onClick={() => void moveInOrder(i, 1)}
+                  aria-label={`הורד למטה: ${v.label}`}
+                  className="flex size-11 shrink-0 items-center justify-center rounded-xl text-bone-400 active:bg-ink-800 disabled:opacity-25"
+                >
+                  <ArrowDown size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMovingId(v.id)}
+                  aria-label={`העבר לתרגיל אחר: ${v.label}`}
+                  className="flex size-11 shrink-0 items-center justify-center rounded-xl text-flame-400 active:bg-ink-800"
+                >
+                  <FolderInput size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(v.id)}
+                  aria-label={`מחק: ${v.label}`}
+                  className="flex size-11 shrink-0 items-center justify-center rounded-xl text-hard-400 active:bg-ink-800"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {movingId && (
+        <MoveTargetPicker
+          currentContext={exerciseId}
+          onPick={(target, label) => void moveTo(movingId, target, label)}
+          onClose={() => setMovingId(null)}
+        />
+      )}
+
+      {deleteTarget && (
+        <div className="animate-fade absolute inset-0 z-30 flex items-end bg-ink-950/85 backdrop-blur-sm">
           <div
             role="alertdialog"
             aria-modal="true"
@@ -437,7 +600,7 @@ export function VideoPlayer({
             </h3>
             <p className="mt-1.5 text-sm leading-relaxed text-bone-400">
               <span dir="ltr" className="font-semibold text-bone-200">
-                {current.label}
+                {deleteTarget.label}
               </span>{' '}
               לא יופיע יותר — לא כאן, לא בכרטיס התרגיל ולא במאגר. אפשר להחזיר את
               כל הסרטונים שנמחקו בהגדרות ← סרטונים.
@@ -447,7 +610,7 @@ export function VideoPlayer({
                 variant="quiet"
                 size="lg"
                 className="flex-1"
-                onClick={() => setConfirmingDelete(false)}
+                onClick={() => setConfirmingDelete(null)}
               >
                 ביטול
               </Button>
@@ -465,5 +628,106 @@ export function VideoPlayer({
       )}
     </div>,
     document.body
+  )
+}
+
+/**
+ * בורר יעד ההעברה: מדפי קבוצות השריר קודם, ואז התרגילים מהקטלוג.
+ *
+ * חי בתוך ה-portal של הנגן (שכבת z-20, מעל פאנל הניהול ומתחת לאישור המחיקה)
+ * מאותה סיבה שהאישור שם: BottomSheet חיצוני היה נפתח מאחורי הנגן.
+ */
+function MoveTargetPicker({
+  currentContext,
+  onPick,
+  onClose,
+}: {
+  currentContext: string
+  onPick: (target: string, label: string) => void
+  onClose: () => void
+}) {
+  const [exercises, setExercises] = useState<Exercise[] | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void db.exercises
+      .toArray()
+      .then((all) => {
+        if (cancelled) return
+        setExercises(all.filter((e) => e.isActive).sort((a, b) => a.order - b.order))
+      })
+      .catch(() => {
+        if (!cancelled) setExercises([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const groups = useMemo(
+    () =>
+      MUSCLE_GROUP_BY_SIZE.map((g) => ({
+        target: groupContextId(g),
+        label: `מדף ${MUSCLE_GROUPS[g].label}`,
+      })).filter(({ target }) => target !== currentContext),
+    [currentContext]
+  )
+
+  return (
+    <div className="animate-fade absolute inset-0 z-20 flex flex-col bg-ink-950/95 backdrop-blur-md">
+      <header
+        className="flex items-center gap-2 px-4 pb-2"
+        style={{ paddingTop: 'calc(var(--safe-t) + 0.75rem)' }}
+      >
+        <h3 className="min-w-0 flex-1 text-base font-bold text-bone-50">לאן להעביר את הסרטון?</h3>
+        <button
+          onClick={onClose}
+          aria-label="בטל העברה"
+          className="flex size-11 items-center justify-center rounded-full text-bone-400 active:bg-ink-800"
+        >
+          <X size={24} />
+        </button>
+      </header>
+
+      <div className="flex-1 overflow-y-auto px-4 pb-safe">
+        <h4 className="meta mb-2">מדף של קבוצת שריר — לסרטונים שמדגימים כמה תרגילים</h4>
+        <div className="mb-5 flex flex-wrap gap-2">
+          {groups.map(({ target, label }) => (
+            <button
+              key={target}
+              type="button"
+              onClick={() => onPick(target, label)}
+              className="flex min-h-12 items-center rounded-pill border border-ink-700 bg-ink-850 px-4 text-sm font-bold text-bone-200 active:bg-ink-800"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <h4 className="meta mb-2">התרגילים שלי</h4>
+        {exercises === null ? (
+          <Loader2 className="mx-auto my-6 animate-spin text-bone-600" size={24} />
+        ) : (
+          <ul className="space-y-2">
+            {exercises
+              .filter((e) => e.id !== currentContext)
+              .map((e) => (
+                <li key={e.id}>
+                  <button
+                    type="button"
+                    onClick={() => onPick(e.id, e.name)}
+                    className="card flex min-h-13 w-full items-center gap-3 px-3 text-start active:bg-ink-800"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-sm font-bold text-bone-50">
+                      {e.name}
+                    </span>
+                    <span className="meta shrink-0">{MUSCLE_GROUPS[e.muscleGroup].label}</span>
+                  </button>
+                </li>
+              ))}
+          </ul>
+        )}
+      </div>
+    </div>
   )
 }

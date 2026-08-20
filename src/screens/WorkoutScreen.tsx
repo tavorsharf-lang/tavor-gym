@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ListOrdered, Trophy } from 'lucide-react'
-import { getSettings } from '@/db/db'
+import { ListOrdered, MessageCircleQuestion, Timer, Trophy } from 'lucide-react'
+import { getSettings, saveSettings } from '@/db/db'
 import { getBlocks, getExerciseHistory, getRoutines } from '@/db/queries'
 import type { DraftSet, ExerciseMetric, WeightMode } from '@/db/types'
 import { EmptyState, fireConfetti, toast } from '@/components/ui'
 import { Screen } from '@/components/shell/ScreenHeader'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
-import { openItems, useWorkout } from '@/state/activeWorkoutStore'
+import { openItems, skippedItems, useWorkout } from '@/state/activeWorkoutStore'
 import { prHeadline } from '@/domain/prs'
 import { formatClock, formatSetShort } from '@/domain/units'
 import { distinguisher, duplicateNames } from '@/domain/naming'
@@ -80,6 +80,8 @@ export function WorkoutScreen(): JSX.Element | null {
   const rate = useWorkout((s) => s.rate)
   const adjustRest = useWorkout((s) => s.adjustRest)
   const stopRest = useWorkout((s) => s.stopRest)
+  const skipItem = useWorkout((s) => s.skipItem)
+  const completeCurrent = useWorkout((s) => s.completeCurrent)
   const finish = useWorkout((s) => s.finish)
 
   const settings = useLiveQuery(() => getSettings(), [])
@@ -98,6 +100,12 @@ export function WorkoutScreen(): JSX.Element | null {
 
   const bannerTimer = useRef<number | null>(null)
   const wakeToasted = useRef(false)
+  /**
+   * "סיים תרגיל" כשמתג הדירוג דלוק ואין עדיין דירוג: קודם שאלון, ואז סגירה.
+   * הדגל מציין ששאלון הדירוג הפתוח כרגע צריך לסגור את התרגיל כשהוא נסגר.
+   */
+  const completeAfterRating = useRef(false)
+  const activeCardRef = useRef<HTMLDivElement | null>(null)
 
   const activeItem = workout?.queue.find((q) => q.key === workout.currentKey) ?? null
   const activeExercise = activeItem ? (exercisesById[activeItem.exerciseId] ?? null) : null
@@ -170,6 +178,49 @@ export function WorkoutScreen(): JSX.Element | null {
     bannerTimer.current = window.setTimeout(() => setBanner(null), 8000)
   }, [audio, confettiEnabled])
 
+  /*
+    החלפת התרגיל הפעיל מזיזה מאות פיקסלים של תוכן: הכרטיס הישן מתכווץ לשורה
+    והחדש נפרש. בלי גלילה מכוונת השורה שנלחצה בורחת מתחת לאצבע והמשתמש מוצא
+    את עצמו במקום אקראי. מדלגים על הרינדור הראשון — פתיחת המסך לא צריכה לזוז.
+  */
+  const currentKey = workout?.currentKey ?? null
+  const prevKeyRef = useRef<string | null | undefined>(undefined)
+  useLayoutEffect(() => {
+    if (prevKeyRef.current === undefined) {
+      prevKeyRef.current = currentKey
+      return
+    }
+    if (prevKeyRef.current === currentKey) return
+    prevKeyRef.current = currentKey
+    activeCardRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }, [currentKey])
+
+  /** "סיים תרגיל": כשמתג הדירוג דלוק ויש סטים בלי דירוג — קודם השאלון */
+  const handleFinishExercise = useCallback(() => {
+    const state = useWorkout.getState()
+    const w = state.workout
+    const item = w?.queue.find((q) => q.key === w.currentKey)
+    if (!w || !item) return
+    const hasWork = (w.setsByKey[item.key] ?? []).some((s) => s.type === 'work')
+    const hasRating = Boolean(w.ratingsByKey[item.key])
+    const askRating = settings?.askRating ?? true
+    if (askRating && hasWork && !hasRating) {
+      completeAfterRating.current = true
+      setSheet('rating')
+      return
+    }
+    void completeCurrent()
+  }, [settings?.askRating, completeCurrent])
+
+  /** סגירת שאלון הדירוג — אם הגענו אליו מ"סיים תרגיל", עכשיו סוגרים באמת */
+  const closeRating = useCallback(() => {
+    setSheet(null)
+    if (completeAfterRating.current) {
+      completeAfterRating.current = false
+      void completeCurrent()
+    }
+  }, [completeCurrent])
+
   const handleFinish = useCallback(async () => {
     try {
       const id = await finish()
@@ -196,7 +247,8 @@ export function WorkoutScreen(): JSX.Element | null {
   const subtitle = [routine?.subtitle, ...blockNames].filter(Boolean).join(' · ')
 
   const total = workout.queue.length
-  const done = workout.queue.filter((q) => q.status === 'done').length
+  // דילוג מפורש נחשב "טופל" — פס ההתקדמות מודד כמה נשאר להחליט עליו, לא כמה בוצע
+  const done = workout.queue.filter((q) => q.status === 'done' || q.status === 'skipped').length
   const progress = total > 0 ? (done / total) * 100 : 0
 
   const restItem = workout.queue.find((q) => q.key === workout.restForKey) ?? null
@@ -253,6 +305,40 @@ export function WorkoutScreen(): JSX.Element | null {
         </div>
       </header>
 
+      {/*
+        שני מתגים של "איזה אימון זה היום": עם/בלי טיימר מנוחה, עם/בלי שאלון
+        קושי. הם יושבים כאן ולא רק בהגדרות כי ההחלטה מתקבלת על רצפת חדר הכושר —
+        והם נשמרים, כך שהבחירה מחזיקה גם לאימון הבא עד שמשנים אותה.
+      */}
+      <div className="mb-3 flex gap-2">
+        <button
+          type="button"
+          aria-pressed={settings.restTimerEnabled}
+          onClick={() => void saveSettings({ restTimerEnabled: !settings.restTimerEnabled })}
+          className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-pill border px-3 text-xs font-bold transition-colors ${
+            settings.restTimerEnabled
+              ? 'border-flame-500/40 bg-flame-500/10 text-flame-300'
+              : 'border-ink-700 bg-ink-900/60 text-bone-500'
+          }`}
+        >
+          <Timer size={14} />
+          {settings.restTimerEnabled ? 'טיימר מנוחה' : 'טיימר מנוחה כבוי'}
+        </button>
+        <button
+          type="button"
+          aria-pressed={settings.askRating}
+          onClick={() => void saveSettings({ askRating: !settings.askRating })}
+          className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-pill border px-3 text-xs font-bold transition-colors ${
+            settings.askRating
+              ? 'border-flame-500/40 bg-flame-500/10 text-flame-300'
+              : 'border-ink-700 bg-ink-900/60 text-bone-500'
+          }`}
+        >
+          <MessageCircleQuestion size={14} />
+          {settings.askRating ? 'שאלון קושי' : 'שאלון קושי כבוי'}
+        </button>
+      </div>
+
       {total === 0 ? (
         <EmptyState
           title="אין תרגילים באימון הזה"
@@ -267,7 +353,12 @@ export function WorkoutScreen(): JSX.Element | null {
 
             if (item.key === workout.currentKey) {
               return (
-                <div key={item.key} className="animate-rise relative">
+                <div
+                  key={item.key}
+                  ref={activeCardRef}
+                  className="animate-rise relative"
+                  style={{ scrollMarginTop: 'calc(var(--safe-t) + 4.5rem)' }}
+                >
                   {banner && (
                     <div className="animate-stamp pointer-events-none absolute inset-x-4 -top-2 z-20 flex items-center justify-center gap-2 rounded-pill border border-pr-400/40 bg-ink-950/95 px-4 py-2 text-sm font-extrabold text-pr-400 shadow-lg">
                       <Trophy size={16} />
@@ -282,6 +373,7 @@ export function WorkoutScreen(): JSX.Element | null {
                     onOpenVideo={() => setVideoOpen(true)}
                     onOpenSubstitute={() => setSheet('substitute')}
                     onOpenRating={() => setSheet('rating')}
+                    onFinishExercise={handleFinishExercise}
                     settings={settings}
                     history={historyFor === item.exerciseId ? history : []}
                     audio={audio}
@@ -300,6 +392,7 @@ export function WorkoutScreen(): JSX.Element | null {
                 setCount={sets.length}
                 summary={summarize(sets, exercise.weightMode, exercise.metric)}
                 onTap={() => void setCurrent(item.key)}
+                onSkip={() => void skipItem(item.key)}
               />
             )
           })}
@@ -329,6 +422,11 @@ export function WorkoutScreen(): JSX.Element | null {
         audio={audio}
         onAdjust={(delta) => void adjustRest(delta)}
         onSkip={() => void stopRest()}
+        onDisable={() => {
+          void saveSettings({ restTimerEnabled: false })
+          void stopRest()
+          toast('טיימר המנוחה כבוי — מדליקים חזרה במתג שבראש מסך האימון')
+        }}
         nextLabel={restLabel}
       />
 
@@ -343,13 +441,13 @@ export function WorkoutScreen(): JSX.Element | null {
           />
           <RatingSheet
             open={sheet === 'rating'}
-            onClose={() => setSheet(null)}
+            onClose={closeRating}
             exercise={activeExercise}
             current={activeItem ? (workout.ratingsByKey[activeItem.key] ?? null) : null}
             askRir={settings.askRir}
             onRate={(rating, rir) => {
               if (activeItem) void rate(activeItem.key, rating, rir)
-              setSheet(null)
+              closeRating()
             }}
           />
           <SubstituteSheet
@@ -371,6 +469,7 @@ export function WorkoutScreen(): JSX.Element | null {
         onClose={() => setSheet(null)}
         onConfirm={() => void handleFinish()}
         openItems={openItems(workout)}
+        skippedItems={skippedItems(workout)}
         exercisesById={exercisesById}
       />
     </Screen>

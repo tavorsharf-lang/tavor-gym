@@ -34,7 +34,16 @@ export function SessionCard({
         aria-hidden="true"
         className="flex size-12 shrink-0 items-center justify-center rounded-full border border-flame-500/30 bg-flame-500/10 text-xl font-extrabold text-flame-400"
       >
-        {session.routineId ?? <Dumbbell size={20} strokeWidth={2.2} />}
+        {/*
+          רק מזהה קצר נכנס לעיגול. אימון שהמשתמש בנה ושמר נושא מזהה ארוך
+          ('W-…'), והדפסה שלו כאן הייתה גולשת מהעיגול ומכערת כל שורה בהיסטוריה.
+          המשקולת היא ברירת המחדל, והשם המלא ממילא מופיע לידה.
+        */}
+        {session.routineId && session.routineId.length <= 2 ? (
+          session.routineId
+        ) : (
+          <Dumbbell size={20} strokeWidth={2.2} />
+        )}
       </span>
 
       <span className="min-w-0 flex-1">

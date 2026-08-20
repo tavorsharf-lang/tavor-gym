@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ChevronDown, ChevronUp, Plus, Trash2, X } from 'lucide-react'
 import { db } from '@/db/db'
+import { isLivePlan, removeFromMine } from '@/db/catalog'
 import { getBlocks, getExercise, getRoutines } from '@/db/queries'
 import type { Equipment, Exercise, MuscleGroup, Session, SetLog, WeightMode } from '@/db/types'
 import {
@@ -16,7 +17,7 @@ import { rebuildPrs } from '@/domain/prs'
 import { countLabel, countMax, countStep, formatClock, formatKg } from '@/domain/units'
 import { summarize, weightModeLookup } from '@/domain/volume'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
-import { BottomSheet, Button, EmptyState, toast } from '@/components/ui'
+import { BottomSheet, Button, EmptyState, IconButton, toast } from '@/components/ui'
 import { SettingNumber, SettingToggle } from '@/components/settings/SettingRow'
 
 /**
@@ -218,32 +219,61 @@ function Segmented<T extends string>({
   )
 }
 
-function IconButton({
+/**
+ * בחירה מרובה, באותה שפה ויזואלית של `Segmented`.
+ *
+ * רכיב נפרד ולא הרחבה שלו: שם הבחירה מחליפה, וכאן כל צ׳יפ הוא מתג בפני עצמו.
+ * ‏`locked` הוא ערך שאסור לבחור מסיבה שהמסך מכיר ולא הרכיב — הוא מוצג מושבת
+ * ולא מוסתר, כדי שהרשימה תישאר אותה רשימה ולא "תקפוץ" כשהערך הנעול משתנה.
+ */
+function MultiSelect<T extends string>({
   label,
-  onClick,
-  disabled = false,
-  danger = false,
-  children,
+  values,
+  options,
+  onToggle,
+  locked,
+  lockedHint,
+  note,
 }: {
   label: string
-  onClick: () => void
-  disabled?: boolean
-  danger?: boolean
-  children: ReactNode
+  values: readonly T[]
+  options: readonly { value: T; label: string }[]
+  onToggle: (value: T) => void
+  locked?: T
+  lockedHint?: string
+  note?: string
 }): JSX.Element {
   return (
-    <button
-      type="button"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className={[
-        'flex size-12 shrink-0 items-center justify-center rounded-xl transition-colors disabled:opacity-25',
-        danger ? 'text-hard-400 active:bg-hard-400/12' : 'text-bone-400 active:bg-ink-800',
-      ].join(' ')}
-    >
-      {children}
-    </button>
+    <div className="px-4 py-3">
+      <p className="meta mb-2">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((o) => {
+          const isLocked = locked === o.value
+          const on = !isLocked && values.includes(o.value)
+          return (
+            <button
+              key={o.value}
+              type="button"
+              aria-pressed={on}
+              disabled={isLocked}
+              title={isLocked ? lockedHint : undefined}
+              onClick={() => onToggle(o.value)}
+              className={[
+                'flex min-h-12 items-center rounded-pill border px-4 text-sm font-bold transition-colors',
+                isLocked
+                  ? 'border-ink-800 bg-ink-900 text-bone-600 opacity-50'
+                  : on
+                    ? 'border-flame-500/50 bg-flame-500/12 text-flame-300'
+                    : 'border-ink-700 bg-ink-850 text-bone-400 active:bg-ink-800',
+              ].join(' ')}
+            >
+              {o.label}
+            </button>
+          )
+        })}
+      </div>
+      {note ? <p className="mt-2.5 text-xs leading-relaxed text-bone-500">{note}</p> : null}
+    </div>
   )
 }
 
@@ -295,6 +325,9 @@ export function ExerciseEditorScreen(): JSX.Element {
   const usedIn = useMemo(() => {
     const names: string[] = []
     for (const r of routines) {
+      // אימון שמור שנמחק אינו "שימוש": הוא לא מוצג בשום מסך, ולכן חסימת
+      // מחיקה בשמו היא שגיאה שאי אפשר לפעול לפיה
+      if (!isLivePlan(r)) continue
       if (r.items.some((i) => i.exerciseId === exerciseId)) names.push(r.name)
     }
     for (const b of blocks) {
@@ -376,10 +409,20 @@ export function ExerciseEditorScreen(): JSX.Element {
 
   const handleDeleteTap = (): void => {
     if (usedIn.length > 0) {
-      toast(`התרגיל נמצא בשימוש: ${usedIn.join(' · ')}. אפשר לכבות אותו במקום למחוק`, {
+      toast(`התרגיל נמצא בשימוש: ${usedIn.join(' · ')}. אפשר להוציא אותו במקום למחוק`, {
         tone: 'warn',
-        actionLabel: 'כבה',
-        onAction: () => patch({ isActive: false }),
+        actionLabel: 'הוצא',
+        /*
+          כתיבה למסד ולא רק ל-draft. עד כאן הפעולה קראה ל-`patch` בלבד: המסך
+          השתנה מול העיניים, ומי שיצא בלי לשמור גילה שהתרגיל עדיין בשימוש.
+          `update` ולא `put` — כתיבה חלקית לא יכולה לדרוס עריכה מקבילה.
+        */
+        onAction: () => {
+          patch({ isActive: false })
+          void removeFromMine(exerciseId)
+            .then(() => toast('התרגיל הוצא מהתרגילים שלך'))
+            .catch(() => toast('לא הצלחתי להוציא את התרגיל', { tone: 'warn' }))
+        },
       })
       return
     }
@@ -391,7 +434,7 @@ export function ExerciseEditorScreen(): JSX.Element {
       await db.exercises.delete(exerciseId)
       setDeleteOpen(false)
       toast('התרגיל נמחק')
-      navigate('/settings/exercises', { replace: true })
+      navigate('/exercises', { replace: true })
     } catch {
       toast('המחיקה נכשלה', { tone: 'warn' })
     }
@@ -417,8 +460,8 @@ export function ExerciseEditorScreen(): JSX.Element {
           title="התרגיל הזה כבר לא קיים"
           hint="אולי נמחק מהקטלוג. חזור אחורה ובחר תרגיל אחר."
           action={
-            <Button variant="ghost" onClick={() => navigate('/settings/exercises', { replace: true })}>
-              לקטלוג
+            <Button variant="ghost" onClick={() => navigate('/exercises', { replace: true })}>
+              לתרגילים
             </Button>
           }
         />
@@ -453,7 +496,34 @@ export function ExerciseEditorScreen(): JSX.Element {
           label="קבוצת שריר"
           value={draft.muscleGroup}
           options={MUSCLE_OPTIONS}
-          onChange={(v) => patch({ muscleGroup: v })}
+          /*
+            שינוי השריר הראשי מנקה אותו מהמשניים באותה פעולה. סט אחד שנספר
+            לאותו שריר גם ישירות וגם בעקיפין הוא הבאג היחיד שהשדה הזה מסוגל
+            לייצר, וכאן הוא נסגר בכתיבה ולא בקריאה.
+          */
+          onChange={(v) =>
+            patch({
+              muscleGroup: v,
+              secondaryMuscles: (draft.secondaryMuscles ?? []).filter((m) => m !== v),
+            })
+          }
+        />
+
+        <MultiSelect<MuscleGroup>
+          label="שרירים משניים"
+          values={draft.secondaryMuscles ?? []}
+          options={MUSCLE_OPTIONS}
+          locked={draft.muscleGroup}
+          lockedHint="זה השריר הראשי של התרגיל"
+          onToggle={(v) => {
+            const current = draft.secondaryMuscles ?? []
+            patch({
+              secondaryMuscles: current.includes(v)
+                ? current.filter((m) => m !== v)
+                : [...current, v],
+            })
+          }}
+          note="מה שהתרגיל מעמיס בעקיפין — חתירה עובדת גם יד קדמית. משפיע רק על מסך כיסוי השרירים בבניית אימון, ולא על הנפח, השיאים או החימום. בתרגיל בידוד נכון להשאיר ריק."
         />
         <TextField
           label="מיקוד"

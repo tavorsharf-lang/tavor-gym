@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
-import { Check, ChevronDown, Clock, Minus, NotebookPen, Plus, Repeat, Timer } from 'lucide-react'
+import { Check, ChevronDown, Clock, Minus, NotebookPen, Plus, Repeat, SkipForward, Timer } from 'lucide-react'
 import type {
   AppSettings,
   DraftSet,
@@ -36,6 +36,7 @@ import { RecommendationChip } from './RecommendationChip'
 import { PlateHint } from './PlateHint'
 import { PlateChips } from './PlateChips'
 import { RepChips } from './RepChips'
+import { HoldOverlay } from './HoldOverlay'
 
 /**
  * הכרטיס של התרגיל הפעיל — המסך שבו נמצאים באמת באמצע אימון.
@@ -53,6 +54,11 @@ export interface ExerciseCardProps {
   onOpenVideo: () => void
   onOpenSubstitute: () => void
   onOpenRating: () => void
+  /**
+   * "סיים תרגיל" — עובר דרך המסך ולא ישר ל-store, כי כשמתג הדירוג דלוק
+   * המסך פותח קודם את שאלון "איך היה" ורק אחרי המענה סוגר את התרגיל.
+   */
+  onFinishExercise: () => void
   settings: AppSettings
   history: ExerciseSessionSummary[]
   /** מופע האודיו של המסך — חייב להיות אותו הקשר שנפתח במחוות המשתמש */
@@ -196,6 +202,7 @@ export function ExerciseCard({
   onOpenVideo,
   onOpenSubstitute,
   onOpenRating,
+  onFinishExercise,
   settings,
   history,
   audio,
@@ -207,7 +214,7 @@ export function ExerciseCard({
   const removeSet = useWorkout((s) => s.removeSet)
   const startRest = useWorkout((s) => s.startRest)
   const deferItem = useWorkout((s) => s.deferItem)
-  const completeCurrent = useWorkout((s) => s.completeCurrent)
+  const skipItem = useWorkout((s) => s.skipItem)
   const markWarmupOffered = useWorkout((s) => s.markWarmupOffered)
   const setTargetSets = useWorkout((s) => s.setTargetSets)
   const setItemRest = useWorkout((s) => s.setItemRest)
@@ -227,6 +234,7 @@ export function ExerciseCard({
   const [editing, setEditing] = useState<DraftSet | null>(null)
   const [noteOpen, setNoteOpen] = useState(false)
   const [noteDraft, setNoteDraft] = useState('')
+  const [holdOpen, setHoldOpen] = useState(false)
 
   const bodyweight = exercise.weightMode === 'bodyweight'
   const timed = exercise.metric === 'seconds'
@@ -342,10 +350,17 @@ export function ExerciseCard({
         : settings.defaultRestSeconds
       // חימום הוא לא סט כבד — חצי מנוחה מספיקה ושומרת על קצב
       const rest = type === 'warmup' ? Math.round(base * 0.5) : base
-      if (rest > 0) await startRest(item.key, rest)
+      // מי שמתעד מנוחה בשעון כיבה את הטיימר — הסט נרשם, המסך לא קופץ
+      if (rest > 0 && settings.restTimerEnabled) await startRest(item.key, rest)
       setIsWarmup(false)
       onLogged()
-      if (type === 'work' && workCount + 1 >= item.targetSets && !rating && !autoRated.current) {
+      if (
+        settings.askRating &&
+        type === 'work' &&
+        workCount + 1 >= item.targetSets &&
+        !rating &&
+        !autoRated.current
+      ) {
         autoRated.current = true
         onOpenRating()
       }
@@ -623,6 +638,25 @@ export function ExerciseCard({
             </div>
           )}
           <div>
+            {/*
+              בתרגיל זמן הסטופר הוא המסלול הראשי: מודדים על המסך במקום לנחש
+              מול שעון. הוא רושם את הסט בעצמו בעצירה — השדה למטה נשאר למי
+              שמדד בדרך אחרת ומקליד תוצאה.
+            */}
+            {timed && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  audio.keepAlive()
+                  setHoldOpen(true)
+                }}
+                className="mb-3 flex min-h-14 w-full items-center justify-center gap-2 rounded-card border border-flame-500/40 bg-flame-500/10 text-base font-extrabold text-flame-300 active:bg-flame-500/20"
+              >
+                <Timer size={20} />
+                מדוד עם סטופר — היעד {formatClock(item.targetReps.min)}
+              </button>
+            )}
             <Stepper
               label={countLabel(exercise.metric)}
               unit={timed ? 'שניות' : 'חזרות'}
@@ -655,7 +689,7 @@ export function ExerciseCard({
       </button>
 
       {/* 10 — פעולות משניות. אייקון מעל תווית, כדי שהתווית לא תיחתך */}
-      <div className="mt-2.5 grid grid-cols-3 gap-2">
+      <div className="mt-2.5 grid grid-cols-2 gap-2">
         <button
           type="button"
           onClick={() => void deferItem(item.key)}
@@ -674,7 +708,15 @@ export function ExerciseCard({
         </button>
         <button
           type="button"
-          onClick={() => void completeCurrent()}
+          onClick={() => void skipItem(item.key)}
+          className="btn-ghost flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-bold"
+        >
+          <SkipForward size={16} className="text-bone-500" />
+          דלג היום
+        </button>
+        <button
+          type="button"
+          onClick={onFinishExercise}
           className="btn-ghost flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-bold"
         >
           <Check size={16} className="text-pr-400" />
@@ -733,6 +775,22 @@ export function ExerciseCard({
           />
         )}
       </BottomSheet>
+
+      {timed && (
+        <HoldOverlay
+          open={holdOpen}
+          targetSeconds={item.targetReps.min}
+          exerciseName={exercise.name}
+          audio={audio}
+          onClose={() => setHoldOpen(false)}
+          onSave={(elapsed) => {
+            // הסטופר נסגר לפני הרישום: commitSet פותח את מסך המנוחה, ושני
+            // פורטלים על אותו z-index נלחמים זה בזה
+            setHoldOpen(false)
+            void commitSet(isWarmup ? 'warmup' : 'work', entry.weightKg, elapsed)
+          }}
+        />
+      )}
     </article>
   )
 }

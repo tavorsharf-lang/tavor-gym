@@ -39,7 +39,7 @@ import { todayISO } from '@/lib/dates'
 
 function itemFromPlan(
   planItem: PlanItem,
-  source: 'routine' | 'block',
+  source: QueueItem['source'],
   sourceId: string
 ): QueueItem {
   return {
@@ -85,6 +85,13 @@ interface WorkoutState {
   // מחזור חיים
   hydrate: () => Promise<void>
   start: (routineId: RoutineId | null, blockIds: string[]) => Promise<void>
+  /**
+   * פותח אימון חופשי מרשימת תרגילים שנבחרה במסך בניית האימון.
+   *
+   * לא `start(null, [])` ואחריו `addExercise` בלולאה: זה היה כותב את המצב
+   * לדיסק פעם לכל תרגיל, ומשאיר את התור כולו `pending` בלי תרגיל פתוח.
+   */
+  startWithItems: (exerciseIds: readonly string[]) => Promise<void>
   discard: () => Promise<void>
   finish: () => Promise<string | null>
 
@@ -105,9 +112,12 @@ interface WorkoutState {
   setCurrent: (key: string) => Promise<void>
   completeCurrent: () => Promise<void>
   deferItem: (key: string) => Promise<void>
+  /** "לא עושה את זה היום" — סוגר את הפריט כדילוג מפורש ועובר לתרגיל הבא */
+  skipItem: (key: string) => Promise<void>
   substitute: (key: string, newExerciseId: string, reason: Substitution['reason']) => Promise<void>
   reorder: (fromIndex: number, toIndex: number) => Promise<void>
-  addExercise: (exerciseId: string) => Promise<void>
+  /** מוסיף תרגיל לתור. false = התרגיל לא נמצא בקטלוג ושום דבר לא נוסף. */
+  addExercise: (exerciseId: string) => Promise<boolean>
 
   // מנוחה
   startRest: (key: string, seconds: number) => Promise<void>
@@ -290,6 +300,79 @@ export const useWorkout = create<WorkoutState>((set, get) => {
         startedAt: Date.now(),
         queue: finalQueue,
         currentKey: finalQueue[0]?.key ?? null,
+        setsByKey: {},
+        ratingsByKey: {},
+        substitutions: [],
+        restEndsAt: null,
+        restTotalSeconds: settings.defaultRestSeconds,
+        restForKey: null,
+        notes: '',
+        lastSavedAt: Date.now(),
+      }
+
+      set({
+        workout,
+        exercisesById: Object.fromEntries(exercises.map((e) => [e.id, e])),
+        prCache: prs,
+        pendingPrEvents: [],
+        hydrated: true,
+      })
+      await persist(workout)
+    },
+
+    async startWithItems(exerciseIds) {
+      // אותה רשת בדיוק כמו ב-start, ומאותה סיבה: סטים בלי סשן.
+      const open = get().workout
+      if (open) await get().discard()
+
+      const [exercises, prs, settings] = await Promise.all([
+        db.exercises.toArray(),
+        db.prs.toArray(),
+        getSettings(),
+      ])
+
+      /*
+        קריאה טרייה מהמסד ולא מהתצלום שבזיכרון.
+
+        מסך הבנייה יכול היה ליצור תרגיל חדש שנייה קודם — כך הוא הופך תרגיל
+        מהמאגר הלימודי למשהו שאפשר להתאמן בו. תצלום שנלקח לפני כן לא מכיר
+        אותו, ו-`logSet` מוותר בשקט על סט של תרגיל שאינו במפה.
+      */
+      const byId = new Map(exercises.map((e) => [e.id, e]))
+      const queue: QueueItem[] = []
+      const seen = new Set<string>()
+      for (const id of exerciseIds) {
+        const ex = byId.get(id)
+        // אותה בדיקה כמו ב-start: תרגיל שהוצא מהתרגילים שלי לא נכנס לתור
+        if (!ex || !ex.isActive || seen.has(id)) continue
+        seen.add(id)
+        queue.push(
+          itemFromPlan(
+            {
+              exerciseId: id,
+              order: queue.length,
+              targetSets: ex.targetSets,
+              targetReps: { ...ex.targetReps },
+              restSeconds: ex.defaultRestSeconds,
+              startWeightKg: null,
+            },
+            'builder',
+            ''
+          )
+        )
+      }
+      if (queue.length) queue[0].status = 'active'
+
+      const workout: ActiveWorkout = {
+        id: 'current',
+        sessionId: newId('s'),
+        // אימון חופשי: הוא לא "ביצוע" של אף תוכנית, ולכן הוא לא מאפס את
+        // שעון ההזנחה של אף אחת מהן — וזה בדיוק הנכון.
+        routineId: null,
+        blockIds: [],
+        startedAt: Date.now(),
+        queue,
+        currentKey: queue[0]?.key ?? null,
         setsByKey: {},
         ratingsByKey: {},
         substitutions: [],
@@ -618,6 +701,8 @@ export const useWorkout = create<WorkoutState>((set, get) => {
     },
 
     async setCurrent(key) {
+      // לחיצה על תרגיל שדולג פותחת אותו מחדש — הדילוג היה החלטה של הרגע,
+      // והדרך הכי טבעית לבטל אותה היא פשוט לגעת בתרגיל שוב.
       await mutate((w) => ({
         ...w,
         currentKey: key,
@@ -636,10 +721,34 @@ export const useWorkout = create<WorkoutState>((set, get) => {
       if (!w || !w.currentKey) return
       const key = w.currentKey
       await mutate((cur) => {
-        const queue = cur.queue.map((q) => (q.key === key ? { ...q, status: 'done' as const } : q))
+        /*
+          סגירה בלי אף סט היא דילוג, לא השלמה. בלי ההבחנה "סיים תרגיל" על
+          תרגיל ריק היה מסמן ✓ בתור ועוקף בשקט את האזהרה של גיליון הסיום —
+          והתרגיל היה נראה כבוצע כשהוא בעצם לא קרה.
+        */
+        const performed = (cur.setsByKey[key]?.length ?? 0) > 0
+        const closed = performed ? ('done' as const) : ('skipped' as const)
+        const queue = cur.queue.map((q) => (q.key === key ? { ...q, status: closed } : q))
         const next = nextOpenKey(queue, key)
         return {
           ...cur,
+          queue: queue.map((q) => (q.key === next ? { ...q, status: 'active' as const } : q)),
+          currentKey: next,
+        }
+      })
+    },
+
+    async skipItem(key) {
+      await mutate((w) => {
+        const queue = w.queue.map((q) =>
+          q.key === key ? { ...q, status: 'skipped' as const } : q
+        )
+        // אם דילגנו על התרגיל הפתוח — עוברים לבא בתור. דילוג על תרגיל אחר
+        // מרחוק (מהרשימה) לא מזיז את מה שבאמצע.
+        if (w.currentKey !== key) return { ...w, queue }
+        const next = nextOpenKey(queue, key)
+        return {
+          ...w,
           queue: queue.map((q) => (q.key === next ? { ...q, status: 'active' as const } : q)),
           currentKey: next,
         }
@@ -739,28 +848,58 @@ export const useWorkout = create<WorkoutState>((set, get) => {
       })
     },
 
+    /**
+     * מוסיף תרגיל לאימון שרץ. מחזיר האם זה הצליח, כדי שהקורא לא יבטיח בטוסט
+     * משהו שלא קרה.
+     */
     async addExercise(exerciseId) {
-      const ex = get().exercisesById[exerciseId]
-      if (!ex) return
-      await mutate((w) => ({
-        ...w,
-        queue: [
-          ...w.queue,
-          {
-            key: newId('q'),
-            exerciseId,
-            plannedExerciseId: exerciseId,
-            source: 'routine',
-            sourceId: w.routineId ?? '',
-            targetSets: ex.targetSets,
-            targetReps: { ...ex.targetReps },
-            restSeconds: ex.defaultRestSeconds,
-            startWeightKg: null,
-            status: 'pending',
-            warmupOffered: false,
-          },
-        ],
-      }))
+      /*
+        התצלום שבזיכרון קודם, והמסד כרשת מתחתיו.
+
+        `exercisesById` נלקח בתחילת האימון, ולכן תרגיל שנוצר אחריו — למשל
+        תרגיל מהמאגר הלימודי שהתווסף לקטלוג ממסך בניית האימון באמצע האימון —
+        פשוט לא נמצא בו, וההוספה הייתה נכשלת בשקט מוחלט.
+      */
+      let ex = get().exercisesById[exerciseId]
+      if (!ex) {
+        const stored = await db.exercises.get(exerciseId)
+        if (!stored) return false
+        ex = stored
+        set({ exercisesById: { ...get().exercisesById, [stored.id]: stored } })
+      }
+
+      const fresh: QueueItem = {
+        key: newId('q'),
+        exerciseId,
+        plannedExerciseId: exerciseId,
+        // לא 'routine': התרגיל הזה לא הגיע מהתוכנית אלא מבחירה של הרגע
+        source: 'builder',
+        sourceId: '',
+        targetSets: ex.targetSets,
+        targetReps: { ...ex.targetReps },
+        restSeconds: ex.defaultRestSeconds,
+        startWeightKg: null,
+        status: 'pending',
+        warmupOffered: false,
+      }
+
+      await mutate((w) => {
+        const queue = [...w.queue, fresh]
+        /*
+          אימון שהתחיל ריק נשאר בלי תרגיל פתוח.
+
+          רק הפריט הראשון בבנייה הראשונית מקבל 'active', ולכן הוספה לתור ריק
+          הותירה את מסך האימון על "כל התרגילים סומנו כהושלמו" בזמן שהתרגיל
+          שהרגע נוסף יושב בתור וממתין.
+        */
+        if (w.currentKey !== null) return { ...w, queue }
+        return {
+          ...w,
+          queue: queue.map((q) => (q.key === fresh.key ? { ...q, status: 'active' as const } : q)),
+          currentKey: fresh.key,
+        }
+      })
+      return true
     },
 
     async startRest(key, seconds) {
@@ -824,10 +963,25 @@ export function touchedGroups(
   return out
 }
 
-/** תרגילים שנשארו פתוחים — חוסמים סיום אימון בשקט */
+/**
+ * תרגילים שנשארו פתוחים — חוסמים סיום אימון בשקט.
+ * דילוג מפורש אינו "פתוח": המשתמש כבר אמר שהוא לא עושה את זה היום,
+ * ולהזהיר אותו על זה שוב בסיום זה לחזור על השאלה שכבר נענתה.
+ */
 export function openItems(workout: ActiveWorkout | null): QueueItem[] {
   if (!workout) return []
   return workout.queue.filter(
-    (q) => q.status !== 'done' && (workout.setsByKey[q.key]?.length ?? 0) === 0
+    (q) =>
+      q.status !== 'done' &&
+      q.status !== 'skipped' &&
+      (workout.setsByKey[q.key]?.length ?? 0) === 0
+  )
+}
+
+/** תרגילים שדולגו במפורש ולא בוצע בהם כלום — לתצוגה בגיליון הסיום */
+export function skippedItems(workout: ActiveWorkout | null): QueueItem[] {
+  if (!workout) return []
+  return workout.queue.filter(
+    (q) => q.status === 'skipped' && (workout.setsByKey[q.key]?.length ?? 0) === 0
   )
 }

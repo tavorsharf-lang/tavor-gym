@@ -5,6 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Download, FileDown, FileUp, HardDrive, Upload } from 'lucide-react'
 import { getSettings, resetDatabase } from '@/db/db'
 import { invalidateHiddenVideos } from '@/db/hiddenVideos'
+import { invalidateVideoPrefs } from '@/db/videoPrefs'
 import {
   backupFilename,
   backupNow,
@@ -154,8 +155,9 @@ export function BackupScreen(): JSX.Element {
     setResetOpen(false)
     try {
       await resetDatabase()
-      // ההגדרות נמחקו יחד עם המסד, ואיתן רשימת הסרטונים שנמחקו
+      // ההגדרות נמחקו יחד עם המסד, ואיתן רשימת הסרטונים שנמחקו והעדפות הסדר
       invalidateHiddenVideos()
+      invalidateVideoPrefs()
       toast('הכל אופס. האפליקציה חוזרת לנתוני ההתחלה')
       window.setTimeout(() => navigate(0), 1600)
     } catch {

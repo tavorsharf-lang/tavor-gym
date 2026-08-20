@@ -87,8 +87,14 @@ async function openLibrary(user: ReturnType<typeof userEvent.setup>): Promise<vo
   await waitFor(() => expect(screen.getAllByText(/פול באדי/).length).toBeGreaterThan(0), {
     timeout: 10000,
   })
-  const card = await screen.findByRole('button', { name: /כל התרגילים/ }, { timeout: 10000 })
+  // כרטיס אחד, "תרגילים" — הוא החליף את "כל התרגילים" ואת "מאגר תרגילים" גם יחד
+  const card = await screen.findByRole('button', { name: /^תרגילים/ }, { timeout: 10000 })
   await user.click(card)
+}
+
+/** מעביר את המסך המאוחד למצב "הכל" */
+async function switchToAll(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+  await user.click(await screen.findByRole('button', { name: 'הכל' }, { timeout: 5000 }))
 }
 
 describe('ספריית התרגילים', () => {
@@ -158,5 +164,160 @@ describe('ספריית התרגילים', () => {
     expect(rows.length).toBe(2)
     expect(screen.getByText(/60 ק״ג כל צד/)).toBeTruthy()
     expect(screen.getByText(/50 ק״ג כל צד/)).toBeTruthy()
+  }, 30000)
+})
+
+/**
+ * המתג בין "שלי" ל"הכל".
+ *
+ * שני המצבים קוראים מאותה `getCatalogEntries()`, וההבדל הוא מה מסוננן ואיזה
+ * פקד יושב בקצה השורה. הבדיקות כאן נוגעות בדיוק במה שקל לשבור: שתרגיל מאגר
+ * לא ידלוף ל"שלי", ושהוצאה לא מעלימה תרגיל שאין לו תאום במאגר.
+ */
+describe('המתג בין שלי לכל', () => {
+  beforeEach(async () => {
+    await db.delete()
+    await db.open()
+    await ensureReady()
+  })
+
+  it('מצב "שלי" מציג רק את הקטלוג, בלי תרגילי מאגר', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await openLibrary(user)
+    await waitFor(() => expect(screen.getByText('לחיצת רגליים')).toBeTruthy(), { timeout: 5000 })
+
+    // "מכרעים" קיים במאגר בלבד ואינו בקטלוג הזרוע
+    expect(screen.queryByText('מכרעים')).toBeNull()
+    // ואין פקדי הוספה/הסרה — "שלי" הוא רשימת עיון נקייה
+    expect(screen.queryByRole('button', { name: /^הוסף את/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^הוצא את/ })).toBeNull()
+  }, 30000)
+
+  it('מצב "הכל" חושף תרגילי מאגר עם כפתור הוספה, ותרגילים שלי עם כפתור הוצאה', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await openLibrary(user)
+    await switchToAll(user)
+
+    await waitFor(() => expect(screen.getByText('מכרעים')).toBeTruthy(), { timeout: 5000 })
+    expect(screen.getByRole('button', { name: 'הוסף את מכרעים לתרגילים שלי' })).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: 'הוצא את לחיצת רגליים מהתרגילים שלי' })
+    ).toBeTruthy()
+  }, 30000)
+
+  it('הוספת תרגיל מהמאגר מכניסה אותו ל"שלי" בלי לצאת מהמסך', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await openLibrary(user)
+    await switchToAll(user)
+
+    await waitFor(() => expect(screen.getByText('מכרעים')).toBeTruthy(), { timeout: 5000 })
+    await user.click(screen.getByRole('button', { name: 'הוסף את מכרעים לתרגילים שלי' }))
+
+    // הכפתור מתחלף במקום — לא ניווט, לא מסך ביניים
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: 'הוצא את מכרעים מהתרגילים שלי' })).toBeTruthy(),
+      { timeout: 5000 }
+    )
+
+    const exercises = await db.exercises.where('libraryId').equals('lib-lunge').toArray()
+    expect(exercises.length).toBe(1)
+    expect(exercises[0].isActive).toBe(true)
+  }, 30000)
+
+  /**
+   * הצלע שכל עיצוב תמים שובר: לכפיפת פטיש אין מקבילה במאגר (UNLINKED_NOTES),
+   * ולכן הוצאה שלה חייבת להשאיר אותה ב"הכל" — אחרת היא נמחקת מהאפליקציה.
+   */
+  it('תרגיל שאין לו תאום במאגר לא הולך לאיבוד אחרי הוצאה', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await openLibrary(user)
+    await switchToAll(user)
+
+    await waitFor(() => expect(screen.getByText('כפיפת פטיש')).toBeTruthy(), { timeout: 5000 })
+    await user.click(screen.getByRole('button', { name: 'הוצא את כפיפת פטיש מהתרגילים שלי' }))
+
+    // כפיפת פטיש יושבת בפול באדי ב׳ ובאימון B, ולכן נפתח גיליון ההחלטה
+    await waitFor(() => expect(screen.getByText(/להוציא את כפיפת פטיש/)).toBeTruthy(), {
+      timeout: 5000,
+    })
+    // הכבויה מסומנת ככזו — בלי זה "הוצא גם מהתוכניות" עורך בשקט תוכנית שלא מסתכלים עליה
+    expect(screen.getByText('אימון B')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'השאר בתוכניות' }))
+
+    // עדיין ב"הכל", עכשיו עם כפתור החזרה
+    await waitFor(
+      () =>
+        expect(screen.getByRole('button', { name: 'הוסף את כפיפת פטיש לתרגילים שלי' })).toBeTruthy(),
+      { timeout: 5000 }
+    )
+    // הרשומה נשארה, רק הדגל התהפך — ההיסטוריה תלויה בה
+    const ex = await db.exercises.get('hammer-curl')
+    expect(ex?.isActive).toBe(false)
+    // והפריט נשאר בתוכנית ומחכה
+    const routine = await db.routines.get('F2')
+    expect(routine?.items.some((i) => i.exerciseId === 'hammer-curl')).toBe(true)
+  }, 30000)
+
+  /**
+   * הקיפול של "הגדרות ← קטלוג התרגילים". הוא היה עותק שלישי של אותה רשימה,
+   * וההבדל היחיד היה שהשורות הובילו לעורך. מה שחייב לשרוד את המחיקה: היכולת
+   * ליצור תרגיל שאינו מהמאגר, ושני יעדי הניווט של המחיקה בעורך.
+   */
+  it('"תרגיל חדש משלי" יוצר רשומה ופותח את העורך', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await openLibrary(user)
+    await switchToAll(user)
+
+    const before = await db.exercises.count()
+    await user.click(
+      await screen.findByRole('button', { name: /תרגיל חדש משלי/ }, { timeout: 5000 })
+    )
+
+    // העורך נפתח על הרשומה החדשה
+    await waitFor(() => expect(screen.getByDisplayValue('תרגיל חדש')).toBeTruthy(), {
+      timeout: 5000,
+    })
+    expect(await db.exercises.count()).toBe(before + 1)
+  }, 30000)
+
+  it('הכפתור ליצירה מופיע גם כשחיפוש לא מצא כלום בשום צד', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await openLibrary(user)
+    await switchToAll(user)
+
+    await user.type(await screen.findByLabelText('חיפוש תרגיל'), 'זזזזז')
+    await waitFor(() => expect(screen.getByText('לא נמצא תרגיל')).toBeTruthy(), { timeout: 5000 })
+    expect(screen.getByRole('button', { name: 'צור תרגיל משלי' })).toBeTruthy()
+  }, 30000)
+
+  it('"הוצא גם מהתוכניות" מנקה את הפריט מכל התוכניות והבלוקים', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await openLibrary(user)
+    await switchToAll(user)
+
+    await waitFor(() => expect(screen.getByText('כפיפת פטיש')).toBeTruthy(), { timeout: 5000 })
+    await user.click(screen.getByRole('button', { name: 'הוצא את כפיפת פטיש מהתרגילים שלי' }))
+    await waitFor(() => expect(screen.getByText(/להוציא את כפיפת פטיש/)).toBeTruthy(), {
+      timeout: 5000,
+    })
+    await user.click(screen.getByRole('button', { name: 'הוצא גם מהתוכניות' }))
+
+    await waitFor(async () => {
+      const routine = await db.routines.get('F2')
+      expect(routine?.items.some((i) => i.exerciseId === 'hammer-curl')).toBe(false)
+    })
+    // גם התוכנית הכבויה נוקתה — זה מה שהמשתמש אישר במפורש
+    const b = await db.routines.get('B')
+    expect(b?.items.some((i) => i.exerciseId === 'hammer-curl')).toBe(false)
+    // הסדר נדחס מחדש ולא נשארו חורים
+    const f2 = await db.routines.get('F2')
+    expect(f2?.items.map((i) => i.order)).toEqual(f2?.items.map((_, i) => i))
   }, 30000)
 })

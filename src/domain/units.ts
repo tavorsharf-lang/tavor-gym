@@ -1,4 +1,4 @@
-import type { Exercise, ExerciseMetric, RepRange, WeightMode } from '@/db/types'
+import type { Exercise, ExerciseMetric, Rating, RepRange, WeightMode } from '@/db/types'
 import { RATING_LABELS } from '@/db/types'
 
 /**
@@ -185,7 +185,7 @@ export function weightStep(ex: Pick<Exercise, 'weightIncrementKg' | 'weightMode'
  * RIR 0 מקבל טיפול נפרד כי התווית שלו היא המילה "כשל", ו"נשארו כשל במחסנית"
  * הוא משפט שבור. ריכוז כאן במקום שכפול בשלושה מסכים.
  */
-export function formatRatingText(rating: 1 | 2 | 3, rir: number | null): string {
+export function formatRatingText(rating: Rating, rir: number | null): string {
   const base = RATING_LABELS[rating]
   if (rir === null) return base
   if (rir === 0) return `${base} · כשל`

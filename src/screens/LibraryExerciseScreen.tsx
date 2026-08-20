@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ExternalLink, Play, Plus, SearchX } from 'lucide-react'
 import { assetUrl, bundledId, bundledVideosFor, mediaDb, videoLabelsFor } from '@/db/mediaDb'
 import { useHiddenVideoIds } from '@/db/hiddenVideos'
+import { useVideoPrefs } from '@/db/videoPrefs'
 import { libraryExercise } from '@/db/libraryLinks'
 import { LIBRARY_MAX_PER_EXERCISE } from '@/db/libraryManifest'
 import { MUSCLE_GROUPS } from '@/db/types'
@@ -31,6 +32,7 @@ export function LibraryExerciseScreen(): JSX.Element {
   const [adding, setAdding] = useState(false)
 
   const hidden = useHiddenVideoIds()
+  const prefs = useVideoPrefs()
 
   /*
     התרגיל המקביל בקטלוג נשאל מהמסד ולא מהמפה הסטטית ההפוכה.
@@ -89,8 +91,8 @@ export function LibraryExerciseScreen(): JSX.Element {
     של הנושא ה-i לסרטון ה-i הייתה מדביקה לכל סרטון את הכותרת של קודמו, ומשמיטה
     את האחרון. שתי הפונקציות האלה נגזרות ממקור אחד ולכן מיושרות תמיד.
   */
-  const clips = bundledVideosFor(libId, undefined, hidden)
-  const labels = videoLabelsFor(libId, undefined, hidden)
+  const clips = bundledVideosFor(libId, undefined, hidden, prefs)
+  const labels = videoLabelsFor(libId, undefined, hidden, prefs)
 
   if (!exercise) {
     return (
@@ -276,6 +278,12 @@ export function LibraryExerciseScreen(): JSX.Element {
           exerciseName={exercise.nameHe}
           open
           startIndex={playing}
+          /*
+            פתיחה לפי מזהה ולא רק אינדקס: רשימת הנגן כוללת גם סרטונים
+            מיובאים שהועברו לכאן, והסדר המותאם יכול לשלב אותם באמצע —
+            האינדקס של השורה שנלחצה כבר לא בהכרח האינדקס בנגן.
+          */
+          startId={clips[playing] ? bundledId(clips[playing].src) : undefined}
           onClose={() => setPlaying(null)}
         />
       ) : null}

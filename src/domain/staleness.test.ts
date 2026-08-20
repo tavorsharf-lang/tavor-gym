@@ -12,9 +12,9 @@ import {
 const NOW = new Date(2026, 7, 5, 12, 0, 0).getTime() // רביעי, 5.8.26
 
 const ROUTINES: Routine[] = [
-  { id: 'A', name: 'אימון A', subtitle: 'חזה', order: 0, isActive: true, suggestBlocks: true, items: [] },
-  { id: 'B', name: 'אימון B', subtitle: 'גב', order: 1, isActive: true, suggestBlocks: true, items: [] },
-  { id: 'C', name: 'אימון C', subtitle: 'רגליים', order: 2, isActive: true, suggestBlocks: true, items: [] },
+  { id: 'A', kind: 'program', name: 'אימון A', subtitle: 'חזה', order: 0, isActive: true, suggestBlocks: true, items: [] },
+  { id: 'B', kind: 'program', name: 'אימון B', subtitle: 'גב', order: 1, isActive: true, suggestBlocks: true, items: [] },
+  { id: 'C', kind: 'program', name: 'אימון C', subtitle: 'רגליים', order: 2, isActive: true, suggestBlocks: true, items: [] },
 ]
 
 const BLOCKS: Block[] = [

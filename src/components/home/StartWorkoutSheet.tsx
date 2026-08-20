@@ -1,10 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Check } from 'lucide-react'
 import { getSettings } from '@/db/db'
-import { getActiveRoutines, getBlocks, getFinishedSessions } from '@/db/queries'
+import {
+  getActiveRoutines,
+  getAllExercises,
+  getBlocks,
+  getFinishedSessions,
+  getRoutine,
+} from '@/db/queries'
 import type { PlanItem, RoutineId } from '@/db/types'
 import { blockStatuses, routineStatuses, suggestBlocks, suggestRoutine } from '@/domain/staleness'
 import { formatDuration } from '@/domain/units'
@@ -43,7 +49,25 @@ export function StartWorkoutSheet({
   const navigate = useNavigate()
   const now = useNow()
 
-  const routines = useLiveQuery(() => getActiveRoutines(), [])
+  /*
+    התוכניות הקבועות, ואיתן האימון השמור שהמסך נפתח עליו — אם נפתח.
+
+    ‏`getActiveRoutines` מסננת אימונים שמורים החוצה בכוונה (הם לא חלק
+    מהקבוצה המתחלפת ולא מההצעה היומית), אבל לחיצה על אימון שמור במסך הבית
+    פותחת את הגיליון *עליו*. בלי הצירוף הזה הבחירה הייתה נכונה מתחת למכסה
+    המנוע — `start` קורא את כל התוכניות — אבל הגיליון היה מציג תצוגה מקדימה
+    ריקה ואומדן זמן של אפס.
+  */
+  const programs = useLiveQuery(() => getActiveRoutines(), [])
+  const picked = useLiveQuery(
+    async () => (initialRoutineId ? ((await getRoutine(initialRoutineId)) ?? null) : null),
+    [initialRoutineId]
+  )
+  const routines = useMemo(() => {
+    if (!programs) return programs
+    if (!picked || programs.some((r) => r.id === picked.id)) return programs
+    return [...programs, picked]
+  }, [programs, picked])
   const blocks = useLiveQuery(() => getBlocks(), [])
   const sessions = useLiveQuery(() => getFinishedSessions(), [])
   const settings = useLiveQuery(() => getSettings(), [])
@@ -63,6 +87,8 @@ export function StartWorkoutSheet({
     שואלת. הקריאה היא ל-store שבזיכרון ולא ל-liveQuery: אסור להאזין לטבלת
     activeWorkout, היא נכתבת אחרי כל נגיעה.
   */
+  const exercises = useLiveQuery(() => getAllExercises(true), [], [])
+
   const openWorkout = useWorkout((w) => w.workout)
   const openSetCount = openWorkout
     ? Object.values(openWorkout.setsByKey).reduce((n, list) => n + list.length, 0)
@@ -92,10 +118,16 @@ export function StartWorkoutSheet({
 
   // תרגיל שכבר בתוכנית לא נספר פעמיים בהערכת האורך
   const inRoutine = new Set((routine?.items ?? []).map((i) => i.exerciseId))
+  /*
+    ותרגיל שהוצא מ"התרגילים שלי" לא נספר בכלל. `start()` מסנן אותו מהתור
+    (activeWorkoutStore), ולכן אומדן שכולל אותו מבטיח אימון ארוך ממה שיקרה
+    בפועל — ובדיוק זה מה שהופך את ההוצאה להפתעה במקום להחלטה.
+  */
+  const mine = new Set(exercises.filter((e) => e.isActive).map((e) => e.id))
   const planItems: PlanItem[] = [
     ...(routine?.items ?? []),
     ...chosenBlocks.flatMap((b) => b.items).filter((i) => !inRoutine.has(i.exerciseId)),
-  ]
+  ].filter((i) => mine.has(i.exerciseId))
   const totalSeconds = estimateSeconds(planItems)
 
   const toggleBlock = (id: string) => {

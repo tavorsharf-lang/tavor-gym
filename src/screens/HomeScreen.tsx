@@ -1,18 +1,27 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
+  Blocks,
   BookOpen,
   ChevronLeft,
   CloudOff,
   Dumbbell,
-  GraduationCap,
   ListPlus,
   X,
 } from 'lucide-react'
 import { getSettings } from '@/db/db'
-import { getActiveRoutines, getBlocks, getFinishedSessions } from '@/db/queries'
+import {
+  getActiveRoutines,
+  getAllExercises,
+  getBlocks,
+  getCustomRoutines,
+  getFinishedSessions,
+  getRoutines,
+  getSessionsSince,
+} from '@/db/queries'
+import { coverageLookbackFrom, muscleCoverage, uncoveredGroups } from '@/domain/coverage'
 import type { RoutineId } from '@/db/types'
 import { blockStatuses, routineStatuses, suggestRoutine } from '@/domain/staleness'
 import { formatDuration, formatVolume } from '@/domain/units'
@@ -41,17 +50,41 @@ export function HomeScreen(): JSX.Element {
   const discard = useWorkout((s) => s.discard)
 
   const routines = useLiveQuery(() => getActiveRoutines(), [])
+  const customs = useLiveQuery(() => getCustomRoutines(), [])
+  /*
+    רשימה מלאה, לפתרון שמות בלבד.
+
+    `getActiveRoutines` מסננת החוצה את האימונים השמורים — נכון להצעה היומית
+    ולרשת התוכניות, ושגוי לחלוטין ל"כבר סיימת היום את…": אימון שמור שבוצע
+    היה נקרא שם "אימון חופשי", כלומר האפליקציה שוכחת את השם שהמשתמש נתן.
+  */
+  const allRoutines = useLiveQuery(() => getRoutines(), [])
   const blocks = useLiveQuery(() => getBlocks(), [])
   const sessions = useLiveQuery(() => getFinishedSessions(), [])
   const settings = useLiveQuery(() => getSettings(), [])
+  const exercises = useLiveQuery(() => getAllExercises(true), [])
+  const history = useLiveQuery(() => getSessionsSince(coverageLookbackFrom(Date.now())), [])
 
   const [sheetOpen, setSheetOpen] = useState(false)
   const [sheetRoutine, setSheetRoutine] = useState<RoutineId | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [backupHidden, setBackupHidden] = useState(false)
 
+  /*
+    ‏`exercises` ו-`history` בשער הטעינה ולא רק ארבעת הראשונים.
+
+    כרטיס בניית האימון מכריז כמה שרירים לא כוסו, והמספר הזה מחושב משניהם.
+    לפני שהם נפתרים `muscleCoverage` מקבל מערכים ריקים ומחזיר תשע קבוצות
+    מוזנחות — כלומר כל פתיחה של האפליקציה הבזיקה "9 שרירים לא כוסו" לרגע,
+    גם למי שהתאמן הבוקר.
+  */
   const ready =
-    routines !== undefined && blocks !== undefined && sessions !== undefined && settings !== undefined
+    routines !== undefined &&
+    blocks !== undefined &&
+    sessions !== undefined &&
+    settings !== undefined &&
+    exercises !== undefined &&
+    history !== undefined
 
   const rStatuses = routineStatuses(routines ?? [], sessions ?? [], now)
   const suggested = suggestRoutine(rStatuses)
@@ -82,7 +115,24 @@ export function HomeScreen(): JSX.Element {
   }
 
   const routineNameOf = (id: RoutineId | null): string =>
-    (routines ?? []).find((r) => r.id === id)?.name ?? 'אימון חופשי'
+    (allRoutines ?? []).find((r) => r.id === id)?.name ?? 'אימון חופשי'
+
+  const cStatuses = routineStatuses(customs ?? [], sessions ?? [], now)
+  // ממוזכר: המסך מתרנדר מחדש בכל פעימה של `useNow` ובכל כתיבה למסד, והחישוב
+  // עובר על כל הסטים של ארבעת החודשים האחרונים
+  const uncovered = useMemo(
+    () =>
+      uncoveredGroups(
+        muscleCoverage(
+          exercises ?? [],
+          history?.sessions ?? [],
+          history?.sets ?? [],
+          now,
+          settings?.coverageWindowDays ?? 4
+        )
+      ),
+    [exercises, history, now, settings]
+  )
 
   return (
     <Screen>
@@ -216,16 +266,76 @@ export function HomeScreen(): JSX.Element {
           {/*
             שתי הכניסות שרוצים מהר מהבית: לראות מה עושים בתרגיל מסוים, ולשנות
             את מה שנכנס לאימון. שתיהן היו קבורות בהגדרות.
+
+            עד כאן היו כאן שלוש: "כל התרגילים" והמאגר הלימודי ישבו בנפרד, עם
+            צורות שונות, כדי שההבדל ביניהם ייקרא מהצורה. הם התאחדו למסך אחד עם
+            מתג — ההבדל נקרא עכשיו מהמתג, והשורה הרוחבית מתפנה.
           */}
+          {/*
+            האימונים שהמשתמש בנה ושמר. מדור נפרד ולא ברשת התוכניות: תוכנית
+            קבועה ואימון שמור הם שני דברים שונים — האחת מתחלפת במתג ומוצעת
+            אוטומטית, השני נבחר במפורש — וערבוב שלהם היה הופך את "מה מתאמנים
+            היום" לרשימה שגדלה בלי גבול.
+          */}
+          {cStatuses.length > 0 ? (
+            <section className="mb-5">
+              <p className="meta mb-2">האימונים שלי</p>
+              <div className="flex flex-col gap-2">
+                {cStatuses.map((status) => (
+                  <button
+                    key={status.routineId}
+                    type="button"
+                    onClick={() => openSheet(status.routineId)}
+                    className="card animate-rise flex items-center gap-3 p-3 text-start active:bg-ink-800"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-extrabold text-bone-50">
+                        {status.name}
+                      </span>
+                      <span className="meta block truncate">
+                        {(customs ?? []).find((r) => r.id === status.routineId)?.subtitle}
+                      </span>
+                    </span>
+                    <span className="meta tnum shrink-0">
+                      {status.neverDone ? 'עוד לא בוצע' : formatDayCount(status.daysSince ?? 0)}
+                    </span>
+                    <ChevronLeft size={18} className="shrink-0 text-bone-600" aria-hidden="true" />
+                  </button>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           <section className="mb-5 grid grid-cols-2 gap-3">
+            {/*
+              בניית אימון היא הכניסה השלישית, והיא רוחבית כי היא היחידה
+              שנושאת מידע: השרירים שלא כוסו הם הסיבה להיכנס אליה, והם צריכים
+              להיקרא לפני הלחיצה ולא אחריה.
+            */}
+            <button
+              type="button"
+              onClick={() => navigate('/builder')}
+              className="card col-span-2 flex min-h-20 flex-col justify-center gap-1 p-4 text-start active:bg-ink-800"
+            >
+              <Blocks size={20} className="text-flame-400" />
+              <span className="text-sm font-extrabold text-bone-50">בניית אימון</span>
+              <span className="meta">
+                {uncovered.length === 0
+                  ? 'כל הגוף כוסה בימים האחרונים'
+                  : `${uncovered.length === 1 ? 'שריר אחד לא כוסה' : `${uncovered.length} שרירים לא כוסו`}: ${uncovered
+                      .slice(0, 3)
+                      .map((r) => r.label)
+                      .join(' · ')}`}
+              </span>
+            </button>
             <button
               type="button"
               onClick={() => navigate('/exercises')}
               className="card flex min-h-20 flex-col justify-center gap-1 p-4 text-start active:bg-ink-800"
             >
               <BookOpen size={20} className="text-flame-400" />
-              <span className="text-sm font-extrabold text-bone-50">כל התרגילים</span>
-              <span className="meta">סרטון, דגשים ומשקלים</span>
+              <span className="text-sm font-extrabold text-bone-50">תרגילים</span>
+              <span className="meta">משקלים, סרטונים ומה שאפשר להוסיף</span>
             </button>
             <button
               type="button"
@@ -235,24 +345,6 @@ export function HomeScreen(): JSX.Element {
               <ListPlus size={20} className="text-flame-400" />
               <span className="text-sm font-extrabold text-bone-50">עריכת האימונים</span>
               <span className="meta">הוספה, הסרה ושינוי</span>
-            </button>
-
-            {/*
-              המאגר יושב כאן ולא ליד "כל התרגילים" למרות הדמיון, כי הוא עונה על
-              שאלה אחרת: לא "כמה הרמתי" אלא "איך עושים את זה". שורה רוחבית כדי
-              שההבדל ייקרא מהצורה ולא רק מהטקסט.
-            */}
-            <button
-              type="button"
-              onClick={() => navigate('/library')}
-              className="card col-span-2 flex min-h-16 items-center gap-3 p-4 text-start active:bg-ink-800"
-            >
-              <GraduationCap size={20} className="shrink-0 text-flame-400" />
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-extrabold text-bone-50">מאגר תרגילים</span>
-                <span className="meta">איך מבצעים ואילו טעויות להימנע מהן</span>
-              </span>
-              <ChevronLeft size={18} className="shrink-0 text-bone-600" />
             </button>
           </section>
 

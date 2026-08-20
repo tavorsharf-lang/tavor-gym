@@ -15,8 +15,10 @@ import type {
   VideoAsset,
 } from '@/db/types'
 import { withLibraryLink } from '@/db/libraryLinks'
+import { withSecondaryMuscles } from '@/db/muscleTags'
 import { PLANK_RANGE } from '@/db/seed'
 import { invalidateHiddenVideos } from '@/db/hiddenVideos'
+import { invalidateVideoPrefs } from '@/db/videoPrefs'
 import { rebuildPrs } from '@/domain/prs'
 import { toISODate } from '@/lib/dates'
 
@@ -28,7 +30,16 @@ import { toISODate } from '@/lib/dates'
  * ששחזור על מכשיר חדש לא ימחק סרטונים שכבר הותקנו.
  */
 
-export const BACKUP_SCHEMA_VERSION = 1
+/**
+ * גרסה 2 — סולם הדירוג עבר מ-3 דרגות ל-5 (מיגרציית מסד 7).
+ *
+ * זו לא תוספת שדה אלא שינוי *משמעות* של ערכים קיימים: דירוג 3 בקובץ ישן הוא
+ * "קשה", ובסולם החדש 3 הוא "בינוני". בלי העלאת הגרסה אין שום דרך להבחין בין
+ * קובץ ישן לחדש — הערכים 1–3 חוקיים בשניהם — וייבוא היה מזייף בשקט את כל
+ * הדירוגים ואת המלצות המשקל שנשענות עליהם. קובץ עם schemaVersion 1 מובטח
+ * שנוצא בסולם הישן, והייבוא מתרגם אותו (ראה importData).
+ */
+export const BACKUP_SCHEMA_VERSION = 2
 
 const JSON_MIME = 'application/json'
 const ZIP_MIME = 'application/zip'
@@ -161,7 +172,10 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
 
   // גיבוי שנוצר לפני גרסה 4 לא מכיר את הקישור למאגר. בלי השתילה כאן, שחזור
   // היה מוחק את הקישורים במקום להשאיר אותם כמו שהיו לפני הייבוא.
-  const exercises = (data.exercises ?? []).map(withLibraryLink).map(withTimedMetric)
+  const exercises = (data.exercises ?? [])
+    .map(withLibraryLink)
+    .map(withTimedMetric)
+    .map(withSecondaryMuscles)
   /*
     רק פריטי התוכנית של תרגילים שהגיעו מהקובץ *בלי* metric מתוקנים.
 
@@ -173,7 +187,17 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
   const legacyTimed = new Set(
     (data.exercises ?? []).filter((e) => TIMED_SEED[e.id] && !e.metric).map((e) => e.id)
   )
-  const routines = (data.routines ?? []).map((r) => withTimedPlanItems(r, legacyTimed))
+  /*
+    ‏`kind` נשתל בכל תוכנית שמגיעה בלי השדה.
+
+    אותה סיבה בדיוק כמו ב-`withLibraryLink`: מיגרציה 8 לא תרוץ שוב על מסד
+    שכבר בגרסה 8, ולכן שחזור גיבוי שנוצר לפניה היה מחזיר את חמש התוכניות
+    הקבועות בלי `kind` — ואז הן נעלמות משני הצדדים (לא "קבועות" ולא "שמורות")
+    ומתג התוכניות מפסיק לעבוד בשקט. אימון שמור בגיבוי כבר נושא 'custom'.
+  */
+  const routines = (data.routines ?? [])
+    .map((r) => withTimedPlanItems(r, legacyTimed))
+    .map((r) => (r.kind === 'custom' ? r : { ...r, kind: 'program' as const }))
   const blocks = (data.blocks ?? []).map((b) => withTimedPlanItems(b, legacyTimed))
   /*
     סטים בלי סשן לא נכנסים.
@@ -221,7 +245,7 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
         await db.blocks.bulkPut(blocks)
         await db.sessions.bulkPut(data.sessions ?? [])
         await db.setLogs.bulkPut(setLogs)
-        await db.ratings.bulkPut(data.ratings ?? [])
+        await db.ratings.bulkPut(ratings)
         await db.bodyWeights.bulkPut(data.bodyWeights ?? [])
         await db.settings.put({ key: 'app', value: mergeSettings(data.settings) })
         /*
@@ -241,8 +265,9 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
     return { ok: false, error: `הייבוא נכשל — ${errorText(err)}` }
   }
 
-  // ההגדרות הוחלפו, ואיתן רשימת הסרטונים שנמחקו — המטמון שבזיכרון כבר לא נכון
+  // ההגדרות הוחלפו, ואיתן רשימת הסרטונים שנמחקו והעדפות הסדר — המטמונים שבזיכרון כבר לא נכונים
   invalidateHiddenVideos()
+  invalidateVideoPrefs()
 
   /*
     הסיכום מדווח על מה שנכתב למסד, לא על מה שהיה בקובץ. שני החלקים נחתכו בדרך:
