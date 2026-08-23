@@ -5,6 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { ChevronDown, ChevronUp, Plus, Trash2, X } from 'lucide-react'
 import { db } from '@/db/db'
 import { isLivePlan, removeFromMine } from '@/db/catalog'
+import { forgetMovesTo } from '@/db/videoPrefs'
 import { getBlocks, getExercise, getRoutines } from '@/db/queries'
 import type { Equipment, Exercise, MuscleGroup, Session, SetLog, WeightMode } from '@/db/types'
 import {
@@ -432,6 +433,9 @@ export function ExerciseEditorScreen(): JSX.Element {
   const handleDelete = async (): Promise<void> => {
     try {
       await db.exercises.delete(exerciseId)
+      // סרטונים שהועברו לתרגיל הזה חוזרים הביתה — שיוך להקשר מת היה מעלים
+      // אותם מכל האפליקציה בלי שום מסלול שחזור
+      await forgetMovesTo(exerciseId)
       setDeleteOpen(false)
       toast('התרגיל נמחק')
       navigate('/exercises', { replace: true })

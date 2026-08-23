@@ -70,7 +70,10 @@ export function HoldOverlay({
   const ringSize = 280
   const radius = 128
   const circumference = 2 * Math.PI * radius
-  const drained = circumference * (1 - watch.progress)
+  // הטבעת נגזרת מהערך המוצג ולא מהסטופר: אחרי "עצור" הסטופר מתאפס,
+  // והטבעת צריכה להקפיא את התמונה של התוצאה — לא להתרוקן מתחת למספר
+  const progress = targetSeconds > 0 ? Math.min(1, shown / targetSeconds) : 0
+  const drained = circumference * (1 - progress)
 
   const stopNow = (): void => {
     const elapsed = watch.stop()
@@ -84,7 +87,7 @@ export function HoldOverlay({
         style={{
           backgroundImage: `radial-gradient(90% 55% at 50% 42%, color-mix(in srgb, var(${
             over ? '--color-pr-400' : '--color-flame-500'
-          }) ${(0.06 + 0.14 * watch.progress) * 100}%, transparent), transparent 70%)`,
+          }) ${(0.06 + 0.14 * progress) * 100}%, transparent), transparent 70%)`,
         }}
       />
       {flash && <div className="pointer-events-none absolute inset-0 animate-flash bg-flame-500" />}

@@ -24,9 +24,14 @@ import { formatDayCount } from '@/lib/dates'
  *    מכיר `legs` אחד, ואם המפה הייתה מתייחסת לארבע ראשי וירך אחורית כשני
  *    מצבים שונים היא הייתה ממציאה נתון שאינו קיים.
  *
- * ‏3. "מוזנח" גובר על "עבודה עקיפה". שריר שלא קיבל סט ישיר עשרה ימים נשאר
- *    קר גם אם חתירה נגעה בו — המפה קיימת כדי להצביע על הזנחה, וצביעה חמימה
- *    של אמות שמעולם לא אומנו ישירות הייתה מסתירה בדיוק את מה שבאנו לראות.
+ * ‏3. חום = הזנחה, ולא להפך. ככל שעבר יותר זמן מסט ישיר, כך השריר בוער יותר;
+ *    שריר שכוסה בחלון נצבע שקט וכהה. זו אותה מוסכמה של כל האפליקציה — בלוק
+ *    מוזנח במסך הבית כתום, וכך גם השורה ברשימה שלצד המפה. קודם היה כאן הפוך
+ *    (כתום = אומן), ואז אותם תשעה שרירים בדיוק נראו "כבויים" במפה ו"דולקים"
+ *    ברשימה, במרחק לחיצת מתג אחת — אותו נתון, משקל חזותי הפוך.
+ *
+ *    "מוזנח" עדיין גובר על "עבודה עקיפה": שריר שלא קיבל סט ישיר עשרה ימים
+ *    בוער במלוא העוצמה גם אם חתירה נגעה בו, כי זה מה שבאנו לראות.
  *
  * ‏4. סף עשרת הימים הוא של התצוגה ולא של החישוב, ובכוונה אינו חלון הכיסוי
  *    (שמתכוונן בהגדרות). החלון עונה "כיסיתי בסבב הזה", והסף עונה "נטשתי" —
@@ -37,44 +42,58 @@ import { formatDayCount } from '@/lib/dates'
  *    ההפחתת-תנועה מטופלת גלובלית ב-theme.css, שמקצר כל מעבר ל-0.01ms.
  */
 
-/** מכמה ימים בלי סט ישיר שריר נחשב נטוש ומצויר קר */
+/** מכמה ימים בלי סט ישיר שריר נחשב נטוש ובוער במלוא העוצמה */
 const NEGLECTED_DAYS = 10
 
-type Tone = 'direct' | 'indirect' | 'idle' | 'cold'
+type Tone = 'covered' | 'indirect' | 'idle' | 'neglected'
 
 /**
  * הגוונים, מהטוקנים ולא מליטרלים — בדיוק כמו מסך המנוחה: שינוי צבע המבטא
  * לא אמור להשאיר את המפה על הכתום הישן.
  */
+/*
+  שלוש הדרגות החמות הן אותו כתום בשקיפויות 16 / 40 / 92.
+
+  הפער נמדד ולא נאמד. מעל `ink-950` הם יוצאים rgb(51,25,8), rgb(109,48,5)
+  ו-rgb(236,98,1), כלומר ΔE76 של 30.0 ו-50.4 — הרבה מעל סף ההבחנה (‎~3) ומעל
+  "ברור מיד" (‎10).
+
+  ומה שחשוב יותר למי שיבוא לכאן: הסולם הקודם (22/45/78) *גם* היה מעל הסף,
+  ΔE 27.2 ו-32.5, ובכל זאת המקרא לא נקרא. הבעיה מעולם לא הייתה הפלטה אלא
+  השטח — עיגול 10px על רקע כהה לא נותן מספיק פיקסלים כדי לשפוט שקיפות.
+  מה שתיקן היה המעבר לריבוע 14px למטה; מתיחת הפלטה היא שיפור אמיתי אבל
+  לא היא שפתרה. אם קידוד כאן יפסיק להיקרא שוב — לבדוק גודל לפני צבע.
+*/
 const TONES: Record<Tone, { fill: string; stroke: string; legend: string }> = {
-  direct: {
-    fill: 'color-mix(in srgb, var(--color-flame-500) 72%, transparent)',
-    stroke: 'color-mix(in srgb, var(--color-flame-300) 60%, transparent)',
-    legend: 'אומן',
+  covered: {
+    fill: 'var(--color-ink-600)',
+    stroke: 'color-mix(in srgb, var(--color-bone-600) 40%, transparent)',
+    legend: 'כוסה',
   },
   indirect: {
-    fill: 'color-mix(in srgb, var(--color-flame-500) 20%, transparent)',
-    stroke: 'color-mix(in srgb, var(--color-flame-500) 38%, transparent)',
-    legend: 'בעקיפין',
+    fill: 'color-mix(in srgb, var(--color-flame-500) 16%, transparent)',
+    stroke: 'color-mix(in srgb, var(--color-flame-500) 40%, transparent)',
+    legend: 'רק בעקיפין',
   },
   idle: {
-    fill: 'var(--color-ink-600)',
-    stroke: 'color-mix(in srgb, var(--color-bone-600) 45%, transparent)',
-    legend: 'ממתין',
+    fill: 'color-mix(in srgb, var(--color-flame-500) 40%, transparent)',
+    stroke: 'color-mix(in srgb, var(--color-flame-400) 55%, transparent)',
+    legend: 'לא בחלון',
   },
-  cold: {
-    fill: 'var(--color-ink-950)',
-    stroke: 'var(--color-bone-600)',
+  neglected: {
+    fill: 'color-mix(in srgb, var(--color-flame-500) 92%, transparent)',
+    stroke: 'var(--color-flame-300)',
     legend: 'מוזנח',
   },
 }
 
-const TONE_ORDER: Tone[] = ['direct', 'indirect', 'idle', 'cold']
+// מהשקט לבוער — המקרא נקרא באותו כיוון שבו העין סורקת את המפה
+const TONE_ORDER: Tone[] = ['covered', 'indirect', 'idle', 'neglected']
 
 function toneOf(row: MuscleCoverage | undefined): Tone {
-  if (!row) return 'cold'
-  if (row.sets > 0) return 'direct'
-  if (row.neverDone || (row.daysSince ?? 0) >= NEGLECTED_DAYS) return 'cold'
+  if (!row) return 'neglected'
+  if (row.sets > 0) return 'covered'
+  if (row.neverDone || (row.daysSince ?? 0) >= NEGLECTED_DAYS) return 'neglected'
   if (row.indirectSets > 0) return 'indirect'
   return 'idle'
 }
@@ -285,9 +304,14 @@ export function BodyMap({
       <div className="mt-2.5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5">
         {TONE_ORDER.map((tone) => (
           <span key={tone} className="meta flex items-center gap-1.5">
+            {/*
+              ריבוע 14px ולא עיגול 10px. שלוש מארבע הדרגות הן אותו כתום
+              בשקיפויות שונות, ובעיגול קטן על רקע כהה "מוזנח" ו"לא בחלון"
+              נראו כמעט זהים — שטח גדול יותר הוא מה שמאפשר להשוות מילוי.
+            */}
             <span
               aria-hidden="true"
-              className="size-2.5 rounded-full border"
+              className="size-3.5 shrink-0 rounded border"
               style={{ background: TONES[tone].fill, borderColor: TONES[tone].stroke }}
             />
             {TONES[tone].legend}

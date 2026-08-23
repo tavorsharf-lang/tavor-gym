@@ -706,18 +706,23 @@ export function ExerciseCard({
           <Repeat size={16} className="text-bone-400" />
           החלף תרגיל
         </button>
-        <button
-          type="button"
-          onClick={() => void skipItem(item.key)}
-          className="btn-ghost flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-bold"
-        >
-          <SkipForward size={16} className="text-bone-500" />
-          דלג היום
-        </button>
+        {/* דילוג קיים רק לפני הסט הראשון — אחרי שיש סטים הסגירה היא "סיים תרגיל" */}
+        {sets.length === 0 && (
+          <button
+            type="button"
+            onClick={() => void skipItem(item.key)}
+            className="btn-ghost flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-bold"
+          >
+            <SkipForward size={16} className="text-bone-500" />
+            דלג היום
+          </button>
+        )}
         <button
           type="button"
           onClick={onFinishExercise}
-          className="btn-ghost flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-bold"
+          className={`btn-ghost flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-bold ${
+            sets.length === 0 ? '' : 'col-span-2'
+          }`}
         >
           <Check size={16} className="text-pr-400" />
           סיים תרגיל

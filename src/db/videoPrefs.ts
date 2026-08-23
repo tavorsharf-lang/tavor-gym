@@ -47,7 +47,13 @@ export async function loadVideoPrefs(): Promise<VideoPrefs> {
   inflight ??= getSettings()
     .then((s) => {
       const next: VideoPrefs = { moves: s.videoMoves ?? {}, order: s.videoOrder ?? {} }
-      cache = next
+      /*
+        המילוי הראשון *מפרסם* ולא רק שומר. רכיבים שהציצו לפני שהמטמון היה חם
+        (התמונות הממוזערות בקימה קרה) רינדרו לפי סדר המניפסט, ובלי ההערה
+        למאזינים הם היו נשארים ככה עד ניווט — הסדר המותאם והעברות היו נראים
+        כאילו נמחקו בכל פתיחה של האפליקציה.
+      */
+      publish(next)
       return next
     })
     .catch(() => EMPTY)
@@ -107,6 +113,26 @@ export async function forgetVideoPrefs(assetId: string): Promise<void> {
   const order = Object.fromEntries(
     Object.entries(current.order).map(([ctx, ids]) => [ctx, ids.filter((id) => id !== assetId)])
   )
+  await saveSettings({ videoMoves: moves, videoOrder: order })
+  publish({ moves, order })
+}
+
+/**
+ * מנקה כל שיוך שמצביע אל הקשר שנמחק — נקרא כשתרגיל נמחק מהקטלוג.
+ *
+ * בלי זה סרטון שהועבר לתרגיל שנמחק היה נעלם מכל האפליקציה לצמיתות: מסונן
+ * מהבית שלו (כי יש לו העברה) ומוצג רק בהקשר שאף מסך כבר לא מרנדר. הניקוי
+ * מחזיר אותו הביתה, ומוחק גם את רשימת הסדר של ההקשר המת.
+ */
+export async function forgetMovesTo(contextId: string): Promise<void> {
+  const current = await loadVideoPrefs()
+  const doomed = Object.entries(current.moves).filter(([, target]) => target === contextId)
+  const hasOrder = contextId in current.order
+  if (!doomed.length && !hasOrder) return
+  const moves = { ...current.moves }
+  for (const [assetId] of doomed) delete moves[assetId]
+  const order = { ...current.order }
+  delete order[contextId]
   await saveSettings({ videoMoves: moves, videoOrder: order })
   publish({ moves, order })
 }

@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { App } from './App'
 import { db, ensureReady } from './db/db'
 import { openItems, skippedItems, touchedGroups, useWorkout } from './state/activeWorkoutStore'
+import { invalidateHiddenVideos } from './db/hiddenVideos'
+import { invalidateVideoPrefs } from './db/videoPrefs'
 import { suggestWarmup } from './domain/warmup'
 
 /**
@@ -25,6 +27,16 @@ async function resetAll(): Promise<void> {
   await db.delete()
   await db.open()
   await ensureReady()
+  /*
+    מטמוני ההגדרות שחיים ברמת מודול לא מתים עם המסד.
+
+    עליית האפליקציה מחממת את שניהם, ולכן בדיקה שמרנדרת `<App />` משאירה
+    אותם מלאים — ומחיקת המסד בשורות שמעל לא נוגעת בהם. היום שניהם ריקים
+    ולכן זה שקוף, אבל הרגע שבו בדיקה תכתוב סרטון מוסתר או סדר מותאם, זו
+    הייתה הופכת לתלות סדר סמויה שקשה לאתר.
+  */
+  invalidateHiddenVideos()
+  invalidateVideoPrefs()
 }
 
 describe('זרימת אימון', () => {
@@ -45,11 +57,20 @@ describe('זרימת אימון', () => {
     const start = await screen.findByRole('button', { name: /^התחל$/ }, { timeout: 5000 })
     await user.click(start)
 
-    // מסך האימון. אין תרגיל חימום קבוע בראש התוכנית — החימום מוצע לפי השריר
-    // שנפתח — ולכן הראשון הוא התרגיל הכבד של הרגליים.
-    await waitFor(() => expect(screen.getByText('לחיצת רגליים')).toBeTruthy(), {
-      timeout: 5000,
-    })
+    /*
+      ממתינים לפקד שקיים *רק* במסך האימון, ולא לשם התרגיל.
+
+      גיליון בחירת האימון מציג בעצמו את שמות התרגילים של התוכנית, ולכן
+      המתנה ל"לחיצת רגליים" הסתיימה לפעמים על הגיליון שעדיין פתוח — לפני
+      ש-`start()` הספיק לכתוב לחנות, והשורה הבאה נפלה על `workout === null`.
+      זו הייתה בדיקה רועדת שנראתה כמו עומס מכונה. הכלל: להמתין למה שמוכיח
+      שהמסך הנכון התייצב, לא למה שיכול להופיע גם לפניו.
+    */
+    await screen.findByRole('button', { name: 'תור התרגילים' }, { timeout: 5000 })
+
+    // אין תרגיל חימום קבוע בראש התוכנית — החימום מוצע לפי השריר שנפתח —
+    // ולכן הראשון הוא התרגיל הכבד של הרגליים.
+    expect(screen.getByText('לחיצת רגליים')).toBeTruthy()
 
     const workout = useWorkout.getState().workout
     expect(workout).not.toBeNull()
@@ -481,6 +502,19 @@ describe('פעולות התור נשמרות לדיסק', () => {
     w = useWorkout.getState().workout!
     expect(w.queue.find((q) => q.key === first)?.status).toBe('active')
     expect(w.currentKey).toBe(first)
+  }, 20000)
+
+  it('skipItem על תרגיל שכבר יש בו סטים סוגר אותו כ-done, לא כדילוג', async () => {
+    await useWorkout.getState().start('F1', [])
+    const first = useWorkout.getState().workout!.currentKey!
+
+    // הסטים כבר ב-setLogs ונספרים בכל מקום — "דילגת, לא יתועד" לצדם היה שקר
+    await useWorkout.getState().logSet(first, 'work', 40, 8)
+    await useWorkout.getState().skipItem(first)
+
+    const w = useWorkout.getState().workout!
+    expect(w.queue.find((q) => q.key === first)?.status).toBe('done')
+    expect(skippedItems(w).some((q) => q.key === first)).toBe(false)
   }, 20000)
 
   it('adjustRest מזיז את הדדליין ושורד קריסה', async () => {

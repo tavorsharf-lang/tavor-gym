@@ -11,6 +11,21 @@ import { useLocation, useNavigationType } from 'react-router-dom'
  */
 const SETTLE_MS = 2500
 
+/** ביטול השחזור שרץ כרגע, אם יש כזה. ראה cancelScrollRestore. */
+let activeRestore: (() => void) | null = null
+
+/**
+ * מבטל שחזור גלילה שבאמצע.
+ *
+ * למסך שמאפס גלילה במפורש (מתג "שלי/הכל" במסך התרגילים עושה scrollTo(0,0)
+ * כי שני המצבים חולקים location.key): בלי הביטול, לולאת ה-settle שעוד חיה
+ * מחזרה אחורה דורסת את האיפוס בפריים הבא ומנחיתה את המשתמש עמוק ברשימה
+ * הלא-נכונה. הקשה על מתג היא click בלי touchmove — היא לא מבטלת מעצמה.
+ */
+export function cancelScrollRestore(): void {
+  activeRestore?.()
+}
+
 /**
  * זיכרון מקום הגלילה בין מסכים.
  *
@@ -77,7 +92,13 @@ export function useScrollMemory(): void {
     let raf = 0
     const finish = () => {
       restoring.current = false
+      if (activeRestore === abort) activeRestore = null
     }
+    const abort = () => {
+      cancelAnimationFrame(raf)
+      finish()
+    }
+    activeRestore = abort
     const settle = () => {
       window.scrollTo(0, target)
       // סף של פיקסל: scrollY יכול לעצור על ערך שבור בזום/מסכי retina

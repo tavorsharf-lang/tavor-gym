@@ -212,6 +212,20 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
   const sessionIds = new Set((data.sessions ?? []).map((s) => s.id))
   const setLogs = (data.setLogs ?? []).filter((s) => sessionIds.has(s.sessionId))
 
+  /*
+    דירוגים מקובץ ישן עולים לאמצע הסולם החדש — אותה המרה כמו מיגרציה 7.
+
+    קובץ schemaVersion 1 נוצא כשהסולם היה 1–3, והערכים חוקיים גם בסולם 1–5 —
+    ולכן בלי ההמרה "קשה" ישן (3) היה נקרא "בינוני", ומנוע ההמלצות היה מעלה
+    משקל אחרי אימון שדורג קשה. שדה חסר נחשב 1: כל קובץ לפני הגרסה הזו ישן.
+  */
+  const ratings =
+    (data.schemaVersion ?? 1) < 2
+      ? (data.ratings ?? []).map((r) =>
+          r.rating <= 3 ? { ...r, rating: (r.rating + 1) as ExerciseRating['rating'] } : r
+        )
+      : (data.ratings ?? [])
+
   try {
     await db.transaction(
       'rw',

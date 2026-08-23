@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Film, GraduationCap, Plus, Trash2, TriangleAlert, Video, X } from 'lucide-react'
 import { saveSettings } from '@/db/db'
 import { getAllExercises } from '@/db/queries'
-import { assetUrl, bundledId, bundledVideosFor, mediaDb, mediaUsage } from '@/db/mediaDb'
+import { assetUrl, bundledId, bundledVideosFor, mediaDb, mediaUsage, deleteVideo } from '@/db/mediaDb'
 import { restoreHiddenVideos, useHiddenVideoIds } from '@/db/hiddenVideos'
 import { videoMismatchNote } from '@/db/videoIssues'
 import { VIDEO_COUNT, VIDEO_MANIFEST, VIDEO_TOTAL_BYTES } from '@/db/videoManifest'
@@ -357,7 +357,12 @@ export function MediaScreen(): JSX.Element {
 
   const deleteImported = async (id: string): Promise<void> => {
     try {
-      await mediaDb.videos.delete(id)
+      /*
+        דרך deleteVideo ולא ישירות מהטבלה: הוא מנקה גם את העדפות הסדר
+        וההעברות של המזהה (forgetVideoPrefs) ומודיע למסכים. מחיקה ישירה
+        השאירה שיוך-רפאים — מדף קבוצה שסופר סרטון שכבר לא קיים.
+      */
+      await deleteVideo(id)
       toast('הסרטון נמחק')
     } catch {
       toast('המחיקה נכשלה', { tone: 'warn' })

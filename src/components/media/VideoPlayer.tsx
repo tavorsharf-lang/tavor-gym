@@ -88,6 +88,15 @@ export function VideoPlayer({
   })
   // אחרי מחיקה נשארים באותו מקום ברשימה במקום לקפוץ לסרטון הראשון
   const resumeAt = useRef<number | null>(null)
+  /*
+    טיוטת הסדר בין שמירה לטעינה-מחדש.
+
+    כל שמירה מקפיצה prefsVersion, שמרוקן את הרשימה וטוען אותה מחדש — חלון של
+    עשרות מילישניות שבו videos ריק או ישן. בלי הטיוטה, שתי הקשות חצים מהירות
+    היו מחשבות שתיהן מאותו מערך ישן: השנייה דורסת את הראשונה, והזזה של כמה
+    מקומות ברצף מתקדמת מקום אחד בלבד. הטיוטה מתאפסת כשהטעינה נוחתת.
+  */
+  const orderDraft = useRef<string[] | null>(null)
 
   // מחיקת סרטון, שינוי סדר או העברה משנים את הרשימה מתחת לרגליים של המסך
   // הזה — הגרסאות הן מה שמחזיר אותו לטעון מחדש, בלי שהשינוי יכיר את המציג
@@ -110,6 +119,21 @@ export function VideoPlayer({
         return
       }
       list = loaded
+      /*
+        הטיוטה מתאפסת רק כשהטעינה השיגה אותה. טעינה ישנה (שמירה ראשונה מתוך
+        שתיים) עוד לא משקפת את ההקשה האחרונה — איפוס עיוור היה מחזיר את
+        ההקשה הבאה לחשב מסדר ישן. חברות שונה (סרטון הועבר/נמחק) מאפסת תמיד,
+        כי הטיוטה כבר לא מדברת על אותה רשימה.
+      */
+      const draft = orderDraft.current
+      if (draft) {
+        const loadedIds = loaded.map((v) => v.id)
+        const pendingReorder =
+          draft.length === loadedIds.length &&
+          draft.every((id) => loadedIds.includes(id)) &&
+          draft.join('|') !== loadedIds.join('|')
+        if (!pendingReorder) orderDraft.current = null
+      }
       setVideos(loaded)
       // פתיחה לפי מזהה גוברת: היא עמידה לסדר מותאם ולמיובאים שנכנסו באמצע
       const byId = resume === null && startId ? loaded.findIndex((v) => v.id === startId) : -1
@@ -267,16 +291,19 @@ export function VideoPlayer({
   }
 
   /** הזזת סרטון מעלה/מטה ושמירת הסדר החדש להקשר הזה */
-  const moveInOrder = async (fromIndex: number, direction: -1 | 1): Promise<void> => {
-    const to = fromIndex + direction
-    if (to < 0 || to >= videos.length) return
-    const next = [...videos]
-    const [moved] = next.splice(fromIndex, 1)
-    next.splice(to, 0, moved)
+  const moveInOrder = async (assetId: string, direction: -1 | 1): Promise<void> => {
+    const ids = orderDraft.current ?? videos.map((v) => v.id)
+    const from = ids.indexOf(assetId)
+    const to = from + direction
+    if (from < 0 || to < 0 || to >= ids.length) return
+    const next = [...ids]
+    next.splice(from, 1)
+    next.splice(to, 0, assetId)
+    orderDraft.current = next
     // הרשימה תיטען מחדש דרך prefsVersion — נשארים על הסרטון שצפינו בו
-    resumeAt.current = current ? Math.max(0, next.findIndex((v) => v.id === current.id)) : 0
+    resumeAt.current = current ? Math.max(0, next.indexOf(current.id)) : 0
     try {
-      await saveVideoOrder(exerciseId, next.map((v) => v.id))
+      await saveVideoOrder(exerciseId, next)
     } catch {
       resumeAt.current = null
       toast('שמירת הסדר נכשלה', { tone: 'warn' })
@@ -542,7 +569,7 @@ export function VideoPlayer({
                 <button
                   type="button"
                   disabled={i === 0}
-                  onClick={() => void moveInOrder(i, -1)}
+                  onClick={() => void moveInOrder(v.id, -1)}
                   aria-label={`העלה למעלה: ${v.label}`}
                   className="flex size-11 shrink-0 items-center justify-center rounded-xl text-bone-400 active:bg-ink-800 disabled:opacity-25"
                 >
@@ -551,7 +578,7 @@ export function VideoPlayer({
                 <button
                   type="button"
                   disabled={i === videos.length - 1}
-                  onClick={() => void moveInOrder(i, 1)}
+                  onClick={() => void moveInOrder(v.id, 1)}
                   aria-label={`הורד למטה: ${v.label}`}
                   className="flex size-11 shrink-0 items-center justify-center rounded-xl text-bone-400 active:bg-ink-800 disabled:opacity-25"
                 >

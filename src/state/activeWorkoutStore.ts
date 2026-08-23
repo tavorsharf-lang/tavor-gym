@@ -740,8 +740,15 @@ export const useWorkout = create<WorkoutState>((set, get) => {
 
     async skipItem(key) {
       await mutate((w) => {
+        /*
+          "דלג" על תרגיל שכבר יש בו סטים הוא סגירה, לא דילוג. הסטים כבר
+          ב-setLogs ונספרים בכל מקום — סטטוס 'skipped' לצדם היה מציג "דילגת,
+          לא יתועד" על תרגיל שדווקא כן תועד. אותו כלל בדיוק כמו completeCurrent.
+        */
+        const performed = (w.setsByKey[key]?.length ?? 0) > 0
+        const closed = performed ? ('done' as const) : ('skipped' as const)
         const queue = w.queue.map((q) =>
-          q.key === key ? { ...q, status: 'skipped' as const } : q
+          q.key === key ? { ...q, status: closed } : q
         )
         // אם דילגנו על התרגיל הפתוח — עוברים לבא בתור. דילוג על תרגיל אחר
         // מרחוק (מהרשימה) לא מזיז את מה שבאמצע.

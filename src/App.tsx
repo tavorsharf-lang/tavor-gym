@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-d
 import { ensureReady } from '@/db/db'
 import { repairAssetOrigins, repairReplacedBundled } from '@/db/mediaDb'
 import { loadHiddenVideoIds } from '@/db/hiddenVideos'
+import { loadVideoPrefs } from '@/db/videoPrefs'
 import { useWorkout } from '@/state/activeWorkoutStore'
 import { useScrollMemory } from '@/hooks/useScrollMemory'
 import { ToastHost } from '@/components/ui'
@@ -97,6 +98,9 @@ export function App() {
           קפיצת הגובה ש-`useScrollMemory` נאלץ להילחם בה.
         */
         await loadHiddenVideoIds()
+        // ומאותה סיבה בדיוק — גם סדר הסרטונים והעברות: בלי החימום, הפוסטר
+        // בקימה קרה מחושב לפי סדר המניפסט ומציג סרטון שהמשתמש העביר או הזיז
+        await loadVideoPrefs()
         if (!cancelled) setReady(true)
         // אחרי שהמסך כבר עולה — אלה תיקונים של מדיה ישנה ולא תנאי לפתיחה
         void repairReplacedBundled()

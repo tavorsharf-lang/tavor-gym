@@ -26,6 +26,7 @@ import type { RoutineId } from '@/db/types'
 import { blockStatuses, routineStatuses, suggestRoutine } from '@/domain/staleness'
 import { formatDuration, formatVolume } from '@/domain/units'
 import { daysSince, formatDateLong, formatDayCount, formatRelativeDay, todayISO } from '@/lib/dates'
+import { countMasculine } from '@/lib/text'
 import { useNow } from '@/hooks/useNow'
 import { useWorkout } from '@/state/activeWorkoutStore'
 import { BottomSheet, Button, EmptyState, toast } from '@/components/ui'
@@ -322,7 +323,11 @@ export function HomeScreen(): JSX.Element {
               <span className="meta">
                 {uncovered.length === 0
                   ? 'כל הגוף כוסה בימים האחרונים'
-                  : `${uncovered.length === 1 ? 'שריר אחד לא כוסה' : `${uncovered.length} שרירים לא כוסו`}: ${uncovered
+                  : `${
+                      uncovered.length === 1
+                        ? 'שריר אחד לא כוסה'
+                        : `${countMasculine(uncovered.length)} שרירים לא כוסו`
+                    }: ${uncovered
                       .slice(0, 3)
                       .map((r) => r.label)
                       .join(' · ')}`}

@@ -192,7 +192,17 @@ export function WorkoutScreen(): JSX.Element | null {
     }
     if (prevKeyRef.current === currentKey) return
     prevKeyRef.current = currentKey
-    activeCardRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    /*
+      הקריאה אופציונלית על *המתודה* ולא רק על ה-ref.
+
+      ‏`scrollIntoView` פשוט לא קיים ב-jsdom, ו-`?.` על ה-ref בלבד לא מגן
+      עליו: ברגע שהכרטיס מחובר, הקריאה זורקת TypeError בתוך useLayoutEffect —
+      כלומר שגיאת רינדור שמפילה את כל מסך האימון. זה קרה לסירוגין ולא תמיד,
+      כי האפקט יורה רק כשהמפתח הנוכחי מתחלף בזמן שהמסך מורכב (מרוץ בין
+      פתיחת האימון לניווט), ולכן זה נראה כמו בדיקה רועדת ולא כמו קריסה.
+      גלילה היא ליטוש — היעדרה לעולם לא אמור להפיל מסך.
+    */
+    activeCardRef.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' })
   }, [currentKey])
 
   /** "סיים תרגיל": כשמתג הדירוג דלוק ויש סטים בלי דירוג — קודם השאלון */

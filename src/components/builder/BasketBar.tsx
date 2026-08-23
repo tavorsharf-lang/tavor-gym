@@ -9,6 +9,7 @@ import { getActiveRoutines, getBlocks, nextRoutineOrder } from '@/db/queries'
 import type { Block, PlanItem, Routine } from '@/db/types'
 import { MUSCLE_GROUPS } from '@/db/types'
 import { newId } from '@/domain/units'
+import { countMasculine } from '@/lib/text'
 import { useAudioCue } from '@/hooks/useAudioCue'
 import { useWorkout } from '@/state/activeWorkoutStore'
 import { useBasket } from '@/state/builderBasket'
@@ -121,7 +122,10 @@ export function BasketBar(): JSX.Element | null {
         toast('לא הצלחתי להוסיף את התרגילים', { tone: 'warn' })
         return
       }
-      finish(added === 1 ? 'התרגיל נוסף לאימון' : `${added} תרגילים נוספו לאימון`, true)
+      finish(
+        added === 1 ? 'התרגיל נוסף לאימון' : `${countMasculine(added)} תרגילים נוספו לאימון`,
+        true
+      )
     })
   }
 
@@ -192,7 +196,12 @@ export function BasketBar(): JSX.Element | null {
       const items_ = [...plan.items, ...(await planItemsFor(fresh, plan.items.length))]
       if (kind === 'routine') await db.routines.put({ ...(plan as Routine), items: items_ })
       else await db.blocks.put({ ...(plan as Block), items: items_ })
-      finish(`${fresh.length === 1 ? 'תרגיל נוסף' : `${fresh.length} תרגילים נוספו`} ל${plan.name}`, false)
+      finish(
+        `${
+          fresh.length === 1 ? 'תרגיל נוסף' : `${countMasculine(fresh.length)} תרגילים נוספו`
+        } ל${plan.name}`,
+        false
+      )
     })
   }
 
@@ -212,8 +221,13 @@ export function BasketBar(): JSX.Element | null {
         style={{ paddingBottom: 'calc(var(--safe-b) + 0.75rem)', paddingTop: '0.75rem' }}
       >
         <div className="mx-auto flex w-full max-w-lg items-center gap-2">
+          {/*
+            תווית מפורשת ולא צירוף התוכן. קורא מסך היה שומע כאן את המספר, את
+            הכותרת ואת רשימת השרירים כמשפט אחד רצוף — ולא את מה שהכפתור עושה.
+          */}
           <button
             type="button"
+            aria-label={`פתח את האימון שבניתי — ${items.length} תרגילים`}
             onClick={() => setOpen(true)}
             className="flex min-h-13 min-w-0 flex-1 items-center gap-3 rounded-card border border-flame-500/40 bg-flame-500/12 px-4 text-start"
           >
@@ -328,7 +342,7 @@ export function BasketBar(): JSX.Element | null {
                 >
                   {confirmDiscard
                     ? openSetCount > 0
-                      ? `כן — ${openSetCount} סטים יימחקו`
+                      ? `כן — ${countMasculine(openSetCount)} סטים יימחקו`
                       : 'כן, התחל אימון חדש'
                     : 'התחל אימון חדש במקום'}
                 </Button>

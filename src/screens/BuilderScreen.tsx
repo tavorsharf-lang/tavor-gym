@@ -14,6 +14,7 @@ import {
   suggestWorkout,
 } from '@/domain/coverage'
 import { formatDayCount } from '@/lib/dates'
+import { countMasculine } from '@/lib/text'
 import { useNow } from '@/hooks/useNow'
 import { useBasket } from '@/state/builderBasket'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
@@ -97,7 +98,7 @@ export function BuilderScreen(): JSX.Element {
           <button
             type="button"
             onClick={() => setAsMap((v) => !v)}
-            aria-label={asMap ? 'הצג כרשימה' : 'הצג כמפת גוף'}
+            aria-label={asMap ? 'הסתר את מפת הגוף' : 'הצג מפת גוף'}
             aria-pressed={asMap}
             className="flex size-11 shrink-0 items-center justify-center rounded-full text-bone-400 active:bg-ink-800"
           >
@@ -117,7 +118,11 @@ export function BuilderScreen(): JSX.Element {
           <p className="mb-4 text-sm leading-relaxed text-bone-400">
             {uncovered.length === 0
               ? 'כיסית את כל הגוף בימים האחרונים. יפה.'
-              : `${uncovered.length === 1 ? 'שריר אחד' : `${uncovered.length} שרירים`} לא קיבלו כלום: ${uncovered
+              : `${
+                  uncovered.length === 1
+                    ? 'שריר אחד'
+                    : `${countMasculine(uncovered.length)} שרירים`
+                } לא קיבלו כלום: ${uncovered
                   .slice(0, 3)
                   .map((r) => r.label)
                   .join(' · ')}${uncovered.length > 3 ? ' ועוד' : ''}`}
@@ -132,24 +137,34 @@ export function BuilderScreen(): JSX.Element {
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-extrabold text-flame-300">בנה לי אימון</span>
               <span className="meta block">
-                {SUGGESTION_SIZE} תרגילים מהשרירים והתרגילים המוזנחים ביותר
+                {countMasculine(SUGGESTION_SIZE)} תרגילים מהשרירים והתרגילים המוזנחים ביותר
               </span>
             </span>
           </button>
 
+          {/*
+            המפה *מעל* הרשימה ולא במקומה.
+
+            כשהיא הייתה תצוגה חלופית היא תפסה 270 פיקסלים והשאירה 358 ריקים
+            מתחתיה — מסך שנראה כאילו לא סיים להיטען. היא גם לא מחליפה את
+            הרשימה מבחינת תוכן: היא נותנת את התמונה במבט, והמספרים והלחיצה
+            לפירוט חיים בשורות. המתג הוא "להראות אותה או לא", לא "או-או".
+          */}
           {asMap ? (
-            <BodyMap rows={rows} onSelect={(group) => navigate(`/builder/${group}`)} />
-          ) : (
-            <div className="card divide-y divide-ink-800/70 overflow-hidden">
-              {rows.map((row) => (
-                <MuscleRow
-                  key={row.group}
-                  row={row}
-                  onOpen={() => navigate(`/builder/${row.group}`)}
-                />
-              ))}
+            <div className="mb-5">
+              <BodyMap rows={rows} onSelect={(group) => navigate(`/builder/${group}`)} />
             </div>
-          )}
+          ) : null}
+
+          <div className="card divide-y divide-ink-800/70 overflow-hidden">
+            {rows.map((row) => (
+              <MuscleRow
+                key={row.group}
+                row={row}
+                onOpen={() => navigate(`/builder/${row.group}`)}
+              />
+            ))}
+          </div>
         </>
       )}
 

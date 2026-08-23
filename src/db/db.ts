@@ -362,10 +362,24 @@ export function mergeSettings(stored: Partial<AppSettings> | undefined): AppSett
   }
 }
 
+/**
+ * הכתיבות מסודרות בתור. השמירה היא קריאה-שינוי-כתיבה לא אטומית, ושני כותבים
+ * במקביל — מחיקת סרטון (hiddenVideoIds) ושמירת סדר (videoOrder) באותה שנייה,
+ * או שני מתגים ברצף מהיר — היו דורסים זה את זה: המאוחר קורא לפני שהמוקדם
+ * כתב, ומחזיר את השדה שלו על גב הגדרות ישנות. תור בתוך התהליך פותר את זה
+ * בלי טרנזקציה, כי כל הכותבים עוברים כאן.
+ */
+let settingsQueue: Promise<unknown> = Promise.resolve()
+
 export async function saveSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
-  const next = mergeSettings({ ...(await getSettings()), ...patch })
-  await db.settings.put({ key: 'app', value: next })
-  return next
+  const write = settingsQueue.then(async () => {
+    const next = mergeSettings({ ...(await getSettings()), ...patch })
+    await db.settings.put({ key: 'app', value: next })
+    return next
+  })
+  // כישלון של כתיבה אחת לא נועל את התור לנצח
+  settingsQueue = write.catch(() => undefined)
+  return write
 }
 
 /** מבטיח שהמסד נפתח והזריעה הושלמה */

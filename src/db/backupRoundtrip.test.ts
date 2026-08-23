@@ -300,6 +300,39 @@ describe('ייבוא נתונים', () => {
     expect(await db.prs.get(['leg-press', 'maxWeight'])).toBeUndefined()
   })
 
+  it('גיבוי ישן (schemaVersion 1) — הדירוגים מתורגמים לסולם 1–5', async () => {
+    const json = await backupJson()
+    // קובץ מהעידן של סולם 3 הדרגות: 1 קל · 2 בינוני · 3 קשה
+    json.schemaVersion = 1
+    json.ratings = [
+      { id: 1, sessionId: 's1', exerciseId: 'leg-press', rating: 1, rir: null, createdAt: 1 },
+      { id: 2, sessionId: 's1', exerciseId: 'leg-press', rating: 2, rir: 2, createdAt: 2 },
+      { id: 3, sessionId: 's1', exerciseId: 'abs', rating: 3, rir: 0, createdAt: 3 },
+    ]
+
+    const result = await importData(new File([JSON.stringify(json)], 'b.json'))
+    expect(result.ok).toBe(true)
+
+    // אותה המרה כמו מיגרציה 7: "קשה" ישן חייב להישאר קשה, לא להפוך ל"בינוני"
+    const ratings = (await db.ratings.toArray()).sort((a, b) => (a.id ?? 0) - (b.id ?? 0))
+    expect(ratings.map((r) => r.rating)).toEqual([2, 3, 4])
+    expect(ratings.map((r) => r.rir)).toEqual([null, 2, 0])
+  })
+
+  it('גיבוי עדכני (schemaVersion 2) — הדירוגים נכנסים כמו שהם', async () => {
+    const json = await backupJson()
+    json.ratings = [
+      { id: 1, sessionId: 's1', exerciseId: 'leg-press', rating: 5, rir: null, createdAt: 1 },
+      { id: 2, sessionId: 's1', exerciseId: 'abs', rating: 1, rir: 4, createdAt: 2 },
+    ]
+
+    const result = await importData(new File([JSON.stringify(json)], 'b.json'))
+    expect(result.ok).toBe(true)
+
+    const ratings = (await db.ratings.toArray()).sort((a, b) => (a.id ?? 0) - (b.id ?? 0))
+    expect(ratings.map((r) => r.rating)).toEqual([5, 1])
+  })
+
   it('גיבוי מפורמט עתידי נדחה במקום לדרוס את המסד', async () => {
     const json = await backupJson()
     json.schemaVersion = 99

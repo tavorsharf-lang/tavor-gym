@@ -272,8 +272,13 @@ export function recommendWeight(
   const rating = last.rating
   // RIR 0 הוא כשל — הוא גובר על "קל" שנלחץ בטעות. בסולם של 5: קשה (4) ומעלה
   const hard = rating !== null && (rating.rating >= 4 || rating.rir === 0)
-  // "קל מאוד" הוא הצהרה מספיקה לקפיצה כפולה גם בלי RIR — זו כל הסיבה שהדרגה קיימת
-  const veryEasy = rating !== null && rating.rating === 1 && rating.rir !== 0
+  // "קל מאוד" הוא הצהרה מספיקה לקפיצה כפולה גם בלי RIR — זו כל הסיבה שהדרגה
+  // קיימת. אבל RIR מפורש של 1–2 סותר אותה, והמדד המדויק גובר על הגס: מי
+  // שדיווח "נשארה חזרה אחת" לא מקבל קפיצה כפולה, באותו סף בדיוק כמו easyRir.
+  const veryEasy =
+    rating !== null &&
+    rating.rating === 1 &&
+    (rating.rir === null || rating.rir >= 3)
   // "קל" (או קל מאוד) עם 3 חזרות ומעלה במחסנית — קפיצה כפולה. שומרים את ה-RIR לניסוח.
   const easyRir: Rir | null =
     rating !== null && rating.rating <= 2 && rating.rir !== null && rating.rir >= 3

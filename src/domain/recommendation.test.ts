@@ -130,6 +130,19 @@ const CASES: Case[] = [
     expected: { action: 'hold', weightKg: 60, tone: 'steady' },
   },
   {
+    // המדד המדויק גובר על הגס: "נשארה חזרה אחת" סותר "קל מאוד"
+    name: 'קל מאוד עם RIR 1 — קפיצה רגילה בלבד',
+    exercise: makeExercise(),
+    history: [makeSession('s1', 1000, TOP_SETS, rate(1, 1))],
+    expected: { action: 'increase', weightKg: 62.5, tone: 'up' },
+  },
+  {
+    name: 'קל מאוד עם RIR 2 — קפיצה רגילה בלבד',
+    exercise: makeExercise(),
+    history: [makeSession('s1', 1000, TOP_SETS, rate(1, 2))],
+    expected: { action: 'increase', weightKg: 62.5, tone: 'up' },
+  },
+  {
     // הדרגה החדשה בראש הסולם מתנהגת כמו קשה: מגיעים לטווח אבל לא עולים
     name: 'ראש הטווח בדירוג קשה מאוד — נשארים',
     exercise: makeExercise(),
