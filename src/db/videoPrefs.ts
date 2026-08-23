@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import { getSettings, saveSettings } from './db'
+import { getSettings, mutateSettings } from './db'
 import type { MuscleGroup } from './types'
 
 /**
@@ -63,6 +63,39 @@ export async function loadVideoPrefs(): Promise<VideoPrefs> {
   return inflight
 }
 
+/**
+ * כותב העדפות ומפרסם את מה שבאמת נשמר.
+ *
+ * שתי נקודות שכל ארבעת המשנים כאן דרכו:
+ *
+ *  1. **קריאה וכתיבה בתוך אותו תור.** קודם כל אחד מהם קרא את ההעדפות, בנה
+ *     אובייקט שלם, וכתב אותו — ולכן שתי פעולות מהירות ברצף (שתי העברות
+ *     בפאנל הניהול, שתי הקשות חצים) חישבו שתיהן מאותו מצב, והשנייה דרסה את
+ *     הראשונה. `mutateSettings` נועל את שתיהן יחד.
+ *  2. **הפרסום מגיע מהתוצאה ולא מהקריאה שלפניה.** קודם פורסם `current`
+ *     הישן ממוזג עם השדה החדש, כלומר המטמון בזיכרון יכול היה להחזיק ערך
+ *     ישן בשדה *השני* — סדר שנשמר בעוד פעולה נעלם מהמסך עד רענון.
+ */
+async function writePrefs(
+  change: (current: VideoPrefs) => Partial<Pick<VideoPrefs, 'moves' | 'order'>> | null
+): Promise<void> {
+  let touched = false
+  const saved = await mutateSettings((settings) => {
+    const currentPrefs: VideoPrefs = {
+      moves: settings.videoMoves ?? {},
+      order: settings.videoOrder ?? {},
+    }
+    const patch = change(currentPrefs)
+    if (!patch) return {}
+    touched = true
+    return {
+      ...(patch.moves ? { videoMoves: patch.moves } : {}),
+      ...(patch.order ? { videoOrder: patch.order } : {}),
+    }
+  })
+  if (touched) publish({ moves: saved.videoMoves ?? {}, order: saved.videoOrder ?? {} })
+}
+
 /** מזהה ההקשר של מדף קבוצת שריר */
 export function groupContextId(group: MuscleGroup): string {
   return `group:${group}`
@@ -83,20 +116,17 @@ export function groupOfContext(contextId: string): MuscleGroup | null {
  * שכבר לא מוצגים בהקשר, והשארתם שומרת את מקומם אם הסרטון יוחזר.
  */
 export async function saveVideoMove(assetId: string, target: string | null): Promise<void> {
-  const current = await loadVideoPrefs()
-  const moves = { ...current.moves }
-  if (target === null) delete moves[assetId]
-  else moves[assetId] = target
-  await saveSettings({ videoMoves: moves })
-  publish({ ...current, moves })
+  await writePrefs((current) => {
+    const moves = { ...current.moves }
+    if (target === null) delete moves[assetId]
+    else moves[assetId] = target
+    return { moves }
+  })
 }
 
 /** קובע סדר תצוגה מותאם להקשר אחד (תרגיל / תרגיל מאגר / קבוצה) */
 export async function saveVideoOrder(contextId: string, assetIds: string[]): Promise<void> {
-  const current = await loadVideoPrefs()
-  const order = { ...current.order, [contextId]: [...assetIds] }
-  await saveSettings({ videoOrder: order })
-  publish({ ...current, order })
+  await writePrefs((current) => ({ order: { ...current.order, [contextId]: [...assetIds] } }))
 }
 
 /**
@@ -104,17 +134,17 @@ export async function saveVideoOrder(contextId: string, assetIds: string[]): Pro
  * המחיקה שלהם הפיכה (שחזור מוסתרים), וההעדפות צריכות לשרוד אותה.
  */
 export async function forgetVideoPrefs(assetId: string): Promise<void> {
-  const current = await loadVideoPrefs()
-  const hasMove = assetId in current.moves
-  const hasOrder = Object.values(current.order).some((ids) => ids.includes(assetId))
-  if (!hasMove && !hasOrder) return
-  const moves = { ...current.moves }
-  delete moves[assetId]
-  const order = Object.fromEntries(
-    Object.entries(current.order).map(([ctx, ids]) => [ctx, ids.filter((id) => id !== assetId)])
-  )
-  await saveSettings({ videoMoves: moves, videoOrder: order })
-  publish({ moves, order })
+  await writePrefs((current) => {
+    const hasMove = assetId in current.moves
+    const hasOrder = Object.values(current.order).some((ids) => ids.includes(assetId))
+    if (!hasMove && !hasOrder) return null
+    const moves = { ...current.moves }
+    delete moves[assetId]
+    const order = Object.fromEntries(
+      Object.entries(current.order).map(([ctx, ids]) => [ctx, ids.filter((id) => id !== assetId)])
+    )
+    return { moves, order }
+  })
 }
 
 /**
@@ -125,16 +155,16 @@ export async function forgetVideoPrefs(assetId: string): Promise<void> {
  * מחזיר אותו הביתה, ומוחק גם את רשימת הסדר של ההקשר המת.
  */
 export async function forgetMovesTo(contextId: string): Promise<void> {
-  const current = await loadVideoPrefs()
-  const doomed = Object.entries(current.moves).filter(([, target]) => target === contextId)
-  const hasOrder = contextId in current.order
-  if (!doomed.length && !hasOrder) return
-  const moves = { ...current.moves }
-  for (const [assetId] of doomed) delete moves[assetId]
-  const order = { ...current.order }
-  delete order[contextId]
-  await saveSettings({ videoMoves: moves, videoOrder: order })
-  publish({ moves, order })
+  await writePrefs((current) => {
+    const doomed = Object.entries(current.moves).filter(([, target]) => target === contextId)
+    const hasOrder = contextId in current.order
+    if (!doomed.length && !hasOrder) return null
+    const moves = { ...current.moves }
+    for (const [assetId] of doomed) delete moves[assetId]
+    const order = { ...current.order }
+    delete order[contextId]
+    return { moves, order }
+  })
 }
 
 /** מאפס את המטמון — אחרי ייבוא גיבוי או איפוס מסד, שבהם ההגדרות הוחלפו */
