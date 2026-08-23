@@ -1,12 +1,24 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Film, GraduationCap, Plus, Trash2, TriangleAlert, Video, X } from 'lucide-react'
+import { Copy, Film, GraduationCap, Plus, Trash2, TriangleAlert, Video, X } from 'lucide-react'
 import { saveSettings } from '@/db/db'
 import { getAllExercises } from '@/db/queries'
-import { assetUrl, bundledId, bundledVideosFor, mediaDb, mediaUsage, deleteVideo } from '@/db/mediaDb'
+import {
+  allVisibleClips,
+  assetUrl,
+  bundledId,
+  bundledVideosFor,
+  mediaDb,
+  mediaUsage,
+  deleteVideo,
+} from '@/db/mediaDb'
+import { groupOfContext, useVideoPrefs } from '@/db/videoPrefs'
+import { VIDEO_HASHES } from '@/db/videoHashes'
+import { findDuplicateGroups, type HashedClip } from '@/domain/duplicates'
 import { restoreHiddenVideos, useHiddenVideoIds } from '@/db/hiddenVideos'
 import { videoMismatchNote } from '@/db/videoIssues'
+import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { VIDEO_COUNT, VIDEO_MANIFEST, VIDEO_TOTAL_BYTES } from '@/db/videoManifest'
 import {
   LIBRARY_CATALOG,
@@ -16,6 +28,7 @@ import {
 } from '@/db/libraryManifest'
 import type { BundledVideo } from '@/db/videoManifest'
 import type { VideoAsset } from '@/db/types'
+import { MUSCLE_GROUPS } from '@/db/types'
 import { formatBytes, newId } from '@/domain/units'
 import { useStorageStatus } from '@/hooks/useStorageStatus'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
@@ -159,11 +172,47 @@ async function readVideoMeta(file: Blob): Promise<VideoMeta> {
   }
 }
 
+/**
+ * שם קריא להקשר שאינו תרגיל בקטלוג — מדף של קבוצת שריר, או מזהה שהתייתם
+ * אחרי ייבוא מחודש של המניפסט. בלי זה סרטון שהועבר למדף הוצג כ"תרגיל שאינו
+ * בקטלוג", כלומר כתקלה, בזמן שהוא בדיוק במקום שהמשתמש שם אותו.
+ */
+function describeOwner(ownerId: string): string {
+  const group = groupOfContext(ownerId)
+  if (group) return `מדף ${MUSCLE_GROUPS[group].label}`
+  return 'תרגיל שאינו בקטלוג'
+}
+
 export function MediaScreen(): JSX.Element {
   const storage = useStorageStatus()
   const hidden = useHiddenVideoIds()
 
   const exercises = useLiveQuery(() => getAllExercises(true), [], [])
+
+  /*
+    מועמדים לכפילות — מחושב מטבלת טביעות סטטית, ולכן זול מספיק ל-useMemo
+    רגיל בלי שאילתה. שני התלויות אמיתיות: מחיקה מסירה מועמד מהרשימה,
+    והעברה משנה תחת איזה תרגיל הוא מוצג.
+  */
+  /** הסרטון שנפתח להשוואה מתוך רשימת הכפילויות */
+  const [preview, setPreview] = useState<{ ownerId: string; assetId: string } | null>(null)
+  const videoPrefs = useVideoPrefs()
+  const duplicateGroups = useMemo(() => {
+    const nameOf = new Map<string, string>()
+    for (const ex of exercises) nameOf.set(ex.id, ex.name)
+    for (const lib of LIBRARY_CATALOG) nameOf.set(lib.id, lib.nameHe)
+
+    const clips: HashedClip[] = allVisibleClips(hidden, videoPrefs).map((c) => ({
+      id: c.id,
+      poster: c.clip.poster,
+      label: c.topic ?? c.clip.src.split('/').pop() ?? c.id,
+      ownerId: c.ownerId,
+      ownerName: nameOf.get(c.ownerId) ?? describeOwner(c.ownerId),
+      durationSec: c.clip.durationSec,
+      sizeBytes: c.clip.sizeBytes,
+    }))
+    return findDuplicateGroups(clips, VIDEO_HASHES)
+  }, [exercises, hidden, videoPrefs])
   const usage = useLiveQuery(() => mediaUsage(), [], { count: 0, bytes: 0 })
   const installedBundled = useLiveQuery(
     () => mediaDb.videos.where('origin').equals('bundled').count(),
@@ -558,6 +607,80 @@ export function MediaScreen(): JSX.Element {
         </section>
       ) : null}
 
+      {/*
+        ── כפילויות ──
+
+        המאגר צמח מייבוא אוטומטי, ואותו סרטון נכנס אליו יותר מפעם אחת תחת
+        שמות שונים; פעם אחת כבר נמחקו 33 כאלה ידנית. הזיהוי הוא על התמונה
+        הממוזערת ולא על גודל ומשך — ראה domain/duplicates, שם גם המדידה שפסלה
+        את המטא-דאטה. "מועמדים" ולא "כפילויות": פריים פתיחה זהה אינו הוכחה,
+        ולכן כל שורה נפתחת בנגן לפני שמוחקים אותה.
+      */}
+      {duplicateGroups.length > 0 ? (
+        <section className="mb-5">
+          <h2 className="meta mb-2 px-1">מועמדים לכפילות</h2>
+          <div className="flex flex-col gap-3">
+            {duplicateGroups.map((group) => (
+              <div key={group.clips[0].id} className="card p-3">
+                <p className="mb-2 flex items-center gap-2 text-xs font-bold text-bone-300">
+                  <Copy size={14} className="shrink-0 text-flame-400" aria-hidden="true" />
+                  {group.maxDistance === 0
+                    ? 'תמונה זהה לחלוטין'
+                    : `תמונה כמעט זהה (${group.maxDistance}/64 שונה)`}
+                  {group.clips.every((c) => c.ownerId === group.clips[0].ownerId) ? (
+                    <span className="font-medium text-bone-500">· באותו תרגיל</span>
+                  ) : (
+                    <span className="font-medium text-bone-500">· בתרגילים שונים</span>
+                  )}
+                </p>
+                <ul className="flex flex-col gap-2">
+                  {group.clips.map((clip) => (
+                    <li key={clip.id} className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPreview({ ownerId: clip.ownerId, assetId: clip.id })}
+                        className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl p-1 text-start active:bg-ink-800"
+                      >
+                        <img
+                          src={assetUrl(clip.poster)}
+                          alt=""
+                          loading="lazy"
+                          className="h-12 w-12 shrink-0 rounded-lg border border-ink-700 object-cover"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[0.8125rem] font-semibold text-bone-100">
+                            {clip.ownerName}
+                          </span>
+                          <span dir="ltr" className="meta tnum block truncate text-end">
+                            {Math.round(clip.durationSec)}s · {formatBytes(clip.sizeBytes)}
+                          </span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`מחק את הסרטון של ${clip.ownerName}`}
+                        onClick={() => {
+                          void deleteVideo(clip.id)
+                            .then(() => toast('הסרטון נמחק', { tone: 'warn' }))
+                            .catch(() => toast('המחיקה נכשלה', { tone: 'warn' }))
+                        }}
+                        className="flex size-11 shrink-0 items-center justify-center rounded-xl text-hard-400 active:bg-ink-800"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <p className="meta mt-2 px-1 leading-relaxed">
+            לחיצה על שורה פותחת את הסרטון להשוואה. מחיקה של סרטון מצורף הפיכה —
+            "שחזר את כל מה שנמחק" מחזיר אותו.
+          </p>
+        </section>
+      ) : null}
+
       <section className="mb-5">
         <h2 className="meta mb-2 px-1">סרטונים לפי תרגיל</h2>
         <div className="card divide-y divide-ink-800/70 overflow-hidden">
@@ -706,6 +829,16 @@ export function MediaScreen(): JSX.Element {
           </Button>
         </div>
       </BottomSheet>
+      {preview ? (
+        <VideoPlayer
+          exerciseId={preview.ownerId}
+          exerciseName="השוואת כפילות"
+          open
+          startId={preview.assetId}
+          onClose={() => setPreview(null)}
+        />
+      ) : null}
+
     </Screen>
   )
 }

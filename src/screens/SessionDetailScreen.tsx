@@ -26,7 +26,8 @@ import type {
   WeightMode,
 } from '@/db/types'
 import { RATING_LABELS, RATING_TONES, RIR_LABELS } from '@/db/types'
-import { formatDuration, formatSetShort, formatVolume } from '@/domain/units'
+import { formatClock, formatDuration, formatSetShort, formatVolume } from '@/domain/units'
+import { pacingSummary } from '@/domain/pacing'
 import { summarize, weightModeLookup } from '@/domain/volume'
 import { prLabel, rebuildPrs } from '@/domain/prs'
 import { formatDateLong, formatTime } from '@/lib/dates'
@@ -264,6 +265,7 @@ export function SessionDetailScreen(): JSX.Element {
   }
 
   const { session, routineName, blockNames } = detail
+  const pacing = pacingSummary(detail.sets)
   const changed = session.substitutions.length > 0 || session.skippedExerciseIds.length > 0
   const nameOf = (id: string): string => exerciseNames.get(id) ?? 'תרגיל שהוסר'
 
@@ -300,6 +302,21 @@ export function SessionDetailScreen(): JSX.Element {
           </span>
         </Stat>
       </div>
+
+      {/*
+        הקצב יושב מתחת לרשת ולא בתוכה: חמש עמודות מספרים על מסך טלפון מועכות
+        את התוויות, והמספר הזה גם צריך את ההסבר "בין סטים" לידו כדי לא להיקרא
+        כמנוחה. ראה domain/pacing — ההפרש כולל את הסט הבא ולא רק את המנוחה.
+      */}
+      {pacing.medianSeconds !== null ? (
+        <p className="meta mb-4 px-1">
+          זמן בין סטים של אותו תרגיל · חציון{' '}
+          <span dir="ltr" className="tnum font-bold text-bone-300">
+            {formatClock(pacing.medianSeconds)}
+          </span>{' '}
+          מתוך {pacing.sampleCount} זוגות
+        </p>
+      ) : null}
 
       <div className="flex flex-col gap-3">
         {blocks.map((block) => (

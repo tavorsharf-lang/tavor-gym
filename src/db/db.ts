@@ -372,8 +372,24 @@ export function mergeSettings(stored: Partial<AppSettings> | undefined): AppSett
 let settingsQueue: Promise<unknown> = Promise.resolve()
 
 export async function saveSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
+  return mutateSettings(() => patch)
+}
+
+/**
+ * שינוי הגדרות שנגזר מהערך *העדכני* שבמסד, בתוך אותו תור.
+ *
+ * ‏`saveSettings` מקבל תיקון מוכן, ולכן מי שצריך לקרוא לפני שהוא כותב —
+ * להוסיף מזהה לרשימה, למשל — חייב לקרוא בעצמו לפני הקריאה, מחוץ לתור.
+ * שם נפער החלון: שתי מחיקות סרטון מהירות קראו שתיהן את אותה רשימה, וכל אחת
+ * כתבה אותה בתוספת המזהה שלה בלבד — כלומר המחיקה הראשונה נעלמה. כאן הקריאה
+ * והכתיבה נעולות יחד, ולכן הפונקציה מקבלת תמיד את מה שבאמת במסד.
+ */
+export async function mutateSettings(
+  fn: (current: AppSettings) => Partial<AppSettings>
+): Promise<AppSettings> {
   const write = settingsQueue.then(async () => {
-    const next = mergeSettings({ ...(await getSettings()), ...patch })
+    const current = await getSettings()
+    const next = mergeSettings({ ...current, ...fn(current) })
     await db.settings.put({ key: 'app', value: next })
     return next
   })

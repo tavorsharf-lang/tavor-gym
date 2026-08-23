@@ -504,6 +504,57 @@ describe('פעולות התור נשמרות לדיסק', () => {
     expect(w.currentKey).toBe(first)
   }, 20000)
 
+  it('"סיים תרגיל" על תרגיל ריק אינו דילוג מוצהר', async () => {
+    /*
+      שניהם מייצרים status 'skipped', אבל רק "דלג היום" הוא הצהרה. בלי
+      ההפרדה, אימון שנקטע וכל התור נסגר ב"סיים תרגיל" היה מסמן שמונה
+      תרגילים כמיותרים — ובגלל שההצעה מוצגת בדיוק על הסף, היא כבר לא
+      הייתה מוצגת להם לעולם.
+    */
+    await useWorkout.getState().start('F1', [])
+    const first = useWorkout.getState().workout!.currentKey!
+
+    await useWorkout.getState().completeCurrent()
+
+    const item = useWorkout.getState().workout!.queue.find((q) => q.key === first)!
+    expect(item.status).toBe('skipped')
+    expect(item.deliberateSkip).toBeFalsy()
+  }, 20000)
+
+  it('רק "דלג היום" נכתב ל-deliberatelySkippedIds של הסשן', async () => {
+    await useWorkout.getState().start('F1', [])
+    const queue = useWorkout.getState().workout!.queue
+    const skipped = queue[0]
+    const closed = queue[1]
+
+    await useWorkout.getState().skipItem(skipped.key)
+    await useWorkout.getState().setCurrent(closed.key)
+    await useWorkout.getState().completeCurrent()
+    // סט אחד כדי שהאימון יישמר ולא יבוטל
+    await useWorkout.getState().logSet(queue[2].key, 'work', 40, 8)
+    const id = await useWorkout.getState().finish()
+
+    const session = await db.sessions.get(id!)
+    expect(session?.deliberatelySkippedIds).toEqual([skipped.exerciseId])
+    // שניהם נשארים ב"בלי אף סט", כי זו שאלה אחרת
+    expect(session?.skippedExerciseIds).toContain(closed.exerciseId)
+  }, 20000)
+
+  it('פתיחה מחדש של תרגיל שדולג מבטלת את ההצהרה', async () => {
+    await useWorkout.getState().start('F1', [])
+    const first = useWorkout.getState().workout!.currentKey!
+
+    await useWorkout.getState().skipItem(first)
+    expect(
+      useWorkout.getState().workout!.queue.find((q) => q.key === first)!.deliberateSkip
+    ).toBe(true)
+
+    await useWorkout.getState().setCurrent(first)
+    expect(
+      useWorkout.getState().workout!.queue.find((q) => q.key === first)!.deliberateSkip
+    ).toBe(false)
+  }, 20000)
+
   it('skipItem על תרגיל שכבר יש בו סטים סוגר אותו כ-done, לא כדילוג', async () => {
     await useWorkout.getState().start('F1', [])
     const first = useWorkout.getState().workout!.currentKey!

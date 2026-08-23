@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import { getSettings, saveSettings } from './db'
+import { getSettings, mutateSettings, saveSettings } from './db'
 
 /**
  * סרטונים שהמשתמש מחק.
@@ -67,11 +67,22 @@ export async function hideVideo(
   await removeLocal(id).catch(() => {
     // הנכס לא היה מותקן, או שמסד המדיה לא זמין. ההסתרה חשובה יותר.
   })
-  const current = await loadHiddenVideoIds()
-  if (current.has(id)) return
-  const next = [...current, id]
-  await saveSettings({ hiddenVideoIds: next })
-  publish(new Set(next))
+  /*
+    הקריאה והכתיבה בתוך אותו תור.
+
+    בעבר זה היה קרא-שנה-כתוב פתוח: שתי מחיקות מהירות ברצף (רשימת הכפילויות
+    היא בדיוק זרימה כזו) קראו שתיהן את אותה רשימה, וכל אחת כתבה אותה בתוספת
+    המזהה שלה — הראשונה נעלמה, והסרטון חזר להופיע. `mutateSettings` נועל את
+    שתי הפעולות יחד ולכן התוצאה נכונה בכל תזמון.
+  */
+  let next: string[] | null = null
+  await mutateSettings((settings) => {
+    const ids = settings.hiddenVideoIds ?? []
+    if (ids.includes(id)) return {}
+    next = [...ids, id]
+    return { hiddenVideoIds: next }
+  })
+  if (next) publish(new Set(next))
 }
 
 /** מחזיר את כל הסרטונים שהוסתרו. משמש את מסך הסרטונים בהגדרות. */

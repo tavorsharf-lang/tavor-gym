@@ -11,6 +11,7 @@ import {
   Shuffle,
   SkipForward,
   StickyNote,
+  Timer,
   TrendingDown,
   TrendingUp,
   Trophy,
@@ -48,6 +49,7 @@ import {
   formatWeight,
 } from '@/domain/units'
 import { summarize, weightModeLookup, workSets, workingWeight } from '@/domain/volume'
+import { pacingSummary } from '@/domain/pacing'
 import type { PrEvent } from '@/domain/prs'
 import { prHeadline, prLabel } from '@/domain/prs'
 import { formatDateLong, formatTime, daysSince } from '@/lib/dates'
@@ -419,6 +421,7 @@ export function SummaryScreen(): JSX.Element {
   )
 
   const totals = summarize(sets, modeOf)
+  const pacing = pacingSummary(sets)
   const prevTotals = previous ? summarize(previous.sets, modeOf) : null
   const deltaPercent =
     prevTotals && prevTotals.volumeKg > 0
@@ -502,6 +505,35 @@ export function SummaryScreen(): JSX.Element {
         />
         <StatTile label="תרגילים" value={String(ordered.length)} sub={groupsText || undefined} />
       </div>
+
+      {/*
+        ── הקצב ──
+
+        המספר הזה היה במסד מהיום הראשון ומעולם לא הוצג: לכל סט יש חותמת סיום.
+        הוא הנתון היחיד שממשיך להיאסף גם כשטיימר המנוחה כבוי, ולכן דווקא מי
+        שמודד מנוחה בשעון מקבל כאן את מה שהמסך לא הראה לו תוך כדי.
+
+        "בין סטים" ולא "מנוחה", כי ההפרש כולל גם את הסט עצמו — ראה domain/pacing.
+      */}
+      {pacing.medianSeconds !== null ? (
+        <section className="mt-3">
+          <div className="card flex items-center gap-3 p-4">
+            <Timer size={18} className="shrink-0 text-bone-500" aria-hidden="true" />
+            <p className="min-w-0 flex-1 text-sm text-bone-300">
+              <span className="font-bold text-bone-50">זמן בין סטים של אותו תרגיל</span>
+              <span className="text-bone-500"> · חציון של {pacing.sampleCount} זוגות</span>
+            </p>
+            <span dir="ltr" className="tnum shrink-0 text-lg font-extrabold text-bone-50">
+              {formatClock(pacing.medianSeconds)}
+            </span>
+          </div>
+          {pacing.breakCount > 0 ? (
+            <p className="meta mt-1.5 px-1">
+              {pacing.breakCount === 1 ? 'הפסקה אחת ארוכה לא נספרה' : `${pacing.breakCount} הפסקות ארוכות לא נספרו`}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       {/* ── שיאים ── */}
       {sessionPrs.length ? (

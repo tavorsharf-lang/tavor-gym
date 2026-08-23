@@ -444,6 +444,19 @@ export const useWorkout = create<WorkoutState>((set, get) => {
         const skipped = [...new Set(w.queue.map((q) => q.exerciseId))].filter(
           (id) => !performed.has(id)
         )
+        /*
+          הדילוגים המוצהרים — אלה שנלחץ עליהם "דלג היום".
+
+          נגזר מהסטטוס בתור ולא מהיעדר סטים, וזה כל ההבדל: מכאן האפליקציה
+          יודעת להציע להוציא תרגיל מהתוכנית אחרי שדילגת עליו שוב ושוב, בלי
+          לספור לרעתו אימונים שפשוט נגמרו באמצע. תמיד תת-קבוצה של `skipped`,
+          כי פריט שנרשם בו סט נסגר כ-done ולא כ-skipped.
+        */
+        const deliberatelySkippedIds = [
+          ...new Set(
+            w.queue.filter((q) => q.deliberateSkip === true).map((q) => q.exerciseId)
+          ),
+        ].filter((id) => !performed.has(id))
 
         const endedAt = Date.now()
         const session: Session = {
@@ -458,6 +471,9 @@ export const useWorkout = create<WorkoutState>((set, get) => {
           actualOrder,
           substitutions: [...w.substitutions],
           skippedExerciseIds: skipped,
+          deliberatelySkippedIds,
+          // בכוונה `actualOrder` בלבד: זה האינדקס שמזין סינון היסטוריה לפי
+          // תרגיל, ותרגיל שדולג לא בוצע ואין לו מקום שם
           exerciseIds: actualOrder,
           notes: w.notes,
           totalVolumeKg: totals.volumeKg,
@@ -708,7 +724,8 @@ export const useWorkout = create<WorkoutState>((set, get) => {
         currentKey: key,
         queue: w.queue.map((q) =>
           q.key === key
-            ? { ...q, status: q.status === 'done' ? 'done' : 'active' }
+            ? // פתיחה מחדש מבטלת את ההצהרה: התרגיל חזר לשולחן
+              { ...q, status: q.status === 'done' ? 'done' : 'active', deliberateSkip: false }
             : q.status === 'active'
               ? { ...q, status: (w.setsByKey[q.key]?.length ?? 0) > 0 ? 'done' : 'pending' }
               : q
@@ -748,7 +765,9 @@ export const useWorkout = create<WorkoutState>((set, get) => {
         const performed = (w.setsByKey[key]?.length ?? 0) > 0
         const closed = performed ? ('done' as const) : ('skipped' as const)
         const queue = w.queue.map((q) =>
-          q.key === key ? { ...q, status: closed } : q
+          // הדגל נדלק רק כאן — זו ההצהרה. סגירה ריקה ב"סיים תרגיל" מייצרת
+          // אותו סטטוס אבל אינה דילוג, ולכן אינה נספרת ברצף.
+          q.key === key ? { ...q, status: closed, deliberateSkip: !performed } : q
         )
         // אם דילגנו על התרגיל הפתוח — עוברים לבא בתור. דילוג על תרגיל אחר
         // מרחוק (מהרשימה) לא מזיז את מה שבאמצע.

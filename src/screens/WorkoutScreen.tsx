@@ -4,12 +4,16 @@ import { Navigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ListOrdered, MessageCircleQuestion, Timer, Trophy } from 'lucide-react'
 import { getSettings, saveSettings } from '@/db/db'
-import { getBlocks, getExerciseHistory, getRoutines } from '@/db/queries'
+import { getBlocks, getExerciseHistory, getFinishedSessions, getRoutines } from '@/db/queries'
 import type { DraftSet, ExerciseMetric, WeightMode } from '@/db/types'
 import { EmptyState, fireConfetti, toast } from '@/components/ui'
 import { Screen } from '@/components/shell/ScreenHeader'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { openItems, skippedItems, useWorkout } from '@/state/activeWorkoutStore'
+import { detachFromPlans, findPlanUsage } from '@/db/catalog'
+import type { PlanUsage } from '@/db/catalog'
+import { shouldSuggestRemoval } from '@/domain/skipStreak'
+import { SkipStreakSheet } from '@/components/workout/SkipStreakSheet'
 import { prHeadline } from '@/domain/prs'
 import { formatClock, formatSetShort } from '@/domain/units'
 import { distinguisher, duplicateNames } from '@/domain/naming'
@@ -106,6 +110,12 @@ export function WorkoutScreen(): JSX.Element | null {
    */
   const completeAfterRating = useRef(false)
   const activeCardRef = useRef<HTMLDivElement | null>(null)
+  /** התרגיל שדילגנו עליו זה עתה ושמוצעת עליו הוצאה מהתוכנית */
+  const [streakCandidate, setStreakCandidate] = useState<{
+    id: string
+    name: string
+    usage: PlanUsage[]
+  } | null>(null)
 
   const activeItem = workout?.queue.find((q) => q.key === workout.currentKey) ?? null
   const activeExercise = activeItem ? (exercisesById[activeItem.exerciseId] ?? null) : null
@@ -204,6 +214,42 @@ export function WorkoutScreen(): JSX.Element | null {
     */
     activeCardRef.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' })
   }, [currentKey])
+
+  /*
+    דילוג, ואחריו — רק אם זה הדילוג השלישי ברצף — ההצעה להוציא מהתוכנית.
+
+    הדילוג עצמו קורה קודם ובלי תנאי: הוא הפעולה שהמשתמש ביקש, וההצעה היא
+    תוספת שלא מרשה לעצמה לעכב אותה. ההיסטוריה נקראת אחרי הדילוג ובלי await
+    לפניו, כדי שלחיצה על "דלג" לא תמתין לשאילתה.
+  */
+  const handleSkip = useCallback(
+    (key: string) => {
+      const item = useWorkout.getState().workout?.queue.find((q) => q.key === key)
+      void skipItem(key)
+      if (!item) return
+      /*
+        הספירה וההוצאה מדברות על *שורת התוכנית* ולא על התרגיל שעמד במקומה:
+        אחרי החלפה, `exerciseId` הוא המחליף — והוצאה שלו הייתה מוחקת אותו
+        מכל התוכניות, כולל יום אחר בפיצול שבו הוא דווקא נעשה.
+      */
+      const plannedId = item.plannedExerciseId
+      const exercise = useWorkout.getState().exercisesById[plannedId]
+      if (!exercise) return
+      void Promise.all([getFinishedSessions(), findPlanUsage(plannedId)])
+        .then(([sessions, usage]) => {
+          // תרגיל שאינו באף תוכנית — אין מה להוציא, וגיליון שמבטיח הוצאה
+          // ואז לא עושה כלום גרוע מלא להציע בכלל
+          if (!usage.length) return
+          if (shouldSuggestRemoval(plannedId, sessions)) {
+            setStreakCandidate({ id: plannedId, name: exercise.name, usage })
+          }
+        })
+        .catch(() => {
+          // ההצעה היא תוספת; כישלון קריאה לא אמור להטריד באמצע אימון
+        })
+    },
+    [skipItem]
+  )
 
   /** "סיים תרגיל": כשמתג הדירוג דלוק ויש סטים בלי דירוג — קודם השאלון */
   const handleFinishExercise = useCallback(() => {
@@ -384,6 +430,7 @@ export function WorkoutScreen(): JSX.Element | null {
                     onOpenSubstitute={() => setSheet('substitute')}
                     onOpenRating={() => setSheet('rating')}
                     onFinishExercise={handleFinishExercise}
+                    onSkip={() => handleSkip(item.key)}
                     settings={settings}
                     history={historyFor === item.exerciseId ? history : []}
                     audio={audio}
@@ -402,7 +449,7 @@ export function WorkoutScreen(): JSX.Element | null {
                 setCount={sets.length}
                 summary={summarize(sets, exercise.weightMode, exercise.metric)}
                 onTap={() => void setCurrent(item.key)}
-                onSkip={() => void skipItem(item.key)}
+                onSkip={() => handleSkip(item.key)}
               />
             )
           })}
@@ -473,6 +520,21 @@ export function WorkoutScreen(): JSX.Element | null {
       )}
 
       <QueueSheet open={sheet === 'queue'} onClose={() => setSheet(null)} />
+
+      <SkipStreakSheet
+        open={streakCandidate !== null}
+        exerciseName={streakCandidate?.name ?? ''}
+        usage={streakCandidate?.usage ?? []}
+        onKeep={() => setStreakCandidate(null)}
+        onRemove={() => {
+          const target = streakCandidate
+          setStreakCandidate(null)
+          if (!target) return
+          void detachFromPlans(target.id)
+            .then(() => toast(`${target.name} הוצא מהתוכנית`))
+            .catch(() => toast('לא הצלחתי להוציא את התרגיל', { tone: 'warn' }))
+        }}
+      />
 
       <FinishSheet
         open={sheet === 'finish'}

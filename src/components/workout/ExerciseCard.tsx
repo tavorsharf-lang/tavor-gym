@@ -59,6 +59,11 @@ export interface ExerciseCardProps {
    * המסך פותח קודם את שאלון "איך היה" ורק אחרי המענה סוגר את התרגיל.
    */
   onFinishExercise: () => void
+  /**
+   * "דלג היום" — גם הוא עובר דרך המסך, כי אחרי הדילוג השלישי ברצף הוא
+   * מציע להוציא את התרגיל מהתוכנית, וזו החלטה שדורשת את ההיסטוריה.
+   */
+  onSkip: () => void
   settings: AppSettings
   history: ExerciseSessionSummary[]
   /** מופע האודיו של המסך — חייב להיות אותו הקשר שנפתח במחוות המשתמש */
@@ -203,6 +208,7 @@ export function ExerciseCard({
   onOpenSubstitute,
   onOpenRating,
   onFinishExercise,
+  onSkip,
   settings,
   history,
   audio,
@@ -214,7 +220,6 @@ export function ExerciseCard({
   const removeSet = useWorkout((s) => s.removeSet)
   const startRest = useWorkout((s) => s.startRest)
   const deferItem = useWorkout((s) => s.deferItem)
-  const skipItem = useWorkout((s) => s.skipItem)
   const markWarmupOffered = useWorkout((s) => s.markWarmupOffered)
   const setTargetSets = useWorkout((s) => s.setTargetSets)
   const setItemRest = useWorkout((s) => s.setItemRest)
@@ -710,7 +715,7 @@ export function ExerciseCard({
         {sets.length === 0 && (
           <button
             type="button"
-            onClick={() => void skipItem(item.key)}
+            onClick={onSkip}
             className="btn-ghost flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-bold"
           >
             <SkipForward size={16} className="text-bone-500" />

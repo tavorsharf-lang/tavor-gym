@@ -118,25 +118,64 @@ interface IndexedClip {
   clip: BundledVideo
   /** נושא לסרטון מאגר, null להדגמה (שתקבל מספור לפי מיקומה החדש) */
   topic: string | null
+  /** התרגיל שהסרטון נולד תחתיו במניפסט — לפני העברות מותאמות */
+  homeId: string
 }
 
 let clipIndex: Map<string, IndexedClip> | null = null
 
-/** מיוצא בשביל מדפי הקבוצות: לבדוק סינכרונית אם מזהה שיוך עדיין חי */
-export function clipById(assetId: string): IndexedClip | null {
+/** בונה את האינדקס בפעם הראשונה שצריך אותו, ומחזיר אותו */
+function indexOfClips(): Map<string, IndexedClip> {
   if (!clipIndex) {
     clipIndex = new Map()
-    for (const list of Object.values(VIDEO_MANIFEST)) {
-      for (const clip of list) clipIndex.set(bundledId(clip.src), { clip, topic: null })
+    for (const [exerciseId, list] of Object.entries(VIDEO_MANIFEST)) {
+      for (const clip of list) {
+        clipIndex.set(bundledId(clip.src), { clip, topic: null, homeId: exerciseId })
+      }
     }
     for (const [libId, list] of Object.entries(LIBRARY_MANIFEST)) {
       const topics = LIBRARY_TOPICS.get(libId) ?? []
       list.forEach((clip, i) => {
-        clipIndex!.set(bundledId(clip.src), { clip, topic: topics[i] ?? null })
+        clipIndex!.set(bundledId(clip.src), {
+          clip,
+          topic: topics[i] ?? null,
+          homeId: libId,
+        })
       })
     }
   }
-  return clipIndex.get(assetId) ?? null
+  return clipIndex
+}
+
+/** מיוצא בשביל מדפי הקבוצות: לבדוק סינכרונית אם מזהה שיוך עדיין חי */
+export function clipById(assetId: string): IndexedClip | null {
+  return indexOfClips().get(assetId) ?? null
+}
+
+/**
+ * כל הסרטונים המצורפים שהמשתמש עדיין רואה, עם התרגיל שהם מוצגים תחתיו.
+ *
+ * קיים בשביל איתור הכפילויות, שצריך מבט אחד על *כל* המאגר ולא על הקשר אחד.
+ * שני הסינונים הכרחיים: סרטון שנמחק לא אמור להיות מוצע למחיקה שוב, וסרטון
+ * שהועבר צריך להופיע תחת התרגיל שהמשתמש רואה אותו בו — אחרת ההצעה מדברת על
+ * מקום שכבר לא קיים.
+ */
+export function allVisibleClips(
+  hidden: ReadonlySet<string>,
+  prefs?: VideoPrefs | null
+): { id: string; clip: BundledVideo; topic: string | null; ownerId: string }[] {
+  const moves = prefs?.moves ?? {}
+  const out: { id: string; clip: BundledVideo; topic: string | null; ownerId: string }[] = []
+  for (const [id, indexed] of indexOfClips()) {
+    if (hidden.has(id)) continue
+    out.push({
+      id,
+      clip: indexed.clip,
+      topic: indexed.topic,
+      ownerId: moves[id] ?? indexed.homeId,
+    })
+  }
+  return out
 }
 
 /**
