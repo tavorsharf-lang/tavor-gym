@@ -886,6 +886,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoWarmup: true,
   warmupPercent: 55,
   hiddenVideoIds: [],
+  hiddenExerciseIds: [],
   videoMoves: {},
   videoOrder: {},
   lastBackupAt: null,

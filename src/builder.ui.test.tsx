@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { App } from './App'
 import { db, ensureReady } from './db/db'
 import { invalidateHiddenVideos } from './db/hiddenVideos'
+import { invalidateHiddenExercises } from './db/hiddenExercises'
 import { invalidateVideoPrefs } from './db/videoPrefs'
 import { MUSCLE_GROUPS } from './db/types'
 import { useBasket } from './state/builderBasket'
@@ -44,6 +45,7 @@ async function resetAll(): Promise<void> {
     דרך זיכרון במקום דרך כתובת.
   */
   invalidateHiddenVideos()
+  invalidateHiddenExercises()
   invalidateVideoPrefs()
   /*
     כל בדיקה מתחילה במפורש בבית.

@@ -18,6 +18,7 @@ import { withLibraryLink } from '@/db/libraryLinks'
 import { withSecondaryMuscles } from '@/db/muscleTags'
 import { PLANK_RANGE } from '@/db/seed'
 import { invalidateHiddenVideos } from '@/db/hiddenVideos'
+import { invalidateHiddenExercises } from '@/db/hiddenExercises'
 import { invalidateVideoPrefs } from '@/db/videoPrefs'
 import { rebuildPrs } from '@/domain/prs'
 import { toISODate } from '@/lib/dates'
@@ -281,6 +282,7 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
 
   // ההגדרות הוחלפו, ואיתן רשימת הסרטונים שנמחקו והעדפות הסדר — המטמונים שבזיכרון כבר לא נכונים
   invalidateHiddenVideos()
+  invalidateHiddenExercises()
   invalidateVideoPrefs()
 
   /*

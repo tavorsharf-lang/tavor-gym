@@ -4,6 +4,7 @@ import { ensureReady } from '@/db/db'
 import { repairAssetOrigins, repairReplacedBundled } from '@/db/mediaDb'
 import { loadHiddenVideoIds } from '@/db/hiddenVideos'
 import { loadVideoPrefs } from '@/db/videoPrefs'
+import { loadHiddenExerciseIds } from '@/db/hiddenExercises'
 import { useWorkout } from '@/state/activeWorkoutStore'
 import { useScrollMemory } from '@/hooks/useScrollMemory'
 import { ToastHost } from '@/components/ui'
@@ -101,6 +102,8 @@ export function App() {
         // ומאותה סיבה בדיוק — גם סדר הסרטונים והעברות: בלי החימום, הפוסטר
         // בקימה קרה מחושב לפי סדר המניפסט ומציג סרטון שהמשתמש העביר או הזיז
         await loadVideoPrefs()
+        // ומאותה סיבה — התרגילים המוסתרים: בלי החימום שורה מוסתרת מבליחה ונעלמת
+        await loadHiddenExerciseIds()
         if (!cancelled) setReady(true)
         // אחרי שהמסך כבר עולה — אלה תיקונים של מדיה ישנה ולא תנאי לפתיחה
         void repairReplacedBundled()

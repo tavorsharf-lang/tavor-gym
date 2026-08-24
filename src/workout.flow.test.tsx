@@ -5,6 +5,7 @@ import { App } from './App'
 import { db, ensureReady } from './db/db'
 import { openItems, skippedItems, touchedGroups, useWorkout } from './state/activeWorkoutStore'
 import { invalidateHiddenVideos } from './db/hiddenVideos'
+import { invalidateHiddenExercises } from './db/hiddenExercises'
 import { invalidateVideoPrefs } from './db/videoPrefs'
 import { suggestWarmup } from './domain/warmup'
 
@@ -36,6 +37,7 @@ async function resetAll(): Promise<void> {
     הייתה הופכת לתלות סדר סמויה שקשה לאתר.
   */
   invalidateHiddenVideos()
+  invalidateHiddenExercises()
   invalidateVideoPrefs()
 }
 
