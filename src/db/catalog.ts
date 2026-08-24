@@ -3,6 +3,7 @@ import { LIBRARY_CATALOG } from './libraryManifest'
 import type { LibraryExercise } from './libraryManifest'
 import { getAllExercises } from './queries'
 import { withSecondaryMuscles } from './muscleTags'
+import { loadHiddenExerciseIds, unhideExercises } from './hiddenExercises'
 import { DEFAULT_REST_SECONDS, DEFAULT_TARGET_SETS } from './seed'
 import type { Exercise, MuscleGroup, Routine } from './types'
 import { newId } from '@/domain/units'
@@ -229,8 +230,12 @@ export async function addFromLibrary(
 ): Promise<{ exercise: Exercise; outcome: AddOutcome }> {
   const existing = await db.exercises.where('libraryId').equals(lib.id).first()
   if (existing) {
-    if (existing.isActive) return { exercise: existing, outcome: 'already' }
+    if (existing.isActive) {
+      await unhideIfHidden([existing.id, lib.id])
+      return { exercise: existing, outcome: 'already' }
+    }
     await restoreToMine(existing.id)
+    await unhideIfHidden([existing.id, lib.id])
     return { exercise: { ...existing, isActive: true }, outcome: 'restored' }
   }
 
@@ -242,7 +247,20 @@ export async function addFromLibrary(
   })
   // add ולא put: התנגשות מזהה חייבת לזרוק ולא לדרוס תרגיל קיים בשקט
   await db.exercises.add(created)
+  await unhideIfHidden([created.id, lib.id])
   return { exercise: created, outcome: 'created' }
+}
+
+/**
+ * הוספה מפורשת של תרגיל מוסתר היא בקשה לראות אותו — אותה סמנטיקה כמו
+ * ההחזרה השקטה של תרגיל שהוצא מ"שלי" (isActive) שכבר נעולה בטסט הזרימה.
+ *
+ * הבדיקה לפני הכתיבה אינה קישוט: `materialize` רץ בלולאה על כל הסל, וכתיבת
+ * mutateSettings לכל פריט כשאף אחד לא מוסתר הייתה תור של כתיבות ריקות.
+ */
+async function unhideIfHidden(ids: readonly string[]): Promise<void> {
+  const hidden = await loadHiddenExerciseIds()
+  if (ids.some((id) => hidden.has(id))) await unhideExercises(ids)
 }
 
 /**
@@ -318,6 +336,8 @@ export async function createBlankExercise(): Promise<Exercise> {
 export async function ensureTrainable(id: string): Promise<Exercise | null> {
   const own = await db.exercises.get(id)
   if (own) {
+    // שליחה מהסל של תרגיל שהוסתר בינתיים היא בקשה מפורשת לראות אותו
+    await unhideIfHidden([own.id, own.libraryId].filter((x): x is string => !!x))
     if (own.isActive) return own
     await restoreToMine(id)
     return { ...own, isActive: true }

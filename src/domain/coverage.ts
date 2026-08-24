@@ -258,16 +258,20 @@ export function liveCoverageInput(
  * שהמסך הזה קיים כדי למנוע.
  *
  * @param lastPerformedAt מתי בוצע כל תרגיל לאחרונה. חסר = מעולם, והוא הראשון בתור.
+ * @param excludeIds תרגילים שהוסתרו מהבונה — ההצעה לא יכולה להכניס לסל שורה
+ *   שהמשתמש לא רואה. נבדק גם מול libraryId, כי ההסתרה שומרת שלישיית זהות.
  */
 export function suggestWorkout(
   rows: readonly MuscleCoverage[],
   exercises: readonly Exercise[],
   lastPerformedAt: ReadonlyMap<string, number>,
-  count: number
+  count: number,
+  excludeIds?: ReadonlySet<string>
 ): Exercise[] {
   const byGroup = new Map<MuscleGroup, Exercise[]>()
   for (const ex of exercises) {
     if (!ex.isActive) continue
+    if (excludeIds?.has(ex.id) || (ex.libraryId && excludeIds?.has(ex.libraryId))) continue
     const list = byGroup.get(ex.muscleGroup)
     if (list) list.push(ex)
     else byGroup.set(ex.muscleGroup, [ex])

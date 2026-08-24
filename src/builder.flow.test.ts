@@ -16,7 +16,8 @@ import {
   nextRoutineOrder,
 } from './db/queries'
 import type { Routine } from './db/types'
-import { coverageLookbackFrom, muscleCoverage } from './domain/coverage'
+import { coverageLookbackFrom, muscleCoverage, suggestWorkout } from './domain/coverage'
+import { hideExercise, invalidateHiddenExercises, loadHiddenExerciseIds } from './db/hiddenExercises'
 import { routineStatuses, suggestRoutine } from './domain/staleness'
 import { SECONDARY_MUSCLES } from './db/muscleTags'
 import { useWorkout } from './state/activeWorkoutStore'
@@ -41,6 +42,8 @@ async function resetAll(): Promise<void> {
   await db.delete()
   await db.open()
   await ensureReady()
+  // מטמון בזיכרון שורד db.delete — בלעדיו הסתרה מבדיקה אחת מדליפה לבאה
+  invalidateHiddenExercises()
 }
 
 /** אימון שמור, כמו שגיליון הסל בונה אותו */
@@ -274,5 +277,68 @@ describe('הקטלוג המאוחד מזין את מסך השריר', () => {
     // גם תרגילים שלי וגם תרגילי מאגר שאין להם כרטיס
     expect(entries.some((e) => e.exercise !== null)).toBe(true)
     expect(entries.some((e) => e.exercise === null)).toBe(true)
+  })
+})
+
+/**
+ * הסתרה מול ההוספה וההצעה.
+ *
+ * שני החוזים שקל לשבור בשקט: הוספה מפורשת של תרגיל מוסתר מבטלת את ההסתרה
+ * (אחרת שליחה מהסל מחזירה תרגיל שהמשתמש לא רואה ברשימה — פער שלא ניתן להבין
+ * מהמסך), ו"בנה לי אימון" לעולם לא מציע שורה מוסתרת.
+ */
+describe('הסתרה — הוספה מבטלת, הצעה מדלגת', () => {
+  beforeEach(resetAll)
+
+  it('ensureTrainable על תרגיל מוסתר מבטל את ההסתרה, על שני המזהים', async () => {
+    // ההסתרה נשמרה כשלישייה — גם מזהה הקטלוג וגם מזהה המאגר
+    await hideExercise(['leg-press', 'lib-leg_press'])
+    await ensureTrainable('leg-press')
+
+    const hidden = await loadHiddenExerciseIds()
+    expect(hidden.has('leg-press')).toBe(false)
+    expect(hidden.has('lib-leg_press')).toBe(false)
+  })
+
+  it('היפוך המזהה הקנוני: מאגר מוסתר שנוצר לו כרטיס — הכרטיס לא מוסתר', async () => {
+    const lib = LIBRARY_CATALOG.find((l) => !l.id.includes('push_up'))!
+    await hideExercise([lib.id])
+
+    const created = await ensureTrainable(lib.id)
+    expect(created).not.toBeNull()
+
+    const hidden = await loadHiddenExerciseIds()
+    // ההוספה המפורשת ביטלה את ההסתרה — הכרטיס החדש גלוי בבונה
+    expect(hidden.has(lib.id)).toBe(false)
+    expect(hidden.has(created!.id)).toBe(false)
+  })
+
+  it('addFromLibrary על תרגיל קיים ומוסתר מחזיר אותו לגלוי בלי כפילות', async () => {
+    await hideExercise(['leg-press', 'lib-leg_press'])
+    const lib = LIBRARY_CATALOG.find((l) => l.id === 'lib-leg_press')!
+
+    const { exercise, outcome } = await addFromLibrary(lib)
+    expect(outcome).toBe('already')
+    expect(exercise.id).toBe('leg-press')
+    expect((await loadHiddenExerciseIds()).size).toBe(0)
+    expect(await db.exercises.count()).toBe(28)
+  })
+
+  it('suggestWorkout מדלג על מוסתרים — לפי מזהה הקטלוג ולפי מזהה המאגר', async () => {
+    const exercises = await db.exercises.toArray()
+    const rows = muscleCoverage(exercises, [], [], Date.now(), 4)
+
+    const withAll = suggestWorkout(rows, exercises, new Map(), 6)
+    expect(withAll.length).toBe(6)
+    const excluded = withAll[0]
+
+    // הדרה לפי מזהה קטלוג
+    const byId = suggestWorkout(rows, exercises, new Map(), 6, new Set([excluded.id]))
+    expect(byId.some((e) => e.id === excluded.id)).toBe(false)
+
+    // הדרה לפי מזהה מאגר — תרגיל מקושר שהוסתר תחת lib-id
+    const linked = exercises.find((e) => e.libraryId)!
+    const byLib = suggestWorkout(rows, exercises, new Map(), 28, new Set([linked.libraryId!]))
+    expect(byLib.some((e) => e.id === linked.id)).toBe(false)
   })
 })
