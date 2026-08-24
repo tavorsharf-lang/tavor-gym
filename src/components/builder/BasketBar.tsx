@@ -6,9 +6,9 @@ import { ArrowDown, ArrowUp, ChevronUp, ListPlus, Play, Save, Trash2, X } from '
 import { db, getSettings } from '@/db/db'
 import { ensureTrainable } from '@/db/catalog'
 import { getActiveRoutines, getBlocks, nextRoutineOrder } from '@/db/queries'
-import type { Block, PlanItem, Routine } from '@/db/types'
+import type { Block, ExerciseMetric, PlanItem, RepRange, Routine } from '@/db/types'
 import { MUSCLE_GROUPS } from '@/db/types'
-import { newId } from '@/domain/units'
+import { formatRepRange, newId } from '@/domain/units'
 import { countMasculine } from '@/lib/text'
 import { useAudioCue } from '@/hooks/useAudioCue'
 import { useWorkout } from '@/state/activeWorkoutStore'
@@ -69,12 +69,17 @@ export function BasketBar(): JSX.Element | null {
   const remove = useBasket((s) => s.remove)
   const move = useBasket((s) => s.move)
   const clear = useBasket((s) => s.clear)
+  const refreshSnapshots = useBasket((s) => s.refreshSnapshots)
 
   const workout = useWorkout((s) => s.workout)
   const settings = useLiveQuery(() => getSettings(), [])
   const { unlock } = useAudioCue(settings?.soundEnabled ?? true, settings?.soundVolume ?? 0.8)
 
   const [open, setOpen] = useState(false)
+  /** יעדי סטים×חזרות לשורות הגיליון — נטען פעם אחת בפתיחה, תצוגה בלבד */
+  const [targets, setTargets] = useState<
+    ReadonlyMap<string, { sets: number; reps: RepRange; metric: ExerciseMetric | undefined }>
+  >(new Map())
   const [busy, setBusy] = useState(false)
   const [naming, setNaming] = useState(false)
   const [name, setName] = useState('')
@@ -96,6 +101,30 @@ export function BasketBar(): JSX.Element | null {
     setConfirmDiscard(false)
     toast(message, { tone: 'success' })
     if (goToWorkout) navigate('/workout')
+  }
+
+  /**
+   * פתיחת הגיליון עושה bulkGet אחד על כל הסל, לשתי מטרות:
+   *   • רענון התצלומים — הסל שומר שם וקבוצת שריר מרגע הבחירה, ותרגיל ששונה
+   *     בינתיים היה כותב את הקבוצה הישנה לכותרת של אימון שנשמר (subtitle).
+   *   • יעדי סטים×חזרות לכל שורה — רואים את נפח האימון לפני שמתחייבים,
+   *     במקום לגלות בסט הראשון. מזהי מאגר בלי כרטיס לא נמצאים במפה
+   *     וממשיכים להציג "מהמאגר".
+   */
+  const openSheet = async (): Promise<void> => {
+    setOpen(true)
+    try {
+      const rows = await db.exercises.bulkGet(items.map((i) => i.id))
+      const found = rows.filter((r): r is NonNullable<typeof r> => r !== undefined)
+      refreshSnapshots(found.map((r) => ({ id: r.id, name: r.name, muscleGroup: r.muscleGroup })))
+      setTargets(
+        new Map(
+          found.map((r) => [r.id, { sets: r.targetSets, reps: r.targetReps, metric: r.metric }])
+        )
+      )
+    } catch {
+      // תצוגה בלבד — הגיליון עובד גם בלי ההעשרה
+    }
   }
 
   const guard = async (work: () => Promise<void>): Promise<void> => {
@@ -228,7 +257,7 @@ export function BasketBar(): JSX.Element | null {
           <button
             type="button"
             aria-label={`פתח את האימון שבניתי — ${items.length} תרגילים`}
-            onClick={() => setOpen(true)}
+            onClick={() => void openSheet()}
             className="flex min-h-13 min-w-0 flex-1 items-center gap-3 rounded-card border border-flame-500/40 bg-flame-500/12 px-4 text-start"
           >
             <span className="numeral-hero shrink-0 text-2xl text-flame-300">{items.length}</span>
@@ -267,7 +296,14 @@ export function BasketBar(): JSX.Element | null {
                 <span className="block truncate text-sm font-bold text-bone-50">{item.name}</span>
                 <span className="meta block">
                   {MUSCLE_GROUPS[item.muscleGroup].label}
-                  {item.needsCatalogEntry ? ' · מהמאגר' : ''}
+                  {targets.has(item.id)
+                    ? ` · ${targets.get(item.id)!.sets} × ${formatRepRange(
+                        targets.get(item.id)!.reps,
+                        targets.get(item.id)!.metric
+                      )}`
+                    : item.needsCatalogEntry
+                      ? ' · מהמאגר'
+                      : ''}
                 </span>
               </span>
               <IconButton

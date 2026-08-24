@@ -38,6 +38,11 @@ interface BasketState {
    * הייתה ממשיכה להציג את השם הישן — התצלום נלקח ברגע הבחירה.
    */
   renameItem: (id: string, name: string) => void
+  /**
+   * מרענן תצלומים מול הקטלוג — שם וקבוצת שריר. התצלום נלקח ברגע הבחירה,
+   * ותרגיל ששונה בינתיים היה כותב את הקבוצה הישנה לכותרת של אימון שנשמר.
+   */
+  refreshSnapshots: (rows: readonly { id: string; name: string; muscleGroup: MuscleGroup }[]) => void
   move: (fromIndex: number, toIndex: number) => void
   clear: () => void
 }
@@ -92,6 +97,19 @@ export const useBasket = create<BasketState>((set, get) => ({
     const items = get().items
     if (!items.some((i) => i.id === id)) return
     const next = items.map((i) => (i.id === id ? { ...i, name } : i))
+    write(next)
+    set({ items: next })
+  },
+
+  refreshSnapshots(rows) {
+    const byId = new Map(rows.map((r) => [r.id, r]))
+    const items = get().items
+    const next = items.map((i) => {
+      const fresh = byId.get(i.id)
+      if (!fresh || (fresh.name === i.name && fresh.muscleGroup === i.muscleGroup)) return i
+      return { ...i, name: fresh.name, muscleGroup: fresh.muscleGroup }
+    })
+    if (next.every((n, idx) => n === items[idx])) return
     write(next)
     set({ items: next })
   },

@@ -374,3 +374,38 @@ describe('עריכה מהירה — שם', () => {
     useBasket.getState().clear()
   })
 })
+
+/**
+ * רענון תצלומי הסל.
+ *
+ * הבאג שהרענון סוגר: תרגיל ששונתה קבוצת השריר שלו אחרי הבחירה כתב את
+ * הקבוצה הישנה לכותרת של אימון שנשמר — שגיאה שנצרבת, לא קוסמטיקה.
+ */
+describe('הסל — רענון תצלומים', () => {
+  beforeEach(resetAll)
+
+  it('refreshSnapshots מעדכן שם וקבוצה, ומשאיר פריטים עדכניים כמו שהם', () => {
+    useBasket.getState().toggle({
+      id: 'leg-press',
+      name: 'שם ישן',
+      muscleGroup: 'chest',
+      needsCatalogEntry: false,
+    })
+    useBasket.getState().toggle({
+      id: 'lib-lunge',
+      name: 'מכרעים',
+      muscleGroup: 'legs',
+      needsCatalogEntry: true,
+    })
+
+    useBasket
+      .getState()
+      .refreshSnapshots([{ id: 'leg-press', name: 'לחיצת רגליים', muscleGroup: 'legs' }])
+
+    const items = useBasket.getState().items
+    expect(items[0]).toMatchObject({ id: 'leg-press', name: 'לחיצת רגליים', muscleGroup: 'legs' })
+    // מזהה מאגר בלי שורה במסד לא נגעו בו
+    expect(items[1]).toMatchObject({ id: 'lib-lunge', name: 'מכרעים' })
+    useBasket.getState().clear()
+  })
+})
