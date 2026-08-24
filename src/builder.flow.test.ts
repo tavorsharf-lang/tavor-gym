@@ -21,6 +21,7 @@ import { hideExercise, invalidateHiddenExercises, loadHiddenExerciseIds } from '
 import { routineStatuses, suggestRoutine } from './domain/staleness'
 import { SECONDARY_MUSCLES } from './db/muscleTags'
 import { useWorkout } from './state/activeWorkoutStore'
+import { useBasket } from './state/builderBasket'
 
 /**
  * בניית אימון — הזרימה מקצה לקצה, בלי ה-UI.
@@ -340,5 +341,36 @@ describe('הסתרה — הוספה מבטלת, הצעה מדלגת', () => {
     const linked = exercises.find((e) => e.libraryId)!
     const byLib = suggestWorkout(rows, exercises, new Map(), 28, new Set([linked.libraryId!]))
     expect(byLib.some((e) => e.id === linked.id)).toBe(false)
+  })
+})
+
+/**
+ * שינוי שם מהעריכה המהירה.
+ *
+ * הנקודה שקל לפספס: הסל שומר תצלום שם מרגע הבחירה, ושינוי שם בקטלוג בלבד
+ * היה משאיר את הגלולה בפס הסל עם השם הישן. renameItem סוגר את הפער.
+ */
+describe('עריכה מהירה — שם', () => {
+  beforeEach(resetAll)
+
+  it('שינוי שם מתעדכן גם בקטלוג וגם בתצלום הסל', async () => {
+    useBasket.getState().toggle({
+      id: 'leg-press',
+      name: 'לחיצת רגליים',
+      muscleGroup: 'legs',
+      needsCatalogEntry: false,
+    })
+
+    // מה שהגיליון עושה בשמירה: update חלקי + רענון התצלום
+    await db.exercises.update('leg-press', { name: 'לחיצת רגליים במכונה', updatedAt: Date.now() })
+    useBasket.getState().renameItem('leg-press', 'לחיצת רגליים במכונה')
+
+    expect((await db.exercises.get('leg-press'))?.name).toBe('לחיצת רגליים במכונה')
+    expect(useBasket.getState().items[0]?.name).toBe('לחיצת רגליים במכונה')
+
+    // ומזהה שלא בסל — לא עושה כלום ולא מפיל
+    useBasket.getState().renameItem('אין-כזה', 'x')
+    expect(useBasket.getState().items.length).toBe(1)
+    useBasket.getState().clear()
   })
 })

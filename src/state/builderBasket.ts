@@ -33,6 +33,11 @@ interface BasketState {
   has: (id: string) => boolean
   toggle: (item: BasketItem) => void
   remove: (id: string) => void
+  /**
+   * מעדכן את שם התצלום אחרי שינוי שם בעריכה מהירה. בלי זה הגלולה בפס הסל
+   * הייתה ממשיכה להציג את השם הישן — התצלום נלקח ברגע הבחירה.
+   */
+  renameItem: (id: string, name: string) => void
   move: (fromIndex: number, toIndex: number) => void
   clear: () => void
 }
@@ -79,6 +84,14 @@ export const useBasket = create<BasketState>((set, get) => ({
 
   remove(id) {
     const next = get().items.filter((i) => i.id !== id)
+    write(next)
+    set({ items: next })
+  },
+
+  renameItem(id, name) {
+    const items = get().items
+    if (!items.some((i) => i.id === id)) return
+    const next = items.map((i) => (i.id === id ? { ...i, name } : i))
     write(next)
     set({ items: next })
   },

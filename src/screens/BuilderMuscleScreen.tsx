@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { JSX } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Check, Plus, Search, X } from 'lucide-react'
+import { Check, MoreVertical, Plus, Search, X } from 'lucide-react'
 import { getCatalogEntries } from '@/db/catalog'
 import type { CatalogEntry } from '@/db/catalog'
 import { getLastPerformedMap } from '@/db/queries'
@@ -16,10 +16,11 @@ import { normalize } from '@/lib/text'
 import { useNow } from '@/hooks/useNow'
 import { useBasket } from '@/state/builderBasket'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
-import { EmptyState } from '@/components/ui'
+import { EmptyState, IconButton } from '@/components/ui'
 import { VideoThumb } from '@/components/media/VideoThumb'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { BasketBar } from '@/components/builder/BasketBar'
+import { QuickEditSheet } from '@/components/exercises/QuickEditSheet'
 
 /**
  * בניית אימון — התרגילים של שריר אחד.
@@ -52,6 +53,7 @@ export function BuilderMuscleScreen(): JSX.Element {
     סגור, ורשימת שריר יכולה להגיע לתריסר שורות. אותו דפוס כמו מסך התרגילים.
   */
   const [playing, setPlaying] = useState<CatalogEntry | null>(null)
+  const [editing, setEditing] = useState<CatalogEntry | null>(null)
 
   const entries = useLiveQuery(() => getCatalogEntries(), [], [] as CatalogEntry[])
   // פעם אחת לרשימה — הפונקציה סורקת את כל טבלת הסטים
@@ -154,6 +156,7 @@ export function BuilderMuscleScreen(): JSX.Element {
                   })
                 }
                 onPlay={() => setPlaying(entry)}
+                onEdit={() => setEditing(entry)}
               />
             </li>
           ))}
@@ -161,6 +164,8 @@ export function BuilderMuscleScreen(): JSX.Element {
       )}
 
       <BasketBar />
+
+      <QuickEditSheet entry={editing} onClose={() => setEditing(null)} />
 
       {playing ? (
         <VideoPlayer
@@ -202,6 +207,7 @@ function ExerciseRow({
   picked,
   onToggle,
   onPlay,
+  onEdit,
 }: {
   entry: CatalogEntry
   duplicates: ReadonlySet<string>
@@ -210,6 +216,7 @@ function ExerciseRow({
   picked: boolean
   onToggle: () => void
   onPlay: () => void
+  onEdit: () => void
 }): JSX.Element {
   const ex = entry.exercise
   const apart = ex ? distinguisher(ex, duplicates) : null
@@ -280,6 +287,10 @@ function ExerciseRow({
         )}
       </span>
       </button>
+
+      <IconButton label="עריכה והסתרה" onClick={onEdit}>
+        <MoreVertical size={18} />
+      </IconButton>
     </div>
   )
 }
