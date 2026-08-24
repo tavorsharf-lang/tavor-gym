@@ -135,6 +135,23 @@ export function HomeScreen(): JSX.Element {
     [exercises, history, now, settings]
   )
 
+  /*
+    שורת הכיסוי — הסיבה להיכנס לבונה, נקראת לפני הלחיצה ולא אחריה. מוצגת רק
+    אחרי ready: לפני שהשאילתות נפתרות muscleCoverage מחזיר תשע קבוצות
+    מוזנחות, וכל פתיחה הייתה מבזיקה "9 שרירים לא כוסו" גם למי שהתאמן הבוקר.
+  */
+  const coverageLine =
+    uncovered.length === 0
+      ? 'כל הגוף כוסה בימים האחרונים'
+      : `${
+          uncovered.length === 1
+            ? 'שריר אחד לא כוסה'
+            : `${countMasculine(uncovered.length)} שרירים לא כוסו`
+        }: ${uncovered
+          .slice(0, 3)
+          .map((r) => r.label)
+          .join(' · ')}`
+
   return (
     <Screen>
       <header className="pt-safe mb-5">
@@ -166,20 +183,27 @@ export function HomeScreen(): JSX.Element {
         </section>
       ) : (
         <section className="animate-rise mb-6">
-          <p className="mb-3 text-center text-sm text-bone-400">
-            {suggestedRoutine
-              ? `מוצע היום: ${suggestedRoutine.name} — ${suggestedRoutine.subtitle}`
-              : 'בחר תוכנית ותתחיל'}
-          </p>
+          {/*
+            הדלת הראשית היא הבונה — תבור מתאמן בעיקר דרכו. הכפתור נושא את שני
+            השמות ואת שורת הכיסוי יחד: "התחל אימון" הוא הפעולה, "בניית אימון"
+            הוא לאן, והשרירים שלא כוסו הם למה. שורת הכיסוי רק אחרי ready —
+            רגרסיית ההבזק מתועדת ליד coverageLine. התוכניות הקבועות ירדו
+            לרשת שלהן, לחיצה אחת משם.
+          */}
           <Button
             variant="flame"
             size="hero"
             fullWidth
             icon={<Dumbbell size={26} strokeWidth={2.4} />}
             style={{ minHeight: '5rem' }}
-            onClick={() => openSheet(suggested)}
+            onClick={() => navigate('/builder')}
           >
-            התחל אימון
+            <span className="flex flex-col items-center gap-0.5">
+              <span>התחל אימון</span>
+              <span className="text-xs font-semibold opacity-85">
+                {ready ? `בניית אימון — ${coverageLine}` : '\u00a0'}
+              </span>
+            </span>
           </Button>
         </section>
       )}
@@ -193,7 +217,10 @@ export function HomeScreen(): JSX.Element {
       ) : (
         <>
           <section className="mb-5">
-            <p className="meta mb-2">התוכניות</p>
+            <p className="meta mb-2">
+              התוכניות
+              {suggestedRoutine ? ` · מוצע היום: ${suggestedRoutine.name}` : ''}
+            </p>
             {/* הרשת מתאימה את עצמה למספר התוכניות — פול-באדי הוא שתיים, פיצול שלוש */}
             <div
               className="grid gap-2"
@@ -309,30 +336,23 @@ export function HomeScreen(): JSX.Element {
 
           <section className="mb-5 grid grid-cols-2 gap-3">
             {/*
-              בניית אימון היא הכניסה השלישית, והיא רוחבית כי היא היחידה
-              שנושאת מידע: השרירים שלא כוסו הם הסיבה להיכנס אליה, והם צריכים
-              להיקרא לפני הלחיצה ולא אחריה.
+              הבונה הוא ההירו, ולכן הכרטיס הרוחבי שלו מרונדר רק כשאימון פתוח
+              והירו התחלף ב"המשך אימון" — אחרת היו שני כפתורי "בניית אימון"
+              על המסך, ו-findByRole לפי השם היה נשבר בכל טסטי הבונה. או-או
+              קשיח על workout: בדיוק כפתור אחד בכל מצב, והבונה נגיש גם באמצע
+              אימון (הסל יודע להוסיף לאימון הפתוח).
             */}
-            <button
-              type="button"
-              onClick={() => navigate('/builder')}
-              className="card col-span-2 flex min-h-20 flex-col justify-center gap-1 p-4 text-start active:bg-ink-800"
-            >
-              <Blocks size={20} className="text-flame-400" />
-              <span className="text-sm font-extrabold text-bone-50">בניית אימון</span>
-              <span className="meta">
-                {uncovered.length === 0
-                  ? 'כל הגוף כוסה בימים האחרונים'
-                  : `${
-                      uncovered.length === 1
-                        ? 'שריר אחד לא כוסה'
-                        : `${countMasculine(uncovered.length)} שרירים לא כוסו`
-                    }: ${uncovered
-                      .slice(0, 3)
-                      .map((r) => r.label)
-                      .join(' · ')}`}
-              </span>
-            </button>
+            {workout ? (
+              <button
+                type="button"
+                onClick={() => navigate('/builder')}
+                className="card col-span-2 flex min-h-20 flex-col justify-center gap-1 p-4 text-start active:bg-ink-800"
+              >
+                <Blocks size={20} className="text-flame-400" />
+                <span className="text-sm font-extrabold text-bone-50">בניית אימון</span>
+                <span className="meta">{coverageLine}</span>
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => navigate('/exercises')}
