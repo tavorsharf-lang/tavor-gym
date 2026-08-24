@@ -71,6 +71,7 @@ describe('אתרי הקריאה של הנגן והתמונה', () => {
 
   const CALL_SITES = [
     'screens/WorkoutScreen.tsx',
+    'screens/BuilderMuscleScreen.tsx',
     'screens/ExerciseScreen.tsx',
     'screens/ExerciseLibraryScreen.tsx',
     'components/workout/ExerciseCard.tsx',

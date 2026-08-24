@@ -18,6 +18,7 @@ import { useBasket } from '@/state/builderBasket'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { EmptyState } from '@/components/ui'
 import { VideoThumb } from '@/components/media/VideoThumb'
+import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { BasketBar } from '@/components/builder/BasketBar'
 
 /**
@@ -46,6 +47,11 @@ export function BuilderMuscleScreen(): JSX.Element {
   const { muscleGroup } = useParams<{ muscleGroup: string }>()
   const now = useNow()
   const [query, setQuery] = useState('')
+  /*
+    נגן אחד לכל המסך, לא אחד לשורה: VideoPlayer מריץ שני מנויים גם כשהוא
+    סגור, ורשימת שריר יכולה להגיע לתריסר שורות. אותו דפוס כמו מסך התרגילים.
+  */
+  const [playing, setPlaying] = useState<CatalogEntry | null>(null)
 
   const entries = useLiveQuery(() => getCatalogEntries(), [], [] as CatalogEntry[])
   // פעם אחת לרשימה — הפונקציה סורקת את כל טבלת הסטים
@@ -147,6 +153,7 @@ export function BuilderMuscleScreen(): JSX.Element {
                     needsCatalogEntry: entry.exercise === null,
                   })
                 }
+                onPlay={() => setPlaying(entry)}
               />
             </li>
           ))}
@@ -154,16 +161,34 @@ export function BuilderMuscleScreen(): JSX.Element {
       )}
 
       <BasketBar />
+
+      {playing ? (
+        <VideoPlayer
+          exerciseId={playing.exercise?.id ?? playing.id}
+          libraryId={playing.exercise?.libraryId}
+          exerciseName={playing.name}
+          open
+          onClose={() => setPlaying(null)}
+        />
+      ) : null}
     </Screen>
   )
 }
 
 /**
- * שורת תרגיל.
+ * שורת תרגיל — שלושה יעדי מגע, הבחירה שולטת.
  *
- * כל השורה היא כפתור הבחירה — לא כפתור נפרד בקצה. הבחירה היא הפעולה היחידה
- * שעושים כאן, ושורה שלוחצים עליה כדי לנווט הייתה מכריחה לכוון לריבוע קטן
- * ביד אחת בזמן שהשנייה מחזיקה משקולת.
+ * רוב שטח השורה הוא עדיין כפתור הבחירה לסל — ביד אחת, בזמן שהשנייה מחזיקה
+ * משקולת. שני היוצאים היחידים יושבים בקצוות: התמונה פותחת את הסרטון מיד
+ * (זו הדרך להבין מה התרגיל בלי לצאת מהבנייה), וה-⋯ פותח עריכה והסתרה.
+ *
+ * המבנה — עוטף div, כפתור בחירה flex-1, ושני פקדים אחים — הוא האנטומיה
+ * שהוכחה במסך התרגילים: כפתור בתוך כפתור היה מפעיל את שני המטפלים בלחיצה
+ * אחת, ו-jsdom לא תופס את זה (הטסט לוחץ על שם התרגיל, ורק בדפדפן אמיתי
+ * שתי הפעולות יורות יחד). רקע הבחירה עבר לעוטף כדי שכל השורה תיקרא מסומנת.
+ *
+ * תווית ה-⋯ גנרית בכוונה — תווית עם שם התרגיל הייתה מכפילה את התוצאה של
+ * findByRole לפי שם בטסטים של המסך.
  *
  * תג "הפסקה ארוכה" מופיע מעל שלושה שבועות, כי בדיוק מהשלב הזה מנוע ההמלצות
  * מתחיל להוריד את משקל הפתיחה. המסך הזה מכוון מטבעו לתרגילים הישנים ביותר,
@@ -176,6 +201,7 @@ function ExerciseRow({
   now,
   picked,
   onToggle,
+  onPlay,
 }: {
   entry: CatalogEntry
   duplicates: ReadonlySet<string>
@@ -183,34 +209,43 @@ function ExerciseRow({
   now: number
   picked: boolean
   onToggle: () => void
+  onPlay: () => void
 }): JSX.Element {
   const ex = entry.exercise
   const apart = ex ? distinguisher(ex, duplicates) : null
   const layoff = last !== undefined && daysSince(last.at, now) >= LAYOFF_DAYS
 
   return (
-    <button
-      type="button"
-      aria-pressed={picked}
-      onClick={onToggle}
-      className={[
-        'flex w-full items-center gap-3 p-3 text-start transition-colors',
-        picked ? 'bg-flame-500/10' : 'active:bg-ink-800',
-      ].join(' ')}
-    >
-      <span
-        aria-hidden="true"
+    <div className={['flex items-center', picked ? 'bg-flame-500/10' : ''].join(' ')}>
+      {/* המזהים לפני ה-arrow props — הרגקס של workoutVideos.test נעצר ב-'>' הראשון */}
+      <VideoThumb
+        exerciseId={ex?.id ?? entry.id}
+        libraryId={ex?.libraryId}
+        size="sm"
+        keepFrame
+        onOpen={onPlay}
+      />
+
+      <button
+        type="button"
+        aria-pressed={picked}
+        onClick={onToggle}
         className={[
-          'flex size-8 shrink-0 items-center justify-center rounded-full border transition-colors',
-          picked
-            ? 'border-flame-500/50 bg-flame-500/20 text-flame-300'
-            : 'border-ink-700 text-bone-600',
+          'flex min-w-0 flex-1 items-center gap-3 p-3 text-start transition-colors',
+          picked ? '' : 'active:bg-ink-800',
         ].join(' ')}
       >
-        {picked ? <Check size={16} /> : <Plus size={16} />}
-      </span>
-
-      <VideoThumb exerciseId={ex?.id ?? entry.id} libraryId={ex?.libraryId} size="sm" />
+        <span
+          aria-hidden="true"
+          className={[
+            'flex size-8 shrink-0 items-center justify-center rounded-full border transition-colors',
+            picked
+              ? 'border-flame-500/50 bg-flame-500/20 text-flame-300'
+              : 'border-ink-700 text-bone-600',
+          ].join(' ')}
+        >
+          {picked ? <Check size={16} /> : <Plus size={16} />}
+        </span>
 
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[0.9375rem] font-bold text-bone-50">{entry.name}</span>
@@ -244,6 +279,7 @@ function ExerciseRow({
           <span className="meta">חדש</span>
         )}
       </span>
-    </button>
+      </button>
+    </div>
   )
 }
