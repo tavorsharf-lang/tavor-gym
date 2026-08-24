@@ -17,6 +17,7 @@ import { formatDayCount } from '@/lib/dates'
 import { countMasculine } from '@/lib/text'
 import { useNow } from '@/hooks/useNow'
 import { useBasket } from '@/state/builderBasket'
+import { useHiddenExerciseIds } from '@/db/hiddenExercises'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { toast } from '@/components/ui'
 import { BasketBar } from '@/components/builder/BasketBar'
@@ -54,6 +55,7 @@ export function BuilderScreen(): JSX.Element {
 
   const basket = useBasket((s) => s.items)
   const toggle = useBasket((s) => s.toggle)
+  const hidden = useHiddenExerciseIds()
 
   const windowDays = settings?.coverageWindowDays ?? 4
   const ready = exercises !== undefined && history !== undefined && settings !== undefined
@@ -72,7 +74,9 @@ export function BuilderScreen(): JSX.Element {
    */
   const buildForMe = (): void => {
     const lastAt = new Map([...lastPerformed].map(([id, l]) => [id, l.at]))
-    const picks = suggestWorkout(rows, exercises ?? [], lastAt, SUGGESTION_SIZE)
+    // ההצעה מדלגת על מוסתרים — היא לא יכולה להכניס לסל שורה שלא רואים.
+    // muscleCoverage לעומתה נשארת לא מסוננת: ייחוס היסטורי צריך את כולם.
+    const picks = suggestWorkout(rows, exercises ?? [], lastAt, SUGGESTION_SIZE, hidden ?? undefined)
     const fresh = picks.filter((ex) => !basket.some((i) => i.id === ex.id))
     if (!fresh.length) {
       toast('כל מה שהייתי מציע כבר בסל')

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { JSX } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Check, MoreVertical, Plus, Search, X } from 'lucide-react'
+import { Check, EyeOff, MoreVertical, Plus, Search, X } from 'lucide-react'
 import { getCatalogEntries } from '@/db/catalog'
 import type { CatalogEntry } from '@/db/catalog'
 import { getLastPerformedMap } from '@/db/queries'
@@ -16,11 +16,12 @@ import { normalize } from '@/lib/text'
 import { useNow } from '@/hooks/useNow'
 import { useBasket } from '@/state/builderBasket'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
-import { EmptyState, IconButton } from '@/components/ui'
+import { EmptyState, IconButton, toast } from '@/components/ui'
 import { VideoThumb } from '@/components/media/VideoThumb'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { BasketBar } from '@/components/builder/BasketBar'
 import { QuickEditSheet } from '@/components/exercises/QuickEditSheet'
+import { isEntryHidden, unhideExercises, entryHiddenIds, useHiddenExerciseIds } from '@/db/hiddenExercises'
 
 /**
  * בניית אימון — התרגילים של שריר אחד.
@@ -54,6 +55,9 @@ export function BuilderMuscleScreen(): JSX.Element {
   */
   const [playing, setPlaying] = useState<CatalogEntry | null>(null)
   const [editing, setEditing] = useState<CatalogEntry | null>(null)
+  const [showHidden, setShowHidden] = useState(false)
+  // null = עוד לא נטען; מתייחסים כטעינה כדי ששורה מוסתרת לא תבליח
+  const hidden = useHiddenExerciseIds()
 
   const entries = useLiveQuery(() => getCatalogEntries(), [], [] as CatalogEntry[])
   // פעם אחת לרשימה — הפונקציה סורקת את כל טבלת הסטים
@@ -70,11 +74,11 @@ export function BuilderMuscleScreen(): JSX.Element {
   )
   const duplicates = useMemo(() => duplicateNames(catalogExercises), [catalogExercises])
 
-  const list = useMemo(() => {
-    if (!group) return []
+  const { list, hiddenList } = useMemo(() => {
+    if (!group) return { list: [], hiddenList: [] }
     const q = normalize(query)
     const lastAt = new Map([...lastPerformed].map(([id, l]) => [id, l.at]))
-    return entries
+    const matches = entries
       .filter((e) => e.muscleGroup === group)
       .filter(
         (e) =>
@@ -87,7 +91,17 @@ export function BuilderMuscleScreen(): JSX.Element {
         (a, b) =>
           stalenessOf(a, lastAt) - stalenessOf(b, lastAt) || a.name.localeCompare(b.name, 'he')
       )
-  }, [entries, group, lastPerformed, query])
+    /*
+      עד שרשימת ההסתרות נטענת הכל נחשב מוסתר-פוטנציאלית ולכן לא מוצג —
+      ההפך היה מבליח שורות מוסתרות ומעלים אותן פריים אחר-כך, בדיוק הקפיצה
+      ש-useScrollMemory נלחם בה. בפועל App.tsx מחמם את הרשימה ב-boot.
+    */
+    if (hidden === null) return { list: [], hiddenList: [] }
+    return {
+      list: matches.filter((e) => !isEntryHidden(e, hidden)),
+      hiddenList: matches.filter((e) => isEntryHidden(e, hidden)),
+    }
+  }, [entries, group, lastPerformed, query, hidden])
 
   if (!group) return <Navigate to="/builder" replace />
 
@@ -162,6 +176,47 @@ export function BuilderMuscleScreen(): JSX.Element {
           ))}
         </ul>
       )}
+
+      {hiddenList.length > 0 ? (
+        <section className="mt-5 mb-2">
+          {/*
+            השחזור איפה שהסתרת. נפתח לבד כשחיפוש מתאים לשורה מוסתרת — תרגיל
+            מוסתר תמיד ניתן למציאה בשם, גם אם שכחת שהסתרת אותו.
+          */}
+          <button
+            type="button"
+            aria-expanded={showHidden || query.length > 0}
+            onClick={() => setShowHidden((v) => !v)}
+            className="meta flex min-h-12 w-full items-center justify-between rounded-xl px-2 active:bg-ink-800"
+          >
+            <span>מוסתרים ({hiddenList.length})</span>
+            <span aria-hidden="true">{showHidden || query.length > 0 ? '−' : '+'}</span>
+          </button>
+          {showHidden || query.length > 0 ? (
+            <ul className="card divide-y divide-ink-800/70 overflow-hidden">
+              {hiddenList.map((entry) => (
+                <li key={entry.id}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void unhideExercises(entryHiddenIds(entry)).then(() =>
+                        toast(`${entry.name} הוחזר לרשימה`)
+                      )
+                    }
+                    className="flex min-h-12 w-full items-center gap-3 p-3 text-start opacity-60 transition-colors active:bg-ink-800 active:opacity-100"
+                  >
+                    <EyeOff size={16} className="shrink-0 text-bone-500" />
+                    <span className="min-w-0 flex-1 truncate text-sm font-bold text-bone-200">
+                      {entry.name}
+                    </span>
+                    <span className="meta shrink-0">הקש להחזרה</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
 
       <BasketBar />
 
