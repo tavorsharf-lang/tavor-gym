@@ -105,17 +105,17 @@ export const SECONDARY_MUSCLES: Record<string, MuscleGroup[]> = {
   'lib-face_pull': ['back', 'biceps'], // משיכת פנים
   'lib-front_raise': [], // הרמת ידיים לפנים
   'lib-arnold_press': ['triceps', 'chest', 'abs'], // לחיצת ארנולד
-  'lib-barbell_squat': ['back', 'abs', 'calves'], // סקוואט במוט
+  'lib-barbell_squat': ['back', 'abs'], // סקוואט במוט
   'lib-leg_press': [], // לחיצת רגליים
   'lib-leg_curl': [], // כפיפת ברכיים
   'lib-leg_extension': [], // פשיטת ברכיים
-  'lib-lunge': ['back', 'abs', 'calves'], // מכרעים
+  'lib-lunge': ['back', 'abs'], // מכרעים
   'lib-smith_machine_squat': ['back', 'abs'], // סקוואט בסמית
   'lib-hip_thrust': ['abs'], // הרמת אגן
-  'lib-bulgarian_split_squat': ['back', 'abs', 'calves'], // סקוואט בולגרי
+  'lib-bulgarian_split_squat': ['back', 'abs'], // סקוואט בולגרי
   'lib-goblet_squat': ['back', 'abs'], // גובלט סקוואט
   'lib-hip_abduction': [], // הרחקת ירך
-  'lib-front_squat': ['back', 'abs', 'calves'], // פרונט סקוואט
+  'lib-front_squat': ['back', 'abs'], // פרונט סקוואט
 }
 
 /** התגיות של תרגיל — לפי מזהה הקטלוג, ואם אין, לפי מזהה המאגר המקושר. */

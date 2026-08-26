@@ -204,7 +204,7 @@ describe('compareWeeks', () => {
   })
 
   it('קבוצה שלא נגעו בה בשני השבועות מסומנת כמוזנחת', () => {
-    expect(result.get('calves')).toMatchObject({ current: 0, previous: 0, deltaPct: null, neglected: true })
+    expect(result.get('forearms')).toMatchObject({ current: 0, previous: 0, deltaPct: null, neglected: true })
   })
 
   it('אפשר להגביל לקבוצות מסוימות', () => {

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { MuscleGroup } from '@/db/types'
+import { MUSCLE_GROUPS } from '@/db/types'
 
 /**
  * הסל של בניית האימון — התרגילים שנבחרו וטרם נשלחו לשום מקום.
@@ -47,17 +48,45 @@ interface BasketState {
   clear: () => void
 }
 
+/**
+ * קבוצות שכבר לא קיימות, וממה שהן היו לפני. `calves` אוחדה לתוך `legs`.
+ *
+ * הסל שורד עדכון גרסה — הוא ב-localStorage ולא במסד, ולכן מיגרציית Dexie לא
+ * מגיעה אליו. פריט שנבחר לפני האיחוד חוזר עם `muscleGroup: 'calves'`, ושתי
+ * קריאות ל-`MUSCLE_GROUPS[...]` בפס הסל (התווית בגיליון והכותרת של אימון
+ * שנשמר) היו מתפוצצות עליו — `undefined.label`. `refreshSnapshots` אמנם
+ * מתקן קבוצה מהמסד, אבל רק כשהגיליון נפתח; המסך מצויר לפני זה.
+ */
+const MERGED_GROUPS: Record<string, MuscleGroup> = { calves: 'legs' }
+
+function normalizeGroup(value: unknown): MuscleGroup | null {
+  if (typeof value !== 'string') return null
+  if (value in MUSCLE_GROUPS) return value as MuscleGroup
+  return MERGED_GROUPS[value] ?? null
+}
+
 function read(): BasketItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return []
     const parsed: unknown = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    // סינון הגנתי: הסל שורד עדכוני גרסה, ורשומה פגומה לא תפיל מסך
-    return parsed.filter(
-      (i): i is BasketItem =>
-        typeof i === 'object' && i !== null && typeof (i as BasketItem).id === 'string'
-    )
+    /*
+      סינון הגנתי: הסל שורד עדכוני גרסה, ורשומה פגומה לא תפיל מסך. קבוצה
+      שאין לה תווית מפילה — ולכן היא נבדקת ולא רק המזהה. קבוצה שאוחדה
+      מתורגמת ליורשת שלה, וקבוצה שאין לה יורשת מפילה את הפריט: עדיף פריט
+      חסר בסל מאשר שורה שנצבעת בשם של שריר אחר.
+    */
+    const items: BasketItem[] = []
+    for (const entry of parsed) {
+      if (typeof entry !== 'object' || entry === null) continue
+      const item = entry as BasketItem
+      if (typeof item.id !== 'string') continue
+      const muscleGroup = normalizeGroup(item.muscleGroup)
+      if (muscleGroup === null) continue
+      items.push(muscleGroup === item.muscleGroup ? item : { ...item, muscleGroup })
+    }
+    return items
   } catch {
     return []
   }

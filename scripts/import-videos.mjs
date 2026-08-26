@@ -99,6 +99,7 @@ const DUPLICATE_URLS = new Set([
 const MUSCLE_MAP = {
   'חזה': 'chest',
   'גב': 'back',
+  // שוק אינו קבוצה בפני עצמה — תרגיל תאומים במאגר יגיע תחת "רגליים" וזה נכון
   'רגליים': 'legs',
   'כתפיים': 'shoulders',
   'יד קדמית': 'biceps',
@@ -106,13 +107,6 @@ const MUSCLE_MAP = {
   'אמות': 'forearms',
   'בטן': 'abs',
 }
-
-/**
- * במאגר אין תרגילי שוק — יוצר התוכן פשוט לא מכסה אותם, ולכן ל-calves אין מקור.
- * אם יתווסף מקור בעתיד, כאן המקום למפות אותו: הוא יגיע תחת "רגליים" בעברית
- * וצריך להגיע ל-calves ב-MuscleGroup.
- */
-const CALVES_KEYS = new Set()
 
 /**
  * מפתח המאגר הופך לשם קובץ ולחלק מכתובת. "row_(general)" חוקי בכתובת אבל
@@ -310,7 +304,7 @@ function importLibrary() {
   let dropped = 0
 
   for (const ex of source) {
-    const muscle = CALVES_KEYS.has(ex.key) ? 'calves' : MUSCLE_MAP[ex.muscle]
+    const muscle = MUSCLE_MAP[ex.muscle]
     if (!muscle) {
       console.warn(`  ⚠ שריר לא מוכר "${ex.muscle}" בתרגיל ${ex.nameEn} — מדולג`)
       continue

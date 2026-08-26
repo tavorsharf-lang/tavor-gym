@@ -83,11 +83,12 @@ describe('מסכי בניית האימון', () => {
       שבה השאילתות איטיות יותר.
     */
     await screen.findByText(MUSCLE_GROUPS.chest.label, {}, { timeout: SLOW })
-    // כל תשע הקבוצות מופיעות, גם אלה שלא אומנו — קבוצה שנעלמת היא זו ששוכחים
+    // כל הקבוצות מופיעות, גם אלה שלא אומנו — קבוצה שנעלמת היא זו ששוכחים
     for (const group of Object.values(MUSCLE_GROUPS)) {
       expect(screen.getAllByText(group.label).length).toBeGreaterThan(0)
     }
-    expect(screen.getAllByText('לא נגעת').length).toBe(9)
+    // נגזר מהמקור ולא מספר קשיח: איחוד או פיצול קבוצה לא אמור להפיל טסט תצוגה
+    expect(screen.getAllByText('לא נגעת').length).toBe(Object.keys(MUSCLE_GROUPS).length)
 
     // ─── תרגילי השריר ───
     await user.click(await screen.findByRole('button', { name: /רגליים/ }, { timeout: SLOW }))

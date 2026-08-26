@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Exercise, MuscleGroup, Session, SetLog } from '@/db/types'
+import { MUSCLE_GROUP_BY_SIZE } from '@/db/types'
 import { MS_DAY } from '@/lib/dates'
 import { coverageText, liveCoverageInput, muscleCoverage, uncoveredGroups } from './coverage'
 
@@ -101,9 +102,9 @@ function run(
 }
 
 describe('muscleCoverage', () => {
-  it('מחזיר את כל תשע הקבוצות גם כשאין שום נתון', () => {
+  it('מחזיר את כל הקבוצות גם כשאין שום נתון', () => {
     const rows = muscleCoverage(EXERCISES, [], [], NOW, 4)
-    expect(rows).toHaveLength(9)
+    expect(rows).toHaveLength(MUSCLE_GROUP_BY_SIZE.length)
     expect(rows.every((r) => r.uncovered && r.neverDone)).toBe(true)
   })
 
@@ -280,7 +281,8 @@ describe('uncoveredGroups', () => {
       NOW,
       4
     )
-    expect(uncoveredGroups(rows)).toHaveLength(9)
+    // הסטים נכתבו לסשן אחר ולכן אף קבוצה לא כוסתה — כולן חוזרות
+    expect(uncoveredGroups(rows)).toHaveLength(MUSCLE_GROUP_BY_SIZE.length)
   })
 })
 

@@ -16,6 +16,7 @@ import type {
 } from '@/db/types'
 import { withLibraryLink } from '@/db/libraryLinks'
 import { withSecondaryMuscles } from '@/db/muscleTags'
+import { mergeCalfShelves, withoutCalves } from '@/db/calfMerge'
 import { PLANK_RANGE } from '@/db/seed'
 import { invalidateHiddenVideos } from '@/db/hiddenVideos'
 import { invalidateHiddenExercises } from '@/db/hiddenExercises'
@@ -171,12 +172,20 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
     }
   }
 
-  // גיבוי שנוצר לפני גרסה 4 לא מכיר את הקישור למאגר. בלי השתילה כאן, שחזור
-  // היה מוחק את הקישורים במקום להשאיר אותם כמו שהיו לפני הייבוא.
+  /*
+    גיבוי שנוצר לפני גרסה 4 לא מכיר את הקישור למאגר. בלי השתילה כאן, שחזור
+    היה מוחק את הקישורים במקום להשאיר אותם כמו שהיו לפני הייבוא.
+
+    ‏`withoutCalves` באותו רצף ומאותה סיבה, רק חמור יותר: גיבוי מלפני גרסה 9
+    מחזיק תרגילים עם `muscleGroup: 'calves'` — קבוצה שכבר אין לה תווית. בלי
+    ההמרה כאן שחזור היה מחזיר אותם למסד, וכל מסך שקורא
+    `MUSCLE_GROUPS[e.muscleGroup].label` היה קורס עליהם.
+  */
   const exercises = (data.exercises ?? [])
     .map(withLibraryLink)
     .map(withTimedMetric)
     .map(withSecondaryMuscles)
+    .map(withoutCalves)
   /*
     רק פריטי התוכנית של תרגילים שהגיעו מהקובץ *בלי* metric מתוקנים.
 
@@ -262,7 +271,12 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
         await db.setLogs.bulkPut(setLogs)
         await db.ratings.bulkPut(ratings)
         await db.bodyWeights.bulkPut(data.bodyWeights ?? [])
-        await db.settings.put({ key: 'app', value: mergeSettings(data.settings) })
+        // אותו תיקון-קדימה כמו בתרגילים: מדף `group:calves` בגיבוי ישן מתמזג
+        // לתוך מדף הרגליים, אחרת סרטון ששויך אליו חוזר למסד ולא מוצג בשום מקום
+        await db.settings.put({
+          key: 'app',
+          value: mergeCalfShelves(mergeSettings(data.settings)),
+        })
         /*
           השיאים נבנים מהסטים ולא נכתבים מהקובץ.
 

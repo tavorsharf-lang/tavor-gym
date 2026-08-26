@@ -417,7 +417,8 @@ const RAW: ExerciseSeed[] = [
     id: 'calf-raise',
     name: 'הרמת עקבים',
     nameEn: 'Calf Raise',
-    muscleGroup: 'calves',
+    // שוק אינו קבוצה בפני עצמה — הוא רגליים, וה-subTarget הוא שמחזיק את המיקוד
+    muscleGroup: 'legs',
     subTarget: 'שוק — תאומים',
     equipment: 'machine',
     weightMode: 'total',

@@ -18,7 +18,6 @@ export type MuscleGroup =
   | 'triceps'
   | 'forearms'
   | 'abs'
-  | 'calves'
 
 export type Equipment = 'machine' | 'freeWeights' | 'cables' | 'bodyweight'
 
@@ -523,6 +522,17 @@ export interface ActiveWorkout {
 
 // ─── תצוגה ─────────────────────────────────────────────────────────────────
 
+/**
+ * שמונה קבוצות, ולא תשע: "שוק" הייתה קבוצה בפני עצמה ואוחדה לתוך `legs`.
+ *
+ * הפיצול נראה נכון אנטומית ועבד רע בפועל. שוק הוא שריר אחד עם תרגיל אחד
+ * בקטלוג ואפס תרגילים במאגר — ולכן הוא היה תמיד ובאופן קבוע "לא נגעת",
+ * גם מיד אחרי אימון רגליים מלא. שורה תשיעית שבוערת בכתום לנצח אינה מידע,
+ * והיא דחקה שרירים שבאמת הוזנחו למטה ברשימת "על מה לא עבדתי".
+ *
+ * המיקוד לא אבד: `Exercise.subTarget` של הרמת עקבים עדיין אומר "שוק —
+ * תאומים", וזה מה שמוצג בכרטיס התרגיל וממיין מועמדי החלפה.
+ */
 export const MUSCLE_GROUPS: Record<MuscleGroup, { label: string; short: string }> = {
   chest: { label: 'חזה', short: 'חזה' },
   back: { label: 'גב', short: 'גב' },
@@ -532,7 +542,6 @@ export const MUSCLE_GROUPS: Record<MuscleGroup, { label: string; short: string }
   triceps: { label: 'יד אחורית', short: 'יד אח׳' },
   forearms: { label: 'אמות', short: 'אמות' },
   abs: { label: 'בטן', short: 'בטן' },
-  calves: { label: 'שוק', short: 'שוק' },
 }
 
 export const MUSCLE_GROUP_ORDER: MuscleGroup[] = [
@@ -544,7 +553,6 @@ export const MUSCLE_GROUP_ORDER: MuscleGroup[] = [
   'triceps',
   'forearms',
   'abs',
-  'calves',
 ]
 
 /**
@@ -558,7 +566,6 @@ export const MUSCLE_GROUP_BY_SIZE: MuscleGroup[] = [
   'shoulders',
   'triceps',
   'biceps',
-  'calves',
   'abs',
   'forearms',
 ]

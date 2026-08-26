@@ -26,6 +26,7 @@ import {
 import { CATALOG_FIXES_V5, applyCatalogFix } from './catalogFix'
 import { withLibraryLink } from './libraryLinks'
 import { withSecondaryMuscles } from './muscleTags'
+import { mergeCalfShelves, withoutCalves } from './calfMerge'
 
 /**
  * מסד הנתונים המובנה.
@@ -328,6 +329,46 @@ class GymDatabase extends Dexie {
         for (const exercise of await exercises.toArray()) {
           const tagged = withSecondaryMuscles(exercise)
           if (tagged !== exercise) await exercises.put(tagged)
+        }
+      })
+
+    /**
+     * גרסה 9 — "שוק" מפסיקה להיות קבוצת שריר ומתאחדת לתוך "רגליים".
+     *
+     * הפיצול היה נכון אנטומית ורע בפועל: תרגיל אחד בקטלוג, אפס תרגילים במאגר,
+     * ולכן שורה תשיעית שכתובה "לא נגעת" לנצח — גם מיד אחרי אימון רגליים מלא.
+     * היא דחקה למטה שרירים שבאמת הוזנחו, וזה בדיוק מה שמסך הכיסוי בא לענות.
+     *
+     * שלושה מקומות שמחזיקים את המחרוזת הזו על הדיסק:
+     *
+     *  1. `Exercise.muscleGroup` — הרמת עקבים, וכל תרגיל שהמשתמש יצר בעצמו
+     *     תחת הקבוצה. בלי המרה הם היו נופלים מכל מסך: `MUSCLE_GROUPS['calves']`
+     *     כבר לא קיים, ו-`MUSCLE_GROUPS[e.muscleGroup].label` הוא קריאה שחוזרת
+     *     בשמונה מסכים. `subTarget` לא נוגעים בו — "שוק — תאומים" הוא המיקוד,
+     *     והוא מה שממשיך להבדיל את התרגיל בתוך רגליים.
+     *  2. `Exercise.secondaryMuscles` — סקוואט זיכה גם `legs` וגם `calves`.
+     *     אחרי האיחוד `calves` *נמחק* ולא מומר: `legs` כבר הראשי שלו, וזיכוי
+     *     משני לשריר הראשי הוא ספירה כפולה שמסך הכיסוי היה מציג כעבודה עקיפה
+     *     על מה שכבר קיבל סט ישיר.
+     *  3. `AppSettings.videoMoves` / `videoOrder` — סרטון שהמשתמש שייך למדף
+     *     `group:calves`. המדף הזה כבר לא מרונדר, ולכן בלי ההמרה הסרטון היה
+     *     נעלם מהאפליקציה בלי שנמחק. שתי רשימות סדר שנפגשות באותו מדף
+     *     מתמזגות בלי כפילויות, כי סדר הוא רשימת מזהים ולא קבוצה.
+     */
+    this.version(9)
+      .stores({})
+      .upgrade(async (tx) => {
+        const exercises = tx.table<Exercise, string>('exercises')
+        for (const exercise of await exercises.toArray()) {
+          const merged = withoutCalves(exercise)
+          if (merged !== exercise) await exercises.put(merged)
+        }
+
+        const settings = tx.table<SettingsRow, string>('settings')
+        const row = await settings.get('app')
+        if (row) {
+          const value = mergeCalfShelves(row.value)
+          if (value !== row.value) await settings.put({ ...row, value })
         }
       })
 

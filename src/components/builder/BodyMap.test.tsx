@@ -69,7 +69,7 @@ describe('BodyMap', () => {
     expect(fillOf('back')).not.toBe(fillOf('biceps'))
   })
 
-  it('כל תשע הקבוצות לחיצות ונושאות תווית קריאה', () => {
+  it('כל הקבוצות לחיצות ונושאות תווית קריאה', () => {
     draw([])
     for (const group of MUSCLE_GROUP_BY_SIZE) {
       const regions = screen.getAllByRole('button', {

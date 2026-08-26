@@ -185,7 +185,7 @@ export function VolumeDashboard(): JSX.Element {
     const to = nextWeekStart(weeks[picks.current[picks.current.length - 1]].weekStart)
     /*
       כמה מהחלון המוצג כבר חלף. רק "השבוע" הוא חלקי — כל שאר הטווחים הסתיימו,
-      ולכן בהם כל יום כבר נספר. בלי זה כל יום ראשון בבוקר כל תשע הקבוצות היו
+      ולכן בהם כל יום כבר נספר. בלי זה כל יום ראשון בבוקר כל שמונה הקבוצות היו
       מסומנות "לא עבדת", סימון שתמיד שקרי ולכן מלמד להתעלם.
     */
     const daysIntoWindow =

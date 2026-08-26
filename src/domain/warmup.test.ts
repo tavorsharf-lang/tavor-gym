@@ -118,7 +118,7 @@ describe('suggestWarmup — סט אחד לתרגיל שאינו כבד', () => {
   it('תרגיל כבד בקבוצה קטנה עדיין מקבל סט אחד', () => {
     const plan = suggestWarmup(
       makeContext({
-        exercise: makeExercise({ muscleGroup: 'calves', weightIncrementKg: 5 }),
+        exercise: makeExercise({ muscleGroup: 'abs', weightIncrementKg: 5 }),
         plannedWeightKg: 180,
       })
     )
