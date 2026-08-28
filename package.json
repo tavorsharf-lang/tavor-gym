@@ -15,6 +15,7 @@
     "check:size": "node scripts/check-size.mjs",
     "gen:icons": "node scripts/gen-icons.mjs",
     "import:videos": "node scripts/import-videos.mjs",
+    "import:images": "node scripts/import-images.mjs",
     "gen:hashes": "node scripts/gen-video-hashes.mjs",
     "deploy": "bash scripts/deploy.sh"
   },

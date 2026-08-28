@@ -23,7 +23,7 @@ import { distinguisher, duplicateNames } from '@/domain/naming'
 import { formatRelativeDay } from '@/lib/dates'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { EmptyState, IconButton, toast } from '@/components/ui'
-import { VideoThumb } from '@/components/media/VideoThumb'
+import { ExerciseThumb } from '@/components/media/ExerciseThumb'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { RemoveExerciseSheet } from '@/components/exercises/RemoveExerciseSheet'
 import { clipById } from '@/db/mediaDb'
@@ -68,6 +68,8 @@ export function ExerciseLibraryScreen({
   const [pending, setPending] = useState<{ entry: CatalogEntry; usage: PlanUsage[] } | null>(null)
   /** מדף הסרטונים של קבוצה שפתוח כרגע בנגן */
   const [playingGroup, setPlayingGroup] = useState<MuscleGroup | null>(null)
+  /** השורה שהריבוע שלה נלחץ — הגלריה נפתחת על כרטיס השרירים שלה */
+  const [gallery, setGallery] = useState<CatalogEntry | null>(null)
 
   /*
     מדפי הסרטונים של קבוצות השריר: סרטון שהועבר אל `group:<שריר>` (מתוך פאנל
@@ -361,6 +363,7 @@ export function ExerciseLibraryScreen({
                         entry.exercise ? `/exercise/${entry.exercise.id}` : `/library/${entry.id}`
                       )
                     }
+                    onPlay={() => setGallery(entry)}
                     onAdd={() => handleAdd(entry)}
                     onRemove={() => handleRemoveTap(entry)}
                   />
@@ -399,6 +402,17 @@ export function ExerciseLibraryScreen({
         onConfirm={confirmRemove}
       />
 
+      {gallery ? (
+        <VideoPlayer
+          exerciseId={gallery.exercise?.id ?? gallery.id}
+          libraryId={gallery.exercise?.libraryId ?? gallery.library?.id}
+          exerciseName={gallery.name}
+          open
+          startOnImage
+          onClose={() => setGallery(null)}
+        />
+      ) : null}
+
       {playingGroup ? (
         <VideoPlayer
           exerciseId={groupContextId(playingGroup)}
@@ -416,7 +430,10 @@ export function ExerciseLibraryScreen({
  * השורה לא זז כשמחליפים מצב.
  *
  * העוטף הוא div והכפתור בפנים, כי `IconButton` לא יכול לשבת בתוך כפתור אחר.
- * מאותה סיבה `VideoThumb` מגיע בלי `onOpen` ולכן מרנדר span.
+ *
+ * הריבוע הוא כפתור **אח** לגוף השורה ולא ילד שלו, ומאותה סיבה בדיוק: כפתור
+ * מקונן היה מפעיל את שני המטפלים בלחיצה אחת. הפיצול הוא גם מה שנותן לשורה שני
+ * יעדים — הריבוע פותח את הגלריה, והשאר פותח את מסך התרגיל.
  */
 function Row({
   entry,
@@ -425,6 +442,7 @@ function Row({
   lastPerformed,
   busy,
   onOpen,
+  onPlay,
   onAdd,
   onRemove,
 }: {
@@ -434,6 +452,8 @@ function Row({
   lastPerformed: Map<string, { weightKg: number; reps: number; at: number; sets: number }>
   busy: boolean
   onOpen: () => void
+  /** הריבוע — פותח את הגלריה: כרטיס השרירים ואחריו סרטוני ההדגמה */
+  onPlay: () => void
   onAdd: () => void
   onRemove: () => void
 }): JSX.Element {
@@ -443,17 +463,21 @@ function Row({
   const out = entry.state === 'removed' || entry.state === 'removedOwn'
 
   return (
-    <div className="flex items-center">
+    <div className={['flex items-center', out ? 'opacity-60' : ''].join(' ')}>
+      <span className="shrink-0 ps-3">
+        <ExerciseThumb
+          exerciseId={ex?.id ?? entry.id}
+          libraryId={ex?.libraryId}
+          size="sm"
+          keepFrame
+          onOpen={onPlay}
+        />
+      </span>
       <button
         type="button"
         onClick={onOpen}
-        className={[
-          'flex min-w-0 flex-1 items-center gap-3 p-3 text-start transition-colors active:bg-ink-800',
-          out ? 'opacity-60' : '',
-        ].join(' ')}
+        className="flex min-w-0 flex-1 items-center gap-3 p-3 text-start transition-colors active:bg-ink-800"
       >
-        <VideoThumb exerciseId={ex?.id ?? entry.id} libraryId={ex?.libraryId} size="sm" keepFrame />
-
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[0.9375rem] font-bold text-bone-50">
             {entry.name}

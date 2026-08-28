@@ -79,14 +79,14 @@ describe('אתרי הקריאה של הנגן והתמונה', () => {
     ...LIBRARY_SCREENS,
   ]
 
-  it('כל שימוש ב-VideoThumb/VideoPlayer מחוץ למסכי המאגר מעביר libraryId', () => {
+  it('כל שימוש ב-ExerciseThumb/VideoThumb/VideoPlayer מחוץ למסכי המאגר מעביר libraryId', () => {
     const missing: string[] = []
 
     for (const rel of CALL_SITES) {
       if (LIBRARY_SCREENS.includes(rel)) continue
       const text = readFileSync(join(SRC, rel), 'utf8')
       // כל אלמנט VideoThumb/VideoPlayer, מהתגית ועד סגירתה
-      for (const m of text.matchAll(/<Video(?:Thumb|Player)\b([\s\S]*?)\/?>/g)) {
+      for (const m of text.matchAll(/<(?:ExerciseThumb|Video(?:Thumb|Player))\b([\s\S]*?)\/?>/g)) {
         const props = m[1]
         if (!props.includes('exerciseId=')) continue
         if (props.includes('libraryId=')) continue

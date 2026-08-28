@@ -14,9 +14,10 @@ import {
   WifiOff,
   X,
 } from 'lucide-react'
-import { cacheStreamedVideo, deleteVideo, loadVideosFor, releaseVideos } from '@/db/mediaDb'
+import { assetUrl, cacheStreamedVideo, deleteVideo, loadVideosFor, releaseVideos } from '@/db/mediaDb'
 import { useHiddenVideosVersion } from '@/db/hiddenVideos'
 import { groupContextId, saveVideoMove, saveVideoOrder, useVideoPrefsVersion } from '@/db/videoPrefs'
+import { imagesFor } from '@/db/exerciseImages'
 import { videoMismatchNote } from '@/db/videoIssues'
 import { db } from '@/db/db'
 import { MUSCLE_GROUPS, MUSCLE_GROUP_BY_SIZE } from '@/db/types'
@@ -48,6 +49,7 @@ export function VideoPlayer({
   onClose,
   startIndex = 0,
   startId,
+  startOnImage = false,
 }: {
   exerciseId: string
   /** התרגיל המקביל במאגר — ממנו מגיעים סרטוני ההסבר */
@@ -62,9 +64,29 @@ export function VideoPlayer({
    * לרשימה. כשהוא קיים הוא גובר על startIndex.
    */
   startId?: string
+  /**
+   * להיפתח על כרטיס השרירים ולא על הסרטון.
+   *
+   * דגל מפורש ולא הסקה מ-`startIndex === 0`: "הסרטון הראשון" הוא בקשה לגיטימית
+   * — מסך תרגיל המאגר שולח אותה בכל פעם שנוגעים בסרטון הראשון ברשימה — ולכן
+   * אי אפשר להבדיל בינה לבין "בלי בקשה" לפי הערך. רק הריבוע ברשימת התרגילים
+   * מדליק את זה, וכל שאר הכניסות ממשיכות להיפתח על ההדגמה כמו קודם.
+   */
+  startOnImage?: boolean
 }) {
   const [videos, setVideos] = useState<PlayableVideo[]>([])
-  const [index, setIndex] = useState(startIndex)
+  /*
+    כרטיסי השרירים פותחים את הגלריה, והסרטונים ממשיכים אחריהם.
+
+    ‏`pos` רץ על *השקופיות* — כרטיסים ואחריהם סרטונים — ו-`index` נגזר ממנו
+    ונשאר מה שהיה תמיד: אינדקס בתוך `videos`. זה מכוון ולא נוחות: כל לוגיקת
+    המחיקה, שינוי הסדר וההעברה מחשבת אינדקסי סרטון ל-`resumeAt`, והיא רצה רק
+    כשצופים בסרטון. מקור אמת אחד למיקום, ואפס שינוי בקוד שנוגע בסרטונים.
+  */
+  const images = useMemo(() => imagesFor(exerciseId, libraryId), [exerciseId, libraryId])
+  const imgCount = images.length
+  // `startIndex` הוא אינדקס *סרטון*, ולכן הוא נספר אחרי הכרטיסים
+  const [rawPos, setPos] = useState(startOnImage ? 0 : startIndex + imgCount)
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
   /** מזהה הנכס שמחכה לאישור מחיקה — מהכותרת או מפאנל הניהול */
@@ -110,7 +132,7 @@ export function VideoPlayer({
     setLoading(true)
     setFailed(false)
     const resume = resumeAt.current
-    setIndex(resume ?? startIndex)
+    setPos(resume !== null ? resume + imgCount : startOnImage ? 0 : startIndex + imgCount)
     resumeAt.current = null
 
     loadVideosFor(exerciseId, libraryId).then((loaded) => {
@@ -137,7 +159,12 @@ export function VideoPlayer({
       setVideos(loaded)
       // פתיחה לפי מזהה גוברת: היא עמידה לסדר מותאם ולמיובאים שנכנסו באמצע
       const byId = resume === null && startId ? loaded.findIndex((v) => v.id === startId) : -1
-      setIndex((i) => Math.max(0, Math.min(byId >= 0 ? byId : i, loaded.length - 1)))
+      setPos((p) => {
+        // שקופית כרטיס נשארת במקומה; רק מיקום בתוך הסרטונים מתהדק לאורך שנטען
+        if (byId < 0 && p < imgCount) return p
+        const i = byId >= 0 ? byId : p - imgCount
+        return imgCount + Math.max(0, Math.min(i, loaded.length - 1))
+      })
       setLoading(false)
     })
 
@@ -155,7 +182,7 @@ export function VideoPlayer({
   // נעל את כל השאר על מסך "לא זמין אופליין" — גם את אלה שיושבים במכשיר.
   useEffect(() => {
     setFailed(false)
-  }, [index])
+  }, [rawPos])
 
   // הגיליונות נסגרים יחד עם הנגן, אחרת הם היו ממתינים פתוחים לפתיחה הבאה
   useEffect(() => {
@@ -182,12 +209,15 @@ export function VideoPlayer({
    * מחזורי ולא חסום בקצוות: ברשימה של 23 סרטוני הסבר, "הבא" שמפסיק לעבוד
    * בסרטון האחרון מחייב לחזור אחורה 22 פעם. `step` הוא +1 קדימה ו-‎-1 אחורה.
    */
-  const go = useCallback((step: number) => {
-    setIndex((i) => {
-      const n = videosRef.current.length
-      return n ? (i + step + n) % n : 0
-    })
-  }, [])
+  const go = useCallback(
+    (step: number) => {
+      setPos((p) => {
+        const n = imgCount + videosRef.current.length
+        return n ? (p + step + n) % n : 0
+      })
+    },
+    [imgCount]
+  )
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -210,12 +240,12 @@ export function VideoPlayer({
   */
   useEffect(() => {
     const el = videoRef.current
-    const asset = videos[index]
+    const asset = videos[rawPos - imgCount]
     if (!el || !asset || asset.isLocal) return
     const onReady = () => void cacheStreamedVideo(asset.id)
     el.addEventListener('canplay', onReady, { once: true })
     return () => el.removeEventListener('canplay', onReady)
-  }, [videos, index])
+  }, [videos, rawPos, imgCount])
 
   // ההשתקה חוזרת ונאכפת גם אחרי שהמשתמש נגע בכפתור ההשתקה של הפקדים — אחרת
   // הסרטון תופס את מושב האודיו ועוצר את המוזיקה, בלי להשמיע כלום בתמורה
@@ -239,8 +269,21 @@ export function VideoPlayer({
 
   if (!open) return null
 
-  const current = videos[index]
-  const many = videos.length > 1
+  /*
+    המיקום מהודק כאן ולא ב-setPos.
+
+    מחיקת הסרטון האחרון מקצרת את הרשימה מתחת למיקום שכבר נשמר, ותרגיל שיש לו
+    כרטיס ואין לו סרטון היה נופל בדיוק על המיקום שאחרי הסוף. הידוק בנקודת
+    הקריאה עונה על שני המקרים בלי לרדוף אחרי כל כותב.
+  */
+  const total = imgCount + videos.length
+  const pos = total ? Math.min(rawPos, total - 1) : 0
+  const index = pos - imgCount
+  /** צופים בכרטיס שרירים ולא בסרטון */
+  const onImage = index < 0
+  const current = onImage ? undefined : videos[index]
+  const image = onImage ? images[pos] : undefined
+  const many = total > 1
   const mismatch = videoMismatchNote(exerciseId)
 
   /*
@@ -337,7 +380,7 @@ export function VideoPlayer({
       className="fixed inset-0 z-50 flex flex-col bg-ink-950/97 backdrop-blur-xl animate-fade"
       role="dialog"
       aria-modal="true"
-      aria-label={`סרטוני הדגמה — ${exerciseName}`}
+      aria-label={`הדגמות והסברים — ${exerciseName}`}
     >
       <header
         className="flex items-center gap-2 px-4 pb-2"
@@ -349,20 +392,20 @@ export function VideoPlayer({
             במאגר לכל סרטון יש נושא משלו — הוא מה שמזהה אותו, ולכן הוא מחליף את
             "הדגמה N". השורה נשארת גם כשיש סרטון אחד, כי היא נושאת מידע ולא מיקום.
           */}
-          {current ? (
+          {current || image ? (
             <p className="flex items-baseline justify-end gap-2 text-xs text-bone-500">
-              {videos.length > 1 ? (
+              {many ? (
                 <span className="tnum shrink-0">
-                  {index + 1}/{videos.length}
+                  {pos + 1}/{total}
                 </span>
               ) : null}
-              <span dir="ltr" className="truncate text-end">
-                {current.label}
+              <span dir={image ? 'rtl' : 'ltr'} className="truncate text-end">
+                {image ? image.nameHe : current?.label}
               </span>
             </p>
           ) : null}
         </div>
-        {videos.length > 0 ? (
+        {videos.length > 0 && !onImage ? (
           <button
             onClick={() => setManaging(true)}
             aria-label="ניהול הסרטונים — סדר, העברה ומחיקה"
@@ -409,7 +452,20 @@ export function VideoPlayer({
       >
         {loading && <Loader2 className="animate-spin text-bone-600" size={32} />}
 
-        {!loading && !current && (
+        {/*
+          כרטיס השרירים. `contain` ולא `cover` — הכרטיס הוא אינפוגרפיקה,
+          וחיתוך של קצה בולע תווית אחוזים שלמה.
+        */}
+        {image && (
+          <img
+            key={image.src}
+            src={assetUrl(image.src)}
+            alt={`אילו שרירים עובדים ב${image.nameHe}`}
+            className="max-h-full w-auto max-w-full rounded-card bg-bone-50"
+          />
+        )}
+
+        {!loading && !current && !image && (
           <p className="px-8 text-center text-sm text-bone-500">
             אין עדיין סרטון לתרגיל הזה. אפשר להוסיף אחד במסך התרגיל.
           </p>
@@ -482,20 +538,20 @@ export function VideoPlayer({
       */}
       {many && (
         <div className="flex items-center justify-center px-5 pb-safe pt-4">
-          {videos.length <= DOTS_MAX ? (
+          {total <= DOTS_MAX ? (
             <div className="flex gap-1.5">
-              {videos.map((v, i) => (
+              {Array.from({ length: total }, (_, i) => (
                 /* אזור הלחיצה 44px, הנקודה עצמה נשארת קטנה — הוויזואל לא משתנה */
                 <button
-                  key={v.id}
-                  onClick={() => setIndex(i)}
-                  aria-label={`סרטון ${i + 1}`}
-                  aria-current={i === index}
+                  key={i < imgCount ? images[i].src : videos[i - imgCount].id}
+                  onClick={() => setPos(i)}
+                  aria-label={i < imgCount ? `כרטיס שרירים ${i + 1}` : `סרטון ${i - imgCount + 1}`}
+                  aria-current={i === pos}
                   className="flex h-11 w-6 items-center justify-center"
                 >
                   <span
                     className={`h-2 rounded-pill transition-all ${
-                      i === index ? 'w-6 bg-flame-500' : 'w-2 bg-ink-600'
+                      i === pos ? 'w-6 bg-flame-500' : 'w-2 bg-ink-600'
                     }`}
                   />
                 </button>
@@ -507,17 +563,17 @@ export function VideoPlayer({
                 className="h-1.5 flex-1 overflow-hidden rounded-pill bg-ink-700"
                 role="progressbar"
                 aria-valuemin={1}
-                aria-valuemax={videos.length}
-                aria-valuenow={index + 1}
-                aria-label="מיקום ברשימת הסרטונים"
+                aria-valuemax={total}
+                aria-valuenow={pos + 1}
+                aria-label="מיקום בגלריה"
               >
                 <span
                   className="block h-full rounded-pill bg-flame-500 transition-all duration-200"
-                  style={{ width: `${((index + 1) / videos.length) * 100}%` }}
+                  style={{ width: `${((pos + 1) / total) * 100}%` }}
                 />
               </div>
               <span className="tnum shrink-0 text-xs font-bold text-bone-400" dir="ltr">
-                {index + 1}/{videos.length}
+                {pos + 1}/{total}
               </span>
             </div>
           )}

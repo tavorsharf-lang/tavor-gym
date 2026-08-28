@@ -38,6 +38,10 @@ const EXPECTED_OUT = [
   { match: /^videos\/lib\/.*\.jpg$/, why: 'תמונות המאגר הלימודי — 7.4MB שהיו הופכים את ההתקנה לשברירית' },
   { match: /(arabic|cyrillic)/, why: 'תת-קבוצות פונט ש-unicode-range ממילא לא יבקש' },
   { match: /^(sw|workbox-[^/]+)\.js$/, why: 'ה-Service Worker עצמו — הוא לא מכניס את עצמו למטמון' },
+  {
+    match: /^images\/ex\/[^/]+\.jpg$/,
+    why: 'כרטיסי השרירים בגודל מלא — 22MB. הממוזערות ב-images/ex/t כן נכנסות',
+  },
 ]
 
 const dist = join(process.cwd(), 'dist')
