@@ -54,13 +54,21 @@ describe('שיוך הכרטיסים לתרגילים', () => {
   })
 
   /*
-    ‏`lib-row_general` הוא רשומת אב גנרית ואין תרגיל אחד שכרטיס יכול לייצג.
-    הבדיקה נועלת את זה: רשומת מאגר חדשה בלי כרטיס תיפול כאן עד שמישהו יחליט
-    אם היא צריכה תמונה או שורה ב-IMAGELESS_NOTES.
+    אין היום ולו רשומה אחת בלי כרטיס, ו-`IMAGELESS_NOTES` ריק. הבדיקה נועלת
+    את שניהם יחד: רשומת מאגר חדשה בלי כרטיס תיפול כאן עד שמישהו יחליט אם היא
+    צריכה תמונה או שורה מתועדת ב-IMAGELESS_NOTES.
   */
   it('כל רשומת מאגר מקבלת כרטיס, או מתועדת למה לא', () => {
     const without = LIBRARY_CATALOG.filter((e) => imagesFor(e.id).length === 0).map((e) => e.id)
     expect(without).toEqual(Object.keys(IMAGELESS_NOTES))
+  })
+
+  it('בפועל: אף תרגיל בקטלוג או במאגר אינו בלי כרטיס', () => {
+    const without = [
+      ...SEED_EXERCISES.filter((e) => !primaryImageFor(e.id, e.libraryId)).map((e) => e.id),
+      ...LIBRARY_CATALOG.filter((e) => !primaryImageFor(e.id)).map((e) => e.id),
+    ]
+    expect(without).toEqual([])
   })
 
   it('אף תמונה לא נשארת בלי תרגיל שמצביע עליה', () => {
@@ -71,7 +79,8 @@ describe('שיוך הכרטיסים לתרגילים', () => {
   it('תרגיל בלי מיפוי משלו נופל לתרגיל המקושר במאגר', () => {
     // מזהה שאינו במפה, עם קישור למאגר שכן — בדיוק המצב של תרגיל שהמשתמש הוסיף
     expect(primaryImageFor('לא-קיים', 'lib-goblet_squat')?.nameEn).toBe('GOBLET SQUAT')
-    expect(primaryImageFor('לא-קיים', 'lib-row_general')).toBeNull()
+    // מזהה שאינו בשום מפה — תרגיל שהמשתמש יצר בעצמו
+    expect(primaryImageFor('לא-קיים', 'lib-לא-קיים')).toBeNull()
     expect(primaryImageFor('לא-קיים')).toBeNull()
   })
 

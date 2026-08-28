@@ -13,9 +13,11 @@ import type { ExerciseImage } from './imageManifest'
  * עוד לפני שהוא נכנס לתרגילים שלי — בדיוק כמו `SECONDARY_MUSCLES`.
  *
  * הערך הוא **מערך מסודר**: הראשון הוא מה שמופיע בשורה ברשימה, וכולם מופיעים
- * כשקופיות פתיחה בגלריה. מה שלא מופיע כאן פשוט לא מקבל כרטיס, והשורה חוזרת
- * להציג את פריים הסרטון. זה תקין ומכוון — `lib-row_general` הוא רשומת אב
- * גנרית ואין תרגיל אחד שמייצג אותה.
+ * כשקופיות פתיחה בגלריה.
+ *
+ * **כל 29 תרגילי הקטלוג וכל 64 רשומות המאגר מופיעים כאן.** מה שלא מופיע פשוט
+ * לא מקבל כרטיס והשורה חוזרת להציג את פריים הסרטון — זה המצב של תרגיל שהמשתמש
+ * יצר בעצמו, ואין לו כרטיס עד שייווצר אחד.
  */
 export const EXERCISE_IMAGES: Readonly<Record<string, readonly string[]>> = {
   // ─── קטלוג ───
@@ -84,6 +86,15 @@ export const EXERCISE_IMAGES: Readonly<Record<string, readonly string[]>> = {
   'lib-dumbbell_row': ['single_arm_dumbbell_row'],
   'lib-pull_up': ['pull_up'],
   'lib-barbell_row': ['bent_over_barbell_row'],
+  /*
+    רשומת האב הגנרית מקבלת את כרטיס החתירה במוט.
+    
+    ההערכה הראשונה כאן הייתה שאין תרגיל אחד שיכול לייצג אותה, והיא נשענה על
+    השם הגנרי בלבד. צפייה בשמונת הקליפים מראה משהו אחר: כולם חתירה בכפיפה
+    מהירך, רובם במוט, ואחד מהם אפילו פותח ב-"When performing a barbell back
+    row". הביצוע בפועל גובר על השם — וזה בדיוק אותו כלל שהנחה את כל האודיט.
+  */
+  'lib-row_general': ['bent_over_barbell_row'],
   'lib-deadlift': ['conventional_barbell_deadlift'],
   'lib-romanian_deadlift': ['romanian_deadlift'],
   'lib-back_extension': ['back_extension'],
@@ -155,9 +166,7 @@ export const EXERCISE_IMAGES: Readonly<Record<string, readonly string[]>> = {
  * תרגילים שאין להם כרטיס, והסיבה. לא נדרש לקוד — קיים כדי שמי שיתהה לא יחשוב
  * שזה באג, בדיוק כמו `UNLINKED_NOTES`.
  */
-export const IMAGELESS_NOTES: Readonly<Record<string, string>> = {
-  'lib-row_general': 'רשומת אב גנרית לחתירה — אין תרגיל אחד שכרטיס יכול לייצג',
-}
+export const IMAGELESS_NOTES: Readonly<Record<string, string>> = {}
 
 /**
  * הכרטיסים של תרגיל, לפי הסדר. מזהה הקטלוג קודם, ואם אין לו — התרגיל המקושר
