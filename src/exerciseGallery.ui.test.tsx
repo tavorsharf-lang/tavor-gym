@@ -106,6 +106,33 @@ describe('כרטיס השרירים ברשימת התרגילים', () => {
     expect(useBasket.getState().items).toHaveLength(0)
   }, 40000)
 
+  it('הרשימה מחולקת לתת-קטגוריות, והצ׳יפ מסנן לפיהן', async () => {
+    const user = userEvent.setup()
+    window.location.hash = '#/exercises'
+    render(<App />)
+
+    /*
+      ‏getAllBy ולא getBy: אותו שם שריר מופיע גם ככותרת תת-קטגוריה וגם כתגית
+      משנית בשורות של תרגילים אחרים — וזה בדיוק מה שהתכוונו אליו.
+    */
+    await screen.findAllByText('חזה אמצעי', {}, { timeout: SLOW })
+    expect(screen.getAllByText('ארבע-ראשי').length).toBeGreaterThan(0)
+
+    /*
+      הצ׳יפ מסנן את השורות, לא את עצמו: שורת הצ׳יפים נשארת מלאה גם אחרי
+      בחירה, אחרת אי אפשר היה לעבור לתת-קטגוריה אחרת בלי לאפס. לכן הטענה
+      היא על תרגיל שאמור להיעלם, ולא על היעלמות הטקסט מהמסך.
+    */
+    const chip = screen.getAllByRole('button', { name: /^חזה עליון/ })[0]
+    await user.click(chip)
+    await waitFor(() => expect(screen.queryByText('לחיצת רגליים')).toBeNull())
+    expect(chip.getAttribute('aria-pressed')).toBe('true')
+
+    // "כל השרירים" מחזיר הכל — ולא מתנגש בשם עם מתג שלי/הכל
+    await user.click(screen.getByRole('button', { name: 'כל השרירים' }))
+    await screen.findByText('לחיצת רגליים', {}, { timeout: SLOW })
+  }, 40000)
+
   /*
     הדגל `startOnImage` קיים בדיוק בשביל הבדיקה הזו.
 

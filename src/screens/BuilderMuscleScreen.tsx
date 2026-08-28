@@ -18,6 +18,7 @@ import { useBasket } from '@/state/builderBasket'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { EmptyState, IconButton, toast } from '@/components/ui'
 import { ExerciseThumb } from '@/components/media/ExerciseThumb'
+import { subTargetFor } from '@/db/subTargets'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { BasketBar } from '@/components/builder/BasketBar'
 import { QuickEditSheet } from '@/components/exercises/QuickEditSheet'
@@ -103,7 +104,28 @@ export function BuilderMuscleScreen(): JSX.Element {
     }
   }, [entries, group, lastPerformed, query, hidden])
 
+  /*
+    חלוקה לתת-קטגוריות. הסדר נשמר: `list` כבר ממוין לפי "הכי מזמן שלא עשית",
+    והחלוקה רק אוספת אותו לדליים בלי למיין מחדש בתוכם — אחרת התרגיל שהכי
+    צריך תשומת לב היה יורד באמצע הרשימה.
+  */
+  const sections = useMemo(() => {
+    if (!group) return []
+    const bySub = new Map<string, typeof list>()
+    for (const entry of list) {
+      const sub =
+        subTargetFor(entry.exercise?.id ?? entry.id, group, entry.exercise?.libraryId) ?? 'אחר'
+      const bucket = bySub.get(sub)
+      if (bucket) bucket.push(entry)
+      else bySub.set(sub, [entry])
+    }
+    return [...bySub.entries()]
+      .sort((a, b) => (a[0] === 'אחר' ? 1 : b[0] === 'אחר' ? -1 : b[1].length - a[1].length))
+      .map(([sub, items]) => ({ sub, items }))
+  }, [list, group])
+
   if (!group) return <Navigate to="/builder" replace />
+
 
   const selected = new Set(items.map((i) => i.id))
 
@@ -152,8 +174,24 @@ export function BuilderMuscleScreen(): JSX.Element {
           }
         />
       ) : (
-        <ul className="card divide-y divide-ink-800/70 overflow-hidden">
-          {list.map((entry) => (
+        <div className="space-y-3">
+          {sections.map(({ sub, items }) => (
+            <div key={sub}>
+              {/*
+                כותרת תת-קטגוריה, מאותו מקור בדיוק כמו במסך התרגילים: השריר
+                בעל האחוז הגבוה בכרטיס, מתוך הקבוצה של התרגיל. מוצגת רק כשיש
+                יותר מאחת — כותרת יחידה הייתה חוזרת על שם הקבוצה שבראש המסך.
+              */}
+              {sections.length > 1 ? (
+                <p className="mb-1.5 flex items-baseline gap-2 px-1">
+                  <span className="text-[0.6875rem] font-bold tracking-wide text-flame-400">
+                    {sub}
+                  </span>
+                  <span className="meta tnum">{items.length}</span>
+                </p>
+              ) : null}
+              <ul className="card divide-y divide-ink-800/70 overflow-hidden">
+          {items.map((entry) => (
             <li key={entry.id}>
               <ExerciseRow
                 entry={entry}
@@ -174,7 +212,10 @@ export function BuilderMuscleScreen(): JSX.Element {
               />
             </li>
           ))}
-        </ul>
+              </ul>
+            </div>
+          ))}
+        </div>
       )}
 
       {hiddenList.length > 0 ? (

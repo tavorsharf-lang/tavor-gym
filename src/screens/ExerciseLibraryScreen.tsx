@@ -31,6 +31,7 @@ import { useHiddenVideoIds } from '@/db/hiddenVideos'
 import { groupContextId, useVideoPrefs } from '@/db/videoPrefs'
 import { cancelScrollRestore } from '@/hooks/useScrollMemory'
 import { normalize } from '@/lib/text'
+import { secondaryFor, subTargetFor } from '@/db/subTargets'
 
 /**
  * מסך התרגילים — רשימה אחת, שני מצבים.
@@ -70,6 +71,8 @@ export function ExerciseLibraryScreen({
   const [playingGroup, setPlayingGroup] = useState<MuscleGroup | null>(null)
   /** השורה שהריבוע שלה נלחץ — הגלריה נפתחת על כרטיס השרירים שלה */
   const [gallery, setGallery] = useState<CatalogEntry | null>(null)
+  /** תת-קטגוריה שנבחרה בשורת הצ׳יפים; null = הכל */
+  const [subFilter, setSubFilter] = useState<string | null>(null)
 
   /*
     מדפי הסרטונים של קבוצות השריר: סרטון שהועבר אל `group:<שריר>` (מתוך פאנל
@@ -140,6 +143,58 @@ export function ExerciseLibraryScreen({
     }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries, mine, mode, q])
+
+  /*
+    חלוקה לתת-קטגוריות לפי כרטיס השרירים.
+
+    התת-קטגוריה נגזרת ולא נשמרת: היא תמיד השריר בעל האחוז הגבוה ביותר בכרטיס,
+    מתוך קבוצת השריר של התרגיל. כך היא לא יכולה להתיישן מול הכרטיס, וכרטיס
+    שיוחלף מזיז את התרגיל לכותרת הנכונה בלי מיגרציה.
+
+    תרגיל בלי כרטיס — תרגיל שהמשתמש יצר — נופל ל"אחר" ולא נעלם.
+  */
+  const OTHER = 'אחר'
+  const sectioned = useMemo(
+    () =>
+      groups.map(({ group, list }) => {
+        const bySub = new Map<string, CatalogEntry[]>()
+        for (const entry of list) {
+          const sub =
+            subTargetFor(entry.exercise?.id ?? entry.id, group, entry.exercise?.libraryId) ?? OTHER
+          const bucket = bySub.get(sub)
+          if (bucket) bucket.push(entry)
+          else bySub.set(sub, [entry])
+        }
+        // הגדולה קודם, ו"אחר" תמיד אחרונה — היא שארית ולא קטגוריה
+        const subs = [...bySub.entries()]
+          .sort((a, b) => (a[0] === OTHER ? 1 : b[0] === OTHER ? -1 : b[1].length - a[1].length))
+          .map(([sub, items]) => ({ sub, items }))
+        return { group, list, subs }
+      }),
+    [groups]
+  )
+
+  /** כל תת-הקטגוריות שיש להן תרגילים כרגע — הן ממלאות את שורת הצ׳יפים */
+  const subOptions = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const { subs } of sectioned)
+      for (const { sub, items } of subs) counts.set(sub, (counts.get(sub) ?? 0) + items.length)
+    return [...counts.entries()]
+      .filter(([sub]) => sub !== OTHER)
+      .sort((a, b) => b[1] - a[1])
+  }, [sectioned])
+
+  // מסנן שהתרוקן אחרי חיפוש או החלפת מצב היה משאיר מסך ריק בלי הסבר
+  const visible = useMemo(
+    () =>
+      sectioned
+        .map(({ group, subs }) => ({
+          group,
+          subs: subFilter ? subs.filter((x) => x.sub === subFilter) : subs,
+        }))
+        .filter((x) => x.subs.length > 0),
+    [sectioned, subFilter]
+  )
 
   const total = groups.reduce((n, g) => n + g.list.length, 0)
   // כמה תוצאות יש בצד השני — מה שהופך "לא נמצא" להצעה ולא לקיר
@@ -315,6 +370,49 @@ export function ExerciseLibraryScreen({
         )}
       </div>
 
+      {/*
+        סינון לפי תת-קטגוריה. שורה גוללת ולא רשת: מספר התת-קטגוריות משתנה עם
+        החיפוש ועם המצב, ורשת שמשנה מספר שורות מזיזה את הרשימה מתחת לאצבע.
+      */}
+      {subOptions.length > 1 ? (
+        <div className="-mx-4 mb-4 overflow-x-auto px-4">
+          <div className="flex w-max gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSubFilter(null)}
+              aria-pressed={subFilter === null}
+              className={[
+                'min-h-9 shrink-0 rounded-pill border px-3 text-xs font-bold transition-colors',
+                subFilter === null
+                  ? 'border-flame-500 bg-flame-500 text-ink-950'
+                  : 'border-ink-700 bg-ink-900/70 text-bone-300 active:bg-ink-800',
+              ].join(' ')}
+            >
+              {/* לא "הכל" — כך נקרא כבר מתג שלי/הכל, ושני פקדים באותו שם
+                  באותו מסך הם עמימות גם לקורא-מסך וגם למשתמש */}
+              כל השרירים
+            </button>
+            {subOptions.map(([sub, n]) => (
+              <button
+                key={sub}
+                type="button"
+                onClick={() => setSubFilter(subFilter === sub ? null : sub)}
+                aria-pressed={subFilter === sub}
+                className={[
+                  'min-h-9 shrink-0 rounded-pill border px-3 text-xs font-bold transition-colors',
+                  subFilter === sub
+                    ? 'border-flame-500 bg-flame-500 text-ink-950'
+                    : 'border-ink-700 bg-ink-900/70 text-bone-300 active:bg-ink-800',
+                ].join(' ')}
+              >
+                {sub}
+                <span className="tnum ms-1.5 font-semibold opacity-60">{n}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {total === 0 ? (
         <EmptyStateFor
           mode={mode}
@@ -325,13 +423,13 @@ export function ExerciseLibraryScreen({
         />
       ) : (
         <div className="space-y-7">
-          {groups.map(({ group, list }) => (
+          {visible.map(({ group, subs }) => (
             <section key={group} className="animate-rise">
               <div className="mb-2 flex items-baseline justify-between px-1">
                 <h2 className="text-sm font-extrabold text-bone-200">
                   {MUSCLE_GROUPS[group].label}
                 </h2>
-                <span className="meta">{list.length}</span>
+                <span className="meta">{subs.reduce((n, x) => n + x.items.length, 0)}</span>
               </div>
 
               {(shelfCounts.get(group) ?? 0) > 0 ? (
@@ -349,11 +447,28 @@ export function ExerciseLibraryScreen({
                 </button>
               ) : null}
 
-              <div className="card divide-y divide-ink-800/70 overflow-hidden">
-                {list.map((entry) => (
+              {/*
+                כותרת תת-קטגוריה מוצגת רק כשיש יותר מאחת. קבוצה שכל תרגיליה
+                תחת אותו שריר — הבטן, למשל — הייתה מקבלת כותרת שחוזרת על שם
+                הקבוצה ולא מוסיפה כלום.
+              */}
+              <div className="space-y-3">
+                {subs.map(({ sub, items }) => (
+                  <div key={sub}>
+                    {subs.length > 1 ? (
+                      <p className="mb-1.5 flex items-baseline gap-2 px-1">
+                        <span className="text-[0.6875rem] font-bold tracking-wide text-flame-400">
+                          {sub}
+                        </span>
+                        <span className="meta tnum">{items.length}</span>
+                      </p>
+                    ) : null}
+                    <div className="card divide-y divide-ink-800/70 overflow-hidden">
+                {items.map((entry) => (
                   <Row
                     key={entry.id}
                     entry={entry}
+                    group={group}
                     mode={mode}
                     duplicates={duplicates}
                     lastPerformed={lastPerformed}
@@ -367,6 +482,9 @@ export function ExerciseLibraryScreen({
                     onAdd={() => handleAdd(entry)}
                     onRemove={() => handleRemoveTap(entry)}
                   />
+                ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </section>
@@ -437,6 +555,7 @@ export function ExerciseLibraryScreen({
  */
 function Row({
   entry,
+  group,
   mode,
   duplicates,
   lastPerformed,
@@ -447,6 +566,7 @@ function Row({
   onRemove,
 }: {
   entry: CatalogEntry
+  group: MuscleGroup
   mode: ExercisesMode
   duplicates: ReadonlySet<string>
   lastPerformed: Map<string, { weightKg: number; reps: number; at: number; sets: number }>
@@ -461,6 +581,12 @@ function Row({
   const last = ex ? lastPerformed.get(ex.id) : undefined
   const apart = ex ? distinguisher(ex, duplicates) : null
   const out = entry.state === 'removed' || entry.state === 'removedOwn'
+  /*
+    מה עוד עובד בתרגיל, לפי הכרטיס. שניים ולא כולם: השורה כבר נושאת שם, שם
+    באנגלית, תת-מיקוד, ציוד וביצוע אחרון, וחמש תגיות היו הופכות אותה לקיר.
+    השניים הראשונים הם בעלי האחוז הגבוה, ולכן גם המעניינים.
+  */
+  const secondary = secondaryFor(ex?.id ?? entry.id, group, ex?.libraryId).slice(0, 2)
 
   return (
     <div className={['flex items-center', out ? 'opacity-60' : ''].join(' ')}>
@@ -505,6 +631,18 @@ function Row({
                 : `${entry.library?.videos.length ?? 0} סרטוני הסבר`}
             </span>
           </span>
+          {secondary.length > 0 ? (
+            <span className="mt-1 flex flex-wrap gap-1">
+              {secondary.map((mus) => (
+                <span
+                  key={mus.he}
+                  className="rounded-pill border border-ink-700 bg-ink-850 px-1.5 py-px text-[0.625rem] font-semibold text-bone-400"
+                >
+                  {mus.he} <span className="tnum text-bone-500">{mus.pct}%</span>
+                </span>
+              ))}
+            </span>
+          ) : null}
         </span>
 
         <span className="shrink-0 text-end">
