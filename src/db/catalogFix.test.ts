@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import type { Exercise } from './types'
-import { CATALOG_FIXES, CATALOG_FIXES_V5, applyCatalogFix } from './catalogFix'
+import {
+  CATALOG_FIXES,
+  CATALOG_FIXES_V5,
+  CATALOG_FIXES_V10,
+  CATALOG_FIXES_V11,
+  applyCatalogFix,
+} from './catalogFix'
 import { SEED_EXERCISES } from './seed'
 
 const seedById = new Map(SEED_EXERCISES.map((e) => [e.id, e]))
 const v5ById = new Map(CATALOG_FIXES_V5.map((f) => [f.id, f]))
+const v10ById = new Map(CATALOG_FIXES_V10.map((f) => [f.id, f]))
+const v11ById = new Map(CATALOG_FIXES_V11.map((f) => [f.id, f]))
 
 /**
  * מה התיקון האחרון שחל על התרגיל הזה. תרגיל שדור מאוחר יותר נגע בו נמדד מולו
@@ -12,7 +20,7 @@ const v5ById = new Map(CATALOG_FIXES_V5.map((f) => [f.id, f]))
  * לגיטימי, ומפסיקה להגן על מה שהיא נועדה להגן עליו.
  */
 function latest(fix: (typeof CATALOG_FIXES)[number]): (typeof CATALOG_FIXES)[number] {
-  return v5ById.get(fix.id) ?? fix
+  return v11ById.get(fix.id) ?? v10ById.get(fix.id) ?? v5ById.get(fix.id) ?? fix
 }
 
 /** רשומה בקטלוג כפי שהיא נראית לפני התיקון */
@@ -30,7 +38,12 @@ function before(fix: (typeof CATALOG_FIXES)[number]): Exercise {
 
 describe('CATALOG_FIXES מול הזריעה', () => {
   it('כל תיקון מצביע על תרגיל שקיים', () => {
-    for (const fix of [...CATALOG_FIXES, ...CATALOG_FIXES_V5]) {
+    for (const fix of [
+      ...CATALOG_FIXES,
+      ...CATALOG_FIXES_V5,
+      ...CATALOG_FIXES_V10,
+      ...CATALOG_FIXES_V11,
+    ]) {
       expect(seedById.has(fix.id), `${fix.id} לא בזריעה`).toBe(true)
     }
   })
@@ -40,7 +53,13 @@ describe('CATALOG_FIXES מול הזריעה', () => {
    * מכשיר מותקן היה נשאר מאחור בשקט — הבדיקה הזאת הופכת את זה לכישלון גלוי.
    */
   it('מחיל בדיוק את מה שיושב בזריעה', () => {
-    for (const fix of CATALOG_FIXES.map(latest)) {
+    const newest = new Map(
+      [...CATALOG_FIXES, ...CATALOG_FIXES_V5, ...CATALOG_FIXES_V10, ...CATALOG_FIXES_V11].map((f) => [
+        f.id,
+        latest(f),
+      ])
+    )
+    for (const fix of newest.values()) {
       const seed = seedById.get(fix.id)
       expect([fix.id, fix.name]).toEqual([fix.id, seed?.name])
       expect([fix.id, fix.nameEn]).toEqual([fix.id, seed?.nameEn])
@@ -62,8 +81,23 @@ describe('CATALOG_FIXES מול הזריעה', () => {
     }
   })
 
+  /** אותה חוקיות בדיוק לדור 10, אחרת קפיצה מגרסה 4 ל-10 מפספסת את הדגשים */
+  it('כל תיקון בדור 10 ממשיך את התוצאה של הדור שלפניו', () => {
+    const previousById = new Map(
+      [...CATALOG_FIXES, ...CATALOG_FIXES_V5].map((f) => [f.id, v5ById.get(f.id) ?? f])
+    )
+    for (const fix of CATALOG_FIXES_V10) {
+      const previous = previousById.get(fix.id)
+      if (!previous) continue
+      expect([fix.id, fix.was]).toEqual([fix.id, previous.name])
+      if (fix.wasCues && previous.cues) {
+        expect([fix.id, [...fix.wasCues]]).toEqual([fix.id, [...previous.cues]])
+      }
+    }
+  })
+
   it('אין מזהה שמופיע פעמיים', () => {
-    for (const list of [CATALOG_FIXES, CATALOG_FIXES_V5]) {
+    for (const list of [CATALOG_FIXES, CATALOG_FIXES_V5, CATALOG_FIXES_V10, CATALOG_FIXES_V11]) {
       const ids = list.map((f) => f.id)
       expect(new Set(ids).size).toBe(ids.length)
     }

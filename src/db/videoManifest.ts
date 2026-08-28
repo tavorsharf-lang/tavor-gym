@@ -24,14 +24,6 @@ export const VIDEO_MANIFEST: Record<string, BundledVideo[]> = {
   ],
   "db-bench-press": [
     {
-      "src": "videos/db-bench-press-01.mp4",
-      "poster": "videos/db-bench-press-01.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 12.4,
-      "sizeBytes": 366971
-    },
-    {
       "src": "videos/db-bench-press-02.mp4",
       "poster": "videos/db-bench-press-02.jpg",
       "width": 406,
@@ -54,6 +46,16 @@ export const VIDEO_MANIFEST: Record<string, BundledVideo[]> = {
       "height": 720,
       "durationSec": 9.4,
       "sizeBytes": 326219
+    }
+  ],
+  "incline-barbell-bench-press": [
+    {
+      "src": "videos/db-bench-press-01.mp4",
+      "poster": "videos/db-bench-press-01.jpg",
+      "width": 406,
+      "height": 720,
+      "durationSec": 12.4,
+      "sizeBytes": 366971
     }
   ],
   "decline-machine-press": [
@@ -282,6 +284,14 @@ export const VIDEO_MANIFEST: Record<string, BundledVideo[]> = {
       "height": 720,
       "durationSec": 28.8,
       "sizeBytes": 1208128
+    },
+    {
+      "src": "videos/machine-squat-01.mp4",
+      "poster": "videos/machine-squat-01.jpg",
+      "width": 406,
+      "height": 720,
+      "durationSec": 18.9,
+      "sizeBytes": 760469
     }
   ],
   "calf-raise": [
@@ -292,16 +302,6 @@ export const VIDEO_MANIFEST: Record<string, BundledVideo[]> = {
       "height": 720,
       "durationSec": 56.7,
       "sizeBytes": 1335800
-    }
-  ],
-  "machine-squat": [
-    {
-      "src": "videos/machine-squat-01.mp4",
-      "poster": "videos/machine-squat-01.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 18.9,
-      "sizeBytes": 760469
     }
   ],
   "leg-curl": [

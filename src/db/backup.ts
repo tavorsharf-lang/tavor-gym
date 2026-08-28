@@ -17,6 +17,7 @@ import type {
 import { withLibraryLink } from '@/db/libraryLinks'
 import { withSecondaryMuscles } from '@/db/muscleTags'
 import { mergeCalfShelves, withoutCalves } from '@/db/calfMerge'
+import { withInclineBench, withV10Fields } from '@/db/catalogV10'
 import { PLANK_RANGE } from '@/db/seed'
 import { invalidateHiddenVideos } from '@/db/hiddenVideos'
 import { invalidateHiddenExercises } from '@/db/hiddenExercises'
@@ -181,11 +182,14 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
     ההמרה כאן שחזור היה מחזיר אותם למסד, וכל מסך שקורא
     `MUSCLE_GROUPS[e.muscleGroup].label` היה קורס עליהם.
   */
-  const exercises = (data.exercises ?? [])
-    .map(withLibraryLink)
-    .map(withTimedMetric)
-    .map(withSecondaryMuscles)
-    .map(withoutCalves)
+  const exercises = withInclineBench(
+    (data.exercises ?? [])
+      .map(withLibraryLink)
+      .map(withTimedMetric)
+      .map(withSecondaryMuscles)
+      .map(withoutCalves)
+      .map(withV10Fields)
+  )
   /*
     רק פריטי התוכנית של תרגילים שהגיעו מהקובץ *בלי* metric מתוקנים.
 

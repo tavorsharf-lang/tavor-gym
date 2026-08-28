@@ -32,7 +32,7 @@ describe('הקטלוג המאוחד', () => {
     expect(linked.length).toBe(Object.keys(LIBRARY_LINKS).length)
     expect(exercises.find((e) => e.id === 'leg-press')?.libraryId).toBe('lib-leg_press')
     // תרגיל שאין לו מקבילה במאגר נשאר בלי קישור, ולא עם מחרוזת ריקה
-    expect(exercises.find((e) => e.id === 'calf-raise')?.libraryId).toBeUndefined()
+    expect(exercises.find((e) => e.id === 'hammer-curl')?.libraryId).toBeUndefined()
   })
 
   it('מאחד את שני המקורות בלי כפילות — כל הקטלוג ועוד מה שבמאגר ולא מקושר', async () => {
@@ -118,7 +118,7 @@ describe('הקטלוג המאוחד', () => {
   it('חומר לימוד לא נכנס לקטלוג האימון ולא למועמדי החלפה', async () => {
     const exercises = await getAllExercises(true)
     expect(exercises.some((e) => e.id.startsWith('lib-'))).toBe(false)
-    expect(exercises.length).toBe(28)
+    expect(exercises.length).toBe(SEED_EXERCISES.length)
 
     const legPress = exercises.find((e) => e.id === 'leg-press')!
     const candidates = await getSubstituteCandidates(legPress)
@@ -174,7 +174,7 @@ describe('הוספה והוצאה מהתרגילים שלי', () => {
     // וגם אחרי ההוצאה אף רשומה לא נכפלה מול המאגר
     expect(entries.filter((e) => e.id === 'lib-leg_press').length).toBe(0)
     expect(entries.length).toBe(
-      28 + LIBRARY_CATALOG.length - Object.keys(LIBRARY_LINKS).length
+      SEED_EXERCISES.length + LIBRARY_CATALOG.length - Object.keys(LIBRARY_LINKS).length
     )
   })
 
@@ -309,8 +309,8 @@ describe('מיגרציה לגרסה 4', () => {
     await seedVersion3(SEED_EXERCISES.map(withoutLink))
 
     await db.open()
-    const stored = await db.exercises.get('calf-raise')
+    const stored = await db.exercises.get('hammer-curl')
     expect(stored?.libraryId).toBeUndefined()
-    expect(stored?.name).toBe(SEED_EXERCISES.find((e) => e.id === 'calf-raise')?.name)
+    expect(stored?.name).toBe(SEED_EXERCISES.find((e) => e.id === 'hammer-curl')?.name)
   })
 })

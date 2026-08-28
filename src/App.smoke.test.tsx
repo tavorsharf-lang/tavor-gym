@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { App } from './App'
 import { db, ensureReady } from './db/db'
+import { SEED_EXERCISES } from './db/seed'
 
 /**
  * בדיקת עשן: מרנדרת את האפליקציה כמו שהיא ומוודאת שהיא מגיעה למסך הבית.
@@ -48,7 +49,7 @@ describe('App', () => {
       db.blocks.count(),
     ])
     // 9 באימון A, 7 ב-B, 5 ב-C, ועוד 4+2+1 בבלוקים
-    expect(exercises).toBe(28)
+    expect(exercises).toBe(SEED_EXERCISES.length)
     // A/B/C + שתי תוכניות פול-באדי
     expect(routines).toBe(5)
     expect(blocks).toBe(3)

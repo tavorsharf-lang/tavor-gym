@@ -7,6 +7,7 @@ import {
   getCatalogEntries,
 } from './db/catalog'
 import { LIBRARY_CATALOG } from './db/libraryManifest'
+import { SEED_EXERCISES } from './db/seed'
 import {
   activateRoutines,
   getActiveRoutines,
@@ -155,7 +156,7 @@ describe('הסל — מתרגיל בקטלוג המאוחד לאימון', () =>
   it('ensureTrainable מחזיר תרגיל קיים כמו שהוא', async () => {
     const found = await ensureTrainable('leg-press')
     expect(found?.id).toBe('leg-press')
-    expect(await db.exercises.count()).toBe(28)
+    expect(await db.exercises.count()).toBe(SEED_EXERCISES.length)
   })
 
   it('ensureTrainable מחזיר תרגיל שהוצא מהתרגילים שלי', async () => {
@@ -322,7 +323,7 @@ describe('הסתרה — הוספה מבטלת, הצעה מדלגת', () => {
     expect(outcome).toBe('already')
     expect(exercise.id).toBe('leg-press')
     expect((await loadHiddenExerciseIds()).size).toBe(0)
-    expect(await db.exercises.count()).toBe(28)
+    expect(await db.exercises.count()).toBe(SEED_EXERCISES.length)
   })
 
   it('suggestWorkout מדלג על מוסתרים — לפי מזהה הקטלוג ולפי מזהה המאגר', async () => {

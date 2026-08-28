@@ -92,7 +92,198 @@ const DUPLICATE_URLS = new Set([
   'https://www.tiktok.com/@deltabolic/video/7651794944499240193',
   'https://www.tiktok.com/@deltabolic/video/7666620266960801040',
   'https://www.tiktok.com/@deltabolic/video/7669146131384782096',
+
+  // סבב שני (אודיט המאגר). אותה שיטה — dHash על שמונה פריימים בפריסה אחידה,
+  // וכל זוג אומת בעין מול פריימים לפני שנכנס לכאן. שבעה מהם היו גם *וגם*:
+  // אותו קליף בדיוק, ובנוסף אחד העותקים ישב תחת תרגיל שגוי. הכתובת שנשארת
+  // היא זו שיושבת בתרגיל הנכון; בזוג שבו שני העותקים באותו תרגיל נשמר
+  // המופע המוקדם יותר, כמו בסבב הראשון.
+  'https://www.tiktok.com/@deltabolic/video/7575350536535379216', // חתירה בכבל, ישב תחת פרפר הפוך
+  'https://www.tiktok.com/@deltabolic/video/7591650240193662209', // זוויות ספסל בדאמבלים, ישב תחת מוט
+  'https://www.tiktok.com/@deltabolic/video/7538947864047799557', // דדליפט רומני, ישב תחת דדליפט
+  'https://www.tiktok.com/@deltabolic/video/7477778832280358199', // לחיצה בשיפוע, ישבה תחת שטוח
+  'https://www.tiktok.com/@deltabolic/video/7614683044384951553', // פרפר במכונה, ישב תחת כבלים
+  'https://www.tiktok.com/@deltabolic/video/7508543918905036038', // פרפר במכונה, ישב תחת כבלים
+  'https://www.tiktok.com/@deltabolic/video/6880363767008365825', // פרפר בדאמבלים, ישב תחת כבלים
+  'https://www.tiktok.com/@deltabolic/video/7577965531286834433', // כפיפת ברכיים — כפילות פנימית
+  'https://www.tiktok.com/@deltabolic/video/7606481835203333392', // חתירה בדאמבל — כפילות פנימית
+  'https://www.tiktok.com/@deltabolic/video/7620156173517425937', // סקוואט בסמית — כפילות פנימית
+  'https://www.tiktok.com/@deltabolic/video/7604296322199391489', // כפיפת בטן בכבל — כפילות פנימית
+  'https://www.tiktok.com/@deltabolic/video/7479964650256239877', // פשיטת מרפקים מעל הראש, ישבה תחת לחיצת כתפיים
+  'https://www.tiktok.com/@deltabolic/video/7600601665439370497', // כפיפת מרפקים במוט, ישבה תחת הרמת כתפיים
 ])
+
+/**
+ * סרטוני מאגר שיושבים תחת התרגיל הלא נכון, וההעברה שלהם.
+ *
+ * המקור מסווג לפי התרגיל שהסרטון *הוזכר* בו, ולכן קליפ שכל תוכנו "אל תשרוג
+ * במקבילים" נחת תחת הרמת כתפיים, ו"מיקום כפות רגליים בלחיצת רגליים" נחת תחת
+ * סקוואט בסמית׳. כל אחד מאלה נצפה בעין — הכותרת הצרובה בסרטון היא שקבעה.
+ *
+ * שם קובץ *הפלט* ממשיך להיגזר מתרגיל המקור ומהמיקום בו, בדיוק כמו ב-`split`
+ * של תוכנית האימונים ומאותה סיבה: שם הקובץ הוא המפתח של הסרטון ב-DB המדיה
+ * על המכשיר, ושינוי שלו מאלץ הורדה מחדש של קליפ שלא השתנה.
+ */
+const LIB_REASSIGN = {
+  'https://www.tiktok.com/@deltabolic/video/7621359575739960577': 'lib-overhead_triceps_extension',
+  'https://www.tiktok.com/@deltabolic/video/6917340420728950022': 'lib-overhead_triceps_extension',
+  'https://www.tiktok.com/@deltabolic/video/7451754414399966470': 'lib-barbell_curl',
+  'https://www.tiktok.com/@deltabolic/video/7498145524617334021': 'lib-straight_arm_pulldown',
+  'https://www.tiktok.com/@deltabolic/video/7258347917864406278': 'lib-seated_cable_row',
+  'https://www.tiktok.com/@deltabolic/video/7560851529704443153': 'lib-seated_cable_row',
+  'https://www.tiktok.com/@deltabolic/video/7586821501987327248': 'lib-face_pull',
+  'https://www.tiktok.com/@deltabolic/video/7114406189726780678': 'lib-dips',
+  'https://www.tiktok.com/@deltabolic/video/7536720767279516933': 'lib-dumbbell_curl',
+  'https://www.tiktok.com/@deltabolic/video/7584196042317466881': 'lib-barbell_curl',
+  'https://www.tiktok.com/@deltabolic/video/7574984731347914000': 'lib-hip_thrust',
+  'https://www.tiktok.com/@deltabolic/video/7565265280272796945': 'lib-leg_press',
+
+  // סבב אודיט קבוצת החזה: `lib-cable_chest_fly` החזיק תשעה קליפים שאינם כבלים
+  // — חמישה פרפר עם דאמבלים על ספסל, שניים במכונת פק-דק. הכיתוב בסרטון
+  // ("Dumbbell Chest Fly Mistakes", "Machine Chest Fly Mistakes") מאשר את מה
+  // שרואים בפריים.
+  'https://www.tiktok.com/@deltabolic/video/6845839320419454213': 'lib-dumbbell_chest_fly',
+  'https://www.tiktok.com/@deltabolic/video/6922951610050039045': 'lib-dumbbell_chest_fly',
+  'https://www.tiktok.com/@deltabolic/video/7108868873427963142': 'lib-pec_deck_machine_chest_fly',
+  'https://www.tiktok.com/@deltabolic/video/7451447029680704773': 'lib-dumbbell_chest_fly',
+  'https://www.tiktok.com/@deltabolic/video/7529312860468563205': 'lib-dumbbell_chest_fly',
+  'https://www.tiktok.com/@deltabolic/video/7590187882011282689': 'lib-dumbbell_chest_fly',
+  'https://www.tiktok.com/@deltabolic/video/7664414076881128721': 'lib-pec_deck_machine_chest_fly',
+
+  // אודיט קבוצת הגב. `lib-machine_row` נשאר ריק אחרי ההעברה ולכן נושר מהקטלוג
+  // מעצמו — הרשומה מעולם לא החזיקה תוכן על חתירה במכונה, רק טריק לחתירת ארצ׳ר
+  // בכבל. זה בדיוק מה שכבר מתועד ב-UNLINKED_NOTES של קטלוג האימון.
+  'https://www.tiktok.com/@deltabolic/video/7457018519314648326': 'lib-straight_arm_pulldown',
+  'https://www.tiktok.com/@deltabolic/video/7663991412198755600': 'lib-seated_cable_row',
+
+  // אודיט קבוצת הכתפיים. ארבעה קליפים תחת `lib-rear_delt_fly` הם משיכת פנים
+  // בכבל — שלושה מהם אומרים "Face Pull" על המסך. `lib-face_pull` כבר קלט קליפ
+  // כזה בסבב קודם, ולכן זו המשכה של אותה החלטה ולא חדשה.
+  'https://www.tiktok.com/@deltabolic/video/6891815522111917314': 'lib-face_pull',
+  'https://www.tiktok.com/@deltabolic/video/6941592592219966726': 'lib-face_pull',
+  'https://www.tiktok.com/@deltabolic/video/7412795066479119621': 'lib-face_pull',
+  'https://www.tiktok.com/@deltabolic/video/7488128884299336965': 'lib-face_pull',
+
+  // ארבעה מתוך ששת הקליפים של `lib-shrug` אינם הרמת כתפיים אלא "אל תרים
+  // כתפיים בתרגיל X" — התרגיל שמבוצע בפועל בפריים הוא הרמה לצדדים, כפיפת
+  // מרפקים במוט, חתירה עם דאמבל וחתירה במוט. הביצוע בפועל קובע, לא הנושא.
+  'https://www.tiktok.com/@deltabolic/video/6836906581473398022': 'lib-lateral_raise',
+  'https://www.tiktok.com/@deltabolic/video/6840687402898541829': 'lib-barbell_curl',
+  'https://www.tiktok.com/@deltabolic/video/6850884602895158533': 'lib-dumbbell_row',
+  'https://www.tiktok.com/@deltabolic/video/6956029285228449030': 'lib-barbell_row',
+
+  // אודיט קבוצת הרגליים. `lib-barbell_squat` החזיק סקוואט פיצול עם דאמבלים
+  // וסקוואט סומו עם דאמבל — לא סקוואט במוט. `lib-leg_press` החזיק הרמת עקבים
+  // על מזחלת הלחיצה; הכיתוב אומר "Do calf raises on any leg press/squat machine".
+  'https://www.tiktok.com/@deltabolic/video/6800044262005280006': 'lib-lunge',
+  'https://www.tiktok.com/@deltabolic/video/7652514843739589904': 'lib-sumo_squat',
+  'https://www.tiktok.com/@deltabolic/video/6788742907751845125': 'lib-calf_raise',
+
+  // אודיט קבוצת היד האחורית. שני קליפים תחת `lib-triceps_pushdown` הם פשיטה
+  // בשכיבה — אחד מהם אומר "LYING TRICEP EXTENSION MISTAKE" על המסך. וקליפ
+  // אחד תחת `lib-dips` מבוצע בישיבה על ספסל, לא על מוטות מקבילים.
+  'https://www.tiktok.com/@deltabolic/video/6964353766481005830': 'lib-skull_crusher',
+  'https://www.tiktok.com/@deltabolic/video/7058052021340900613': 'lib-skull_crusher',
+  'https://www.tiktok.com/@deltabolic/video/6869565245250096389': 'lib-bench_dip',
+
+  // אודיט קבוצת היד הקדמית. `lib-dumbbell_curl` שימש בפועל כרשומת "כפיפת
+  // מרפקים" גנרית: ארבעה קליפים מבוצעים במוט או ב-EZ, שלושה על ספסל בשיפוע
+  // (והכיתוב אומר "incline" בשלושתם), ואחד בכבל. שם הרשומה אומר "בדאמבלים",
+  // ולכן כאן, בשונה מ-`lib-row_general` ו-`lib-overhead_press`, הקליפים סותרים
+  // את שם הרשומה עצמו ולא רק את הקטגוריה שלה. כל שמונה אומתו ב-8 פריימים.
+  'https://www.tiktok.com/@deltabolic/video/6800546602126691590': 'lib-barbell_curl',
+  'https://www.tiktok.com/@deltabolic/video/6950476539347684613': 'lib-barbell_curl',
+  'https://www.tiktok.com/@deltabolic/video/7021690774332951813': 'lib-barbell_curl',
+  'https://www.tiktok.com/@deltabolic/video/7245075772501658886': 'lib-barbell_curl',
+  'https://www.tiktok.com/@deltabolic/video/7110747528437533958': 'lib-incline_dumbbell_curl',
+  'https://www.tiktok.com/@deltabolic/video/7471078615006891269': 'lib-incline_dumbbell_curl',
+  'https://www.tiktok.com/@deltabolic/video/7584931170341735688': 'lib-incline_dumbbell_curl',
+  'https://www.tiktok.com/@deltabolic/video/7473645877161233719': 'lib-cable_curl',
+}
+
+/**
+ * רשומות מאגר שאין להן מקבילה במקור.
+ *
+ * המקור מגיע מיוצר תוכן אחד, וחלוקת התרגילים שלו אינה מלאה — הרמת עקבים
+ * וסקוואט סומו אינם רשומות אצלו, אבל יש להם סרטון ייעודי שיושב תחת רשומה
+ * אחרת. `LIB_REASSIGN` לבדו לא מספיק: הקטלוג נבנה מ-`meta`, וכל מזהה שאינו
+ * שם היה מייצר קליפ יתום בלי רשומה שתציג אותו.
+ *
+ * `videoCount: 0` — הספירה במקור אינה מכירה את הרשומה, ולכן `totalAvailable`
+ * ייגזר ממה שבפועל נכנס אליה.
+ */
+const LIB_NEW = {
+  'lib-calf_raise': { nameHe: 'הרמת עקבים', nameEn: 'Calf Raise', muscleGroup: 'legs', videoCount: 0 },
+  'lib-sumo_squat': { nameHe: 'סקוואט סומו', nameEn: 'Sumo Squat', muscleGroup: 'legs', videoCount: 0 },
+  'lib-cable_curl': {
+    nameHe: 'כפיפת מרפקים בכבל',
+    nameEn: 'Cable Biceps Curl',
+    muscleGroup: 'biceps',
+    videoCount: 0,
+  },
+}
+
+/**
+ * שם רשומה שהמקור נתן לה, ושהאודיט הראה שאינו מתאר את מה שיש בה.
+ *
+ * המזהה לא משתנה לעולם — הוא המפתח של הקישור לקטלוג ושל תגיות השרירים. רק
+ * התווית שהמשתמש רואה מתוקנת.
+ */
+const LIB_RENAME = {
+  // ארבעת הקליפים מכסים גם כפיפה וגם פשיטה — הכיתוב מסמן במפורש
+  // "WRIST FLEXION", "EXTENSORS" ו-"Flexors:"/"Extensors:" באותו קליפ
+  'lib-reverse_wrist_curl': {
+    nameHe: 'אמות — כפיפה ופשיטת שורש כף יד',
+    nameEn: 'Wrist Curl & Reverse Wrist Curl',
+  },
+}
+
+/**
+ * דריסת נושא לקליפ בודד, לפי כתובת.
+ *
+ * `cleanTopic` מטפל בתבניות (שברי כתובת, כותרת השקה). מה שנשאר הוא כיתוב
+ * קידום שאין בו שום תבנית ("Summer Sale is now LIVE!") או מותג שנדבק לפני
+ * התוכן — ואת אלה אי אפשר לזהות בלי לקרוא את הקליפ. לכן דריסה מפורשת
+ * ומאומתת חזותית, ולא ניחוש רגולרי שעלול לאכול טקסט אמיתי.
+ */
+const LIB_TOPIC = {
+  // "SIZE and SHRED .com The PERFECT Rear Delt Fly" — מותג לפני התוכן
+  'https://www.tiktok.com/@deltabolic/video/7544866892813487378': 'The PERFECT Rear Delt Fly',
+  // כיתוב קידום בלבד; הפריים מראה הרמת כתפיים עם דאמבלים בעמידה
+  'https://www.tiktok.com/@deltabolic/video/7533055215797357829': 'Dumbbell Shrug',
+  // זוג קליפים עם אותו נושא בדיוק, ושתי זוויות צילום שונות שכתובות על המסך
+  'https://www.tiktok.com/@deltabolic/video/6894406872846060801':
+    'STOP shrugging during rear delt flyes! (Back View)',
+  'https://www.tiktok.com/@deltabolic/video/6894408027110165761':
+    'STOP shrugging during rear delt flyes! (Front View)',
+  // "Wearing the latest from — ." — קידום בלבד; הקליפ מראה הנחת המוט וסקוואט בסמית'
+  'https://www.tiktok.com/@deltabolic/video/7513352117692665094': 'Smith Machine Squat',
+}
+
+/**
+ * מנקה שאריות גרידה מתחילת הנושא.
+ *
+ * המקור שאב את הכיתוב מטיקטוק יחד עם שברי כתובת וידית — "com ( )",
+ * "official - ." — ואלה הגיעו כמות שהם לתווית שהמשתמש רואה על הסרטון.
+ * 62 מתוך 454 הנושאים התחילו כך.
+ */
+function cleanTopic(s) {
+  let x = String(s).replace(/\s+/g, ' ').trim()
+  // כותרת קידום שקדמה לתוכן: "The 7TH .com! Launches Monday … 8 PM CET Hyperextension"
+  x = x.replace(/^.*?\bLaunches\b.*?(?:\d{1,2}\s*(?:AM|PM)\s*[A-Z]{2,4}\s*\|?\s*)+/i, '')
+  // סוגריים שנקטעו בגרידה בסוף המחרוזת
+  x = x.replace(/\s*\([^)]{0,3}$/, '')
+  // שארית כתובת שנפלה לאמצע המחרוזת ולא לתחילתה: ".com ( )"
+  x = x.replace(/\s*\.com\s*\(\s*\)\s*/gi, ' ')
+  for (let i = 0; i < 6; i++) {
+    const y = x
+      .replace(/^(?:(?:https?:\/\/)?(?:www\.)?[\w-]*\.?(?:com|coml?)\b|official)[\s.,\-\u2013\u2014()]*/i, '')
+      .replace(/^[\s.,\-\u2013\u2014()]+/, '')
+    if (y === x) break
+    x = y
+  }
+  return x.trim()
+}
 
 
 /** קבוצת שריר במאגר (עברית) → הערך ב-MuscleGroup */
@@ -120,11 +311,27 @@ function slug(key) {
     .replace(/^_|_$/g, '')
 }
 
-/** תיקיית מקור → מזהה התרגיל בקטלוג */
+/**
+ * תיקיית מקור → מזהה התרגיל בקטלוג.
+ *
+ * הערך הוא בדרך כלל מזהה אחד, וכל הקבצים בתיקייה נכנסים אליו. כשתיקייה אחת
+ * מחזיקה שתי וריאציות שהן שני תרגילים נפרדים בקטלוג — כמו לחיצת חזה שטוחה
+ * מול שיפוע חיובי — הערך הוא `{ id, split }`: `id` הוא ברירת המחדל, ו-`split`
+ * ממפה שם קובץ מקור למזהה אחר.
+ *
+ * שם קובץ *הפלט* נגזר תמיד מ-`id` ומהמיקום בתיקייה, גם עבור קובץ שנשלח
+ * לתרגיל אחר. זה נראה לא עקבי ונבחר בכוונה: שם הקובץ הוא המפתח של הסרטון
+ * ב-DB המדיה על המכשיר וב-videoHashes.ts, ושינוי שלו היה מאלץ הורדה מחדש של
+ * סרטון שכבר מותקן ומזייף שינוי תוכן שלא קרה.
+ */
 const MAP = {
   'יום A - חזה ויד אחורית (Day A - Chest & Triceps)': {
     '00. חימום שכיבות סמיכה (Push-Up Warm-Up)': 'pushup',
-    '01. לחיצת חזה חופשי - 22.5 קילו כל צד (Dumbbell Bench Press)': 'db-bench-press',
+    '01. לחיצת חזה חופשי - 22.5 קילו כל צד (Dumbbell Bench Press)': {
+      id: 'db-bench-press',
+      // שלושת האחרונים שטוח, הראשון בשיפוע חיובי — שתי רשומות בקטלוג
+      split: { '01.mp4': 'incline-barbell-bench-press' },
+    },
     '02. לחיצה במכונה סיקליין - 25 קילו כל צד (Decline Machine Press)': 'decline-machine-press',
     '03. מקבילים - 40 קילו כל צד (Dips)': 'dips',
     '04. פקטורל במכונה שיפוע שלילי - 15 קילו כל צד (Decline Machine Pec Fly)': 'decline-pec-fly',
@@ -151,7 +358,13 @@ const MAP = {
   'יום C - רגליים (Day C - Legs)': {
     '01. לחיצת רגליים - 160 קילו (Leg Press)': 'leg-press',
     '02. שרירי תאומים - 180 קילו (Calf Raise)': 'calf-raise',
-    '03. סקוואט במכונה - 120 קילו (Machine Squat)': 'machine-squat',
+    '03. סקוואט במכונה - 120 קילו (Machine Squat)': {
+      id: 'machine-squat',
+      // הסרטון בתיקייה הזו הוא לחיצת רגליים ב-45 מעלות ולא סקוואט. הוא עבר
+      // ל-leg-press, ולכן לסקוואט במכונה אין כרגע סרטון — וזה מצב כן יותר
+      // מסרטון שמלמד תרגיל אחר.
+      split: { '01.mp4': 'leg-press' },
+    },
     '04. כפיפת ברכיים - 115 קילו (Leg Curl)': 'leg-curl',
     '05. פשיטת ברכיים (Leg Extension)': 'leg-extension',
     '06. בטן (Abs)': 'abs',
@@ -259,7 +472,9 @@ function importProgram() {
   let totalOut = 0
 
   for (const [dayDir, exercises] of Object.entries(MAP)) {
-    for (const [exDir, exerciseId] of Object.entries(exercises)) {
+    for (const [exDir, target] of Object.entries(exercises)) {
+      const exerciseId = typeof target === 'string' ? target : target.id
+      const split = typeof target === 'string' ? {} : (target.split ?? {})
       const srcDir = join(SOURCE, dayDir, exDir)
       if (!existsSync(srcDir)) {
         console.warn(`  ⚠ אין תיקייה: ${exDir}`)
@@ -278,7 +493,8 @@ function importProgram() {
         kept += 1
         totalIn += r.inSize
         totalOut += r.outSize
-        manifest[exerciseId].push(r.entry)
+        const into = split[f] ?? exerciseId
+        ;(manifest[into] ??= []).push(r.entry)
       })
       if (!manifest[exerciseId].length) delete manifest[exerciseId]
     }
@@ -297,11 +513,14 @@ function importLibrary() {
   mkdirSync(LIB_OUT_DIR, { recursive: true })
 
   const manifest = {}
+  const notes = {}
+  const meta = new Map()
   const catalog = []
   let totalIn = 0
   let totalOut = 0
   let capped = 0
   let dropped = 0
+  let moved = 0
 
   for (const ex of source) {
     const muscle = MUSCLE_MAP[ex.muscle]
@@ -316,39 +535,60 @@ function importLibrary() {
     const picked = unique.slice(0, LIB_MAX)
     if (unique.length > picked.length) capped += unique.length - picked.length
 
-    manifest[id] = []
-    const videos = []
+    meta.set(id, { nameHe: ex.nameHe, nameEn: ex.nameEn, muscleGroup: muscle, videoCount: ex.videoCount })
+    manifest[id] ??= []
+    notes[id] ??= []
+    // המספור נשען על `kept` ולא על אורך המערך: קליפ שמועבר לתרגיל אחר לא מגדיל
+    // את המערך של המקור, ובלי מונה נפרד שני קבצים היו מקבלים אותו שם.
+    let kept = 0
     picked.forEach((v) => {
       const srcFile = join(LIB_SOURCE, ex.folder, v.file)
       if (!existsSync(srcFile)) {
         console.warn(`  ⚠ קובץ חסר: ${ex.folder}/${v.file}`)
         return
       }
-      // המספור לפי מה שנכנס בפועל — videos ו-manifest[id] חייבים להישאר מקבילים
-      const idx = String(manifest[id].length + 1).padStart(2, '0')
+      const idx = String(kept + 1).padStart(2, '0')
       const r = transcode(srcFile, LIB_OUT_DIR, `${key}-${idx}`, 'videos/lib')
       if (!r) return
+      kept += 1
       totalIn += r.inSize
       totalOut += r.outSize
-      manifest[id].push(r.entry)
-      videos.push({ topic: v.topic, url: v.url })
+      const into = LIB_REASSIGN[v.url] ?? id
+      if (into !== id) moved += 1
+      // notes ו-manifest חייבים להישאר מקבילים — לכן שניהם נדחפים יחד
+      ;(manifest[into] ??= []).push(r.entry)
+      // נושא שכולו היה שברי כתובת מתרוקן בניקוי, ותווית ריקה גרועה מזבל —
+      // שם התרגיל לפחות נכון
+      // נושא שכולו קידום ("link in my bio", "is having a 7th") נופל אחורה לשם
+      const cleaned = LIB_TOPIC[v.url] ?? cleanTopic(v.topic)
+      const usable = /link in my bio/i.test(cleaned) || cleaned.length < 6 ? '' : cleaned
+      ;(notes[into] ??= []).push({ topic: usable || ex.nameEn, url: v.url })
     })
+  }
 
-    if (!manifest[id].length) {
+  // אחרי הלולאה ולא לפניה: כך הרשומות החדשות נכנסות לסוף הקטלוג, ושום מזהה
+  // מהמקור לא נדרס אם יום אחד יופיע שם תרגיל באותו שם
+  for (const [id, m] of Object.entries(LIB_NEW)) if (!meta.has(id)) meta.set(id, m)
+  for (const [id, m] of Object.entries(LIB_RENAME)) if (meta.has(id)) Object.assign(meta.get(id), m)
+
+  for (const [id, m] of meta) {
+    if (!manifest[id] || !manifest[id].length) {
       delete manifest[id]
+      delete notes[id]
       continue
     }
     catalog.push({
       id,
-      nameHe: ex.nameHe,
-      nameEn: ex.nameEn,
-      muscleGroup: muscle,
-      videos,
-      totalAvailable: ex.videoCount,
+      nameHe: m.nameHe,
+      nameEn: m.nameEn,
+      muscleGroup: m.muscleGroup,
+      videos: notes[id],
+      // תרגיל שקיבל קליפ מהעברה יכול להחזיק יותר ממה שהמקור ספר עבורו
+      totalAvailable: Math.max(m.videoCount, manifest[id].length),
     })
   }
 
-  return { manifest, catalog, totalIn, totalOut, capped, dropped }
+  return { manifest, catalog, totalIn, totalOut, capped, dropped, moved }
 }
 
 function main() {

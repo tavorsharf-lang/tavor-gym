@@ -24,8 +24,10 @@ export const SECONDARY_MUSCLES: Record<string, MuscleGroup[]> = {
   // ─── קטלוג ───
   pushup: ['triceps', 'shoulders', 'abs'],
   'db-bench-press': ['triceps', 'shoulders'],
+  'incline-barbell-bench-press': ['triceps', 'shoulders'],
   'decline-machine-press': ['triceps', 'shoulders'],
-  dips: ['triceps', 'shoulders'],
+  // מקבילים במכונה עברו ל-triceps כראשי במיגרציה 10, ולכן החזה הוא המשני
+  dips: ['chest', 'shoulders'],
   'decline-pec-fly': [],
   'bench-machine-press': ['triceps', 'shoulders'],
   'overhead-tricep-ext': [],
@@ -54,7 +56,7 @@ export const SECONDARY_MUSCLES: Record<string, MuscleGroup[]> = {
   abs: [],
 
   // ─── מאגר ───
-  'lib-reverse_wrist_curl': [], // פשיטת שורש כף יד
+  'lib-reverse_wrist_curl': [], // אמות — כפיפה ופשיטת שורש כף יד
   'lib-cable_crunch': [], // כפיפות בטן בכבל
   'lib-crunch': [], // כפיפות בטן
   'lib-plank': [], // פלאנק
@@ -70,7 +72,6 @@ export const SECONDARY_MUSCLES: Record<string, MuscleGroup[]> = {
   'lib-back_extension': ['legs'], // הרמת גב
   'lib-t_bar_row': ['biceps', 'forearms', 'shoulders', 'abs'], // חתירת טי-בר
   'lib-landmine_row': ['biceps', 'forearms', 'shoulders', 'abs'], // חתירת לנדמיין
-  'lib-machine_row': ['biceps', 'forearms', 'shoulders'], // חתירה במכונה
   'lib-straight_arm_pulldown': [], // משיכה בזרועות ישרות
   'lib-barbell_bench_press': ['triceps', 'shoulders'], // לחיצת חזה במוט
   'lib-push_up': ['triceps', 'shoulders', 'abs'], // שכיבות סמיכה
@@ -94,6 +95,8 @@ export const SECONDARY_MUSCLES: Record<string, MuscleGroup[]> = {
   'lib-preacher_curl': [], // כפיפת מרפקים בספה
   'lib-barbell_curl': [], // כפיפת מרפקים במוט
   'lib-incline_dumbbell_curl': [], // כפיפת מרפקים בשיפוע
+  // נפתחה באודיט היד הקדמית — כפיפה בכבל היא תרגיל נפרד מכפיפה בדאמבלים
+  'lib-cable_curl': [], // כפיפת מרפקים בכבל — בידוד
   'lib-rear_delt_fly': ['back'], // פרפר הפוך
   'lib-lateral_raise': [], // הרמת ידיים לצדדים
   'lib-overhead_press': ['triceps', 'chest', 'abs'], // לחיצת כתפיים מעל הראש
@@ -116,6 +119,9 @@ export const SECONDARY_MUSCLES: Record<string, MuscleGroup[]> = {
   'lib-goblet_squat': ['back', 'abs'], // גובלט סקוואט
   'lib-hip_abduction': [], // הרחקת ירך
   'lib-front_squat': ['back', 'abs'], // פרונט סקוואט
+  // שתי רשומות שנפתחו באודיט הרגליים כדי לתת בית לקליפים שישבו ברשומה הלא נכונה
+  'lib-calf_raise': [], // הרמת עקבים — בידוד, כמו כל שאר תרגילי הבידוד כאן
+  'lib-sumo_squat': ['back', 'abs'], // סקוואט סומו
 }
 
 /** התגיות של תרגיל — לפי מזהה הקטלוג, ואם אין, לפי מזהה המאגר המקושר. */

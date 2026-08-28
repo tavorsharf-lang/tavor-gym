@@ -23,10 +23,11 @@ import {
   SEED_EXERCISES,
   SEED_ROUTINES,
 } from './seed'
-import { CATALOG_FIXES_V5, applyCatalogFix } from './catalogFix'
+import { CATALOG_FIXES_V5, CATALOG_FIXES_V10, CATALOG_FIXES_V11, applyCatalogFix } from './catalogFix'
 import { withLibraryLink } from './libraryLinks'
 import { withSecondaryMuscles } from './muscleTags'
 import { mergeCalfShelves, withoutCalves } from './calfMerge'
+import { withInclineBench, withV10Fields } from './catalogV10'
 
 /**
  * מסד הנתונים המובנה.
@@ -369,6 +370,77 @@ class GymDatabase extends Dexie {
         if (row) {
           const value = mergeCalfShelves(row.value)
           if (value !== row.value) await settings.put({ ...row, value })
+        }
+      })
+
+    /**
+     * גרסה 10 — הקטלוג מיושר מול מה שהסרטונים באמת מראים.
+     *
+     * ארבעה שינויים, כולם נגזרו מצפייה חוזרת בסרטונים פריים-פריים:
+     *
+     *  1. לחיצת החזה מתפצלת. רשומה אחת החזיקה "שיפוע חיובי ושטוח" עם ארבעה
+     *     סרטונים — שלושה שטוח ואחד בשיפוע — וזה לא יכול היה להיות נכון בשני
+     *     הצדדים: המוט יורד לחזה האמצעי בשטוח ולעליון בשיפוע, ולכן כל דגש
+     *     שנכתב היה שגוי לחצי מהמקרים. `db-bench-press` נשאר השטוח *עם המזהה
+     *     שלו* — הוא המפתח של ההיסטוריה, השיאים והתוכניות — ורשומת השיפוע
+     *     נולדת חדשה לצידו. מי שכבר מתאמן ממשיך בדיוק במקום שבו הוא היה.
+     *  2. `usesPlates` נדלק בלחיצת החזה. השם תוקן ל"מוט" כבר בגרסה 3 והשדה
+     *     נשאר מאחור, כלומר מחשבון הפלטות היה כבוי בתרגיל היחיד בקטלוג שבו
+     *     באמת מעמיסים פלטות על מוט.
+     *  3. מקבילים במכונה עוברים מ-`chest` ל-`triceps`.
+     *  4. דגשים שתיארו וריאציה אחרת מזו שבסרטון מוחלפים (CATALOG_FIXES_V10).
+     *
+     * הקישורים למאגר רצים שוב בסוף: הפיצול הוא שפתח אותם. כל עוד רשומה אחת
+     * כיסתה גם שטוח וגם שיפוע, אף אחת משתי רשומות המאגר לא הייתה נכונה לה.
+     */
+    this.version(10)
+      .stores({})
+      .upgrade(async (tx) => {
+        const table = tx.table<Exercise, string>('exercises')
+        for (const exercise of await table.toArray()) {
+          const renamed = applyCatalogFix(exercise, CATALOG_FIXES_V10) ?? exercise
+          const patched = withLibraryLink(withV10Fields(renamed))
+          if (patched !== exercise) await table.put(patched)
+        }
+
+        // אחרי התיקונים ולא לפניהם: הסדר החדש נגזר מהסדר של הרשומה השטוחה
+        const current = await table.toArray()
+        const withTwin = withInclineBench(current)
+        if (withTwin !== current) await table.bulkPut([...withTwin])
+      })
+
+    /**
+     * גרסה 11 — הדגש של הרמת הכתפיים מיושר מול הסרטון.
+     *
+     * הדגש הישן ("למשוך ישר למעלה לכיוון האוזניים") הוא בדיוק מה שהסרטון מסמן
+     * כ-"DON'T DO THIS" מעל עמידה זקופה. מה שהוא מלמד הוא הטיה קדימה וסחיטה
+     * למעלה ואחורה. שינוי טקסט בלבד, ורק אם הדגשים עדיין המקוריים.
+     */
+    this.version(11)
+      .stores({})
+      .upgrade(async (tx) => {
+        const table = tx.table<Exercise, string>('exercises')
+        for (const exercise of await table.toArray()) {
+          const fixed = applyCatalogFix(exercise, CATALOG_FIXES_V11)
+          if (fixed) await table.put(fixed)
+        }
+      })
+
+    /**
+     * גרסה 12 — "הרמת עקבים" מקבלת את דף המאגר שלה.
+     *
+     * `lib-calf_raise` נפתח באודיט המאגר מקליפ שישב תחת לחיצת רגליים, ולכן
+     * `LIBRARY_LINKS` מכיר עכשיו קישור שלא היה קיים כשהמסד נזרע. אותה לולאה
+     * בדיוק כמו בגרסאות 4 ו-10, ומאותה סיבה היא בטוחה: `withLibraryLink` לא
+     * נוגע ברשומה שכבר יש לה `libraryId`, ולכן קישור שהמשתמש קבע בעצמו נשאר.
+     */
+    this.version(12)
+      .stores({})
+      .upgrade(async (tx) => {
+        const table = tx.table<Exercise, string>('exercises')
+        for (const exercise of await table.toArray()) {
+          const linked = withLibraryLink(exercise)
+          if (linked !== exercise) await table.put(linked)
         }
       })
 
