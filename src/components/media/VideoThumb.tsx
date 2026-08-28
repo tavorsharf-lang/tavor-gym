@@ -25,7 +25,9 @@ export function VideoThumb({
   libraryId?: string
   /** חסר = התמונה דקורטיבית, והשורה שמסביבה היא זו שנלחצת */
   onOpen?: () => void
-  size?: 'sm' | 'md'
+  /** xs לשורות צפופות — חייב להתקיים גם כאן, אחרת שורה בלי כרטיס שרירים
+   *  מקבלת ריבוע גדול יותר משכנותיה וגובה השורה קופץ */
+  size?: 'xs' | 'sm' | 'md'
   /**
    * שומר על התיבה גם כשאין תמונה.
    *
@@ -117,7 +119,7 @@ export function VideoThumb({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseId, libraryId, hiddenVersion, prefsVersion])
 
-  const box = size === 'sm' ? 'h-14 w-14' : 'h-20 w-20'
+  const box = size === 'xs' ? 'h-10 w-10' : size === 'sm' ? 'h-14 w-14' : 'h-20 w-20'
 
   if (!url) {
     if (!keepFrame) return null
@@ -151,7 +153,11 @@ export function VideoThumb({
         }}
       />
       <span className="absolute inset-0 flex items-center justify-center bg-ink-950/35">
-        <Play size={size === 'sm' ? 16 : 20} className="text-bone-50 drop-shadow" fill="currentColor" />
+        <Play
+          size={size === 'md' ? 20 : size === 'sm' ? 16 : 12}
+          className="text-bone-50 drop-shadow"
+          fill="currentColor"
+        />
       </span>
     </>
   )

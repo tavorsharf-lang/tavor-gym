@@ -104,4 +104,47 @@ describe('אתרי הקריאה של הנגן והתמונה', () => {
 
     expect(missing).toEqual([])
   })
+
+  /*
+    כל מקום שמציג שורת תרגיל מציג את כרטיס השרירים.
+
+    הרשימה כתובה ביד ולא נסרקת: "מסך שמציג תרגיל" אינו דבר שאפשר לזהות
+    מהקוד — `RemoveExerciseSheet` מציג שם תרגיל ואינו רשימה, ו-`RatingSheet`
+    מדרג את מה שכבר על המסך. מה שהבדיקה תופסת הוא הכיוון ההפוך: מסך שהיה
+    ברשימה וחזר בשקט ל-`VideoThumb`, כלומר שורה שאיבדה את הכרטיס.
+  */
+  const CARD_SITES = [
+    'screens/ExerciseLibraryScreen.tsx',
+    'screens/BuilderMuscleScreen.tsx',
+    'screens/SessionDetailScreen.tsx',
+    'components/workout/ExerciseCard.tsx',
+    'components/workout/SubstituteSheet.tsx',
+    'components/workout/QueueRow.tsx',
+    'components/builder/BasketBar.tsx',
+  ]
+
+  it('כל רשימת תרגילים מציגה את כרטיס השרירים ולא פריים מהסרטון', () => {
+    const wrong: string[] = []
+    for (const rel of CARD_SITES) {
+      const text = readFileSync(join(SRC, rel), 'utf8')
+      if (!text.includes('<ExerciseThumb')) wrong.push(`${rel} — אין ExerciseThumb`)
+      if (text.includes('<VideoThumb')) wrong.push(`${rel} — חזר ל-VideoThumb`)
+    }
+    expect(wrong).toEqual([])
+  })
+
+  /*
+    ‏`VideoThumb` עצמו נשאר — הוא הנפילה־לאחור של `ExerciseThumb` לתרגיל בלי
+    כרטיס, ובלעדיו תרגיל שהמשתמש יצר היה מאבד את הריבוע לגמרי.
+  */
+  it('ExerciseThumb הוא היחיד שמרנדר VideoThumb', () => {
+    const importers = CARD_SITES.concat([
+      'screens/ExerciseScreen.tsx',
+      'screens/WorkoutScreen.tsx',
+    ]).filter((rel) => readFileSync(join(SRC, rel), 'utf8').includes('<VideoThumb'))
+    expect(importers).toEqual([])
+    expect(readFileSync(join(SRC, 'components/media/ExerciseThumb.tsx'), 'utf8')).toContain(
+      '<VideoThumb'
+    )
+  })
 })

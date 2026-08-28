@@ -2,6 +2,7 @@ import type { JSX } from 'react'
 import { Check, Clock, SkipForward } from 'lucide-react'
 import type { Exercise, QueueItem } from '@/db/types'
 import { formatRepRange } from '@/domain/units'
+import { ExerciseThumb } from '@/components/media/ExerciseThumb'
 
 /**
  * תרגיל מכווץ בתור. שורה אחת, שטח לחיצה של 60 פיקסל — נגיעה אחת מעבירה
@@ -66,6 +67,8 @@ export function QueueRow({
             <span className="size-3.5 rounded-full border-2 border-ink-600" />
           )}
         </span>
+
+        <ExerciseThumb exerciseId={exercise.id} libraryId={exercise.libraryId} size="xs" />
 
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[0.9375rem] font-bold text-bone-100">

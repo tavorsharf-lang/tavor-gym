@@ -17,7 +17,7 @@ import { useNow } from '@/hooks/useNow'
 import { useBasket } from '@/state/builderBasket'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { EmptyState, IconButton, toast } from '@/components/ui'
-import { VideoThumb } from '@/components/media/VideoThumb'
+import { ExerciseThumb } from '@/components/media/ExerciseThumb'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { BasketBar } from '@/components/builder/BasketBar'
 import { QuickEditSheet } from '@/components/exercises/QuickEditSheet'
@@ -228,6 +228,7 @@ export function BuilderMuscleScreen(): JSX.Element {
           libraryId={playing.exercise?.libraryId}
           exerciseName={playing.name}
           open
+          startOnImage
           onClose={() => setPlaying(null)}
         />
       ) : null}
@@ -280,7 +281,7 @@ function ExerciseRow({
   return (
     <div className={['flex items-center', picked ? 'bg-flame-500/10' : ''].join(' ')}>
       {/* המזהים לפני ה-arrow props — הרגקס של workoutVideos.test נעצר ב-'>' הראשון */}
-      <VideoThumb
+      <ExerciseThumb
         exerciseId={ex?.id ?? entry.id}
         libraryId={ex?.libraryId}
         size="sm"

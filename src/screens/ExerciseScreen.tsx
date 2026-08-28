@@ -63,6 +63,8 @@ import { formatDateShort, formatRelativeDay } from '@/lib/dates'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { EmptyState } from '@/components/ui'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
+import { imagesFor } from '@/db/exerciseImages'
+import { assetUrl } from '@/db/mediaDb'
 import { TrendChart } from '@/components/charts/lazy'
 
 /**
@@ -309,6 +311,8 @@ export function ExerciseScreen(): JSX.Element {
   const { exerciseId = '' } = useParams<{ exerciseId: string }>()
   const navigate = useNavigate()
   const [playerOpen, setPlayerOpen] = useState(false)
+  /** נפתח על כרטיס השרירים ולא על ההדגמה */
+  const [galleryOnImage, setGalleryOnImage] = useState(false)
   /*
     "הצג הכל" שורד ניווט — משתנה מודול ולא useState בלבד, באותו דפוס של
     historyWindow במסך ההיסטוריה: מי שפתח את כל ההיסטוריה, נכנס לאימון וחזר,
@@ -431,6 +435,7 @@ export function ExerciseScreen(): JSX.Element {
     להציג קישור שנוקה בעריכה.
   */
   const libraryMatch = exercise.libraryId ? libraryExercise(exercise.libraryId) : null
+  const muscleCard = imagesFor(exercise.id, exercise.libraryId)[0] ?? null
   const apart = distinguisher(exercise, duplicates)
   const isBodyweight = exercise.weightMode === 'bodyweight'
   const isTimed = exercise.metric === 'seconds'
@@ -490,12 +495,48 @@ export function ExerciseScreen(): JSX.Element {
       ) : null}
 
       <div className="space-y-7">
+        {/*
+          0 · אילו שרירים עובדים.
+
+          לפני ההדגמה ולא אחריה: הכרטיס עונה על "מה התרגיל הזה עושה", וההדגמה
+          על "איך מבצעים אותו". הראשונה היא השאלה שמגיעים איתה למסך של תרגיל
+          שלא מכירים.
+
+          התמונה היא כפתור שפותח את אותה גלריה של ההדגמה — הכרטיסים בהתחלה
+          והסרטונים אחריהם — ולכן אין כאן מציג שני שצריך לתחזק.
+        */}
+        {muscleCard ? (
+          <Section title="אילו שרירים עובדים">
+            <button
+              type="button"
+              onClick={() => {
+                setGalleryOnImage(true)
+                setPlayerOpen(true)
+              }}
+              aria-label={`הגדל — אילו שרירים עובדים ב${exercise.name}`}
+              className="card block w-full overflow-hidden bg-bone-50 p-0 active:opacity-90"
+            >
+              <img
+                src={assetUrl(muscleCard.thumb)}
+                srcSet={`${assetUrl(muscleCard.thumb)} 200w, ${assetUrl(muscleCard.src)} 1100w`}
+                sizes="(max-width: 640px) 100vw, 640px"
+                alt=""
+                className="block w-full"
+                loading="lazy"
+              />
+            </button>
+          </Section>
+        ) : null}
+
         {/* 1 · הדגמה */}
         <Section title="הדגמה">
           <MediaRow
             exerciseId={exercise.id}
             libraryId={exercise.libraryId}
-            onOpen={() => setPlayerOpen(true)}
+            onOpen={() => {
+              setGalleryOnImage(false)
+              setPlayerOpen(true)
+            }}
           />
           {mismatch ? <VideoMismatchNote note={mismatch} /> : null}
           {/*
@@ -709,6 +750,7 @@ export function ExerciseScreen(): JSX.Element {
         libraryId={exercise.libraryId}
         exerciseName={exercise.name}
         open={playerOpen}
+        startOnImage={galleryOnImage}
         onClose={() => setPlayerOpen(false)}
       />
     </Screen>

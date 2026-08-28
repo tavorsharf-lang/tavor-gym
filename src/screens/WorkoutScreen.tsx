@@ -494,6 +494,7 @@ export function WorkoutScreen(): JSX.Element | null {
             libraryId={activeExercise.libraryId}
             exerciseName={activeExercise.name}
             open={videoOpen}
+            startOnImage
             onClose={() => setVideoOpen(false)}
           />
           <RatingSheet

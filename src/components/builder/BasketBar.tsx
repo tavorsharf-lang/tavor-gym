@@ -15,6 +15,7 @@ import { useWorkout } from '@/state/activeWorkoutStore'
 import { useBasket } from '@/state/builderBasket'
 import type { BasketItem } from '@/state/builderBasket'
 import { BottomSheet, Button, IconButton, toast } from '@/components/ui'
+import { ExerciseThumb } from '@/components/media/ExerciseThumb'
 
 /**
  * הסל של בניית האימון — פס צף בתחתית, וגיליון היעדים שנפתח ממנו.
@@ -291,7 +292,8 @@ export function BasketBar(): JSX.Element | null {
       >
         <ol className="mb-5 flex flex-col gap-1">
           {items.map((item, i) => (
-            <li key={item.id} className="flex items-center gap-1 rounded-card bg-ink-900 p-2">
+            <li key={item.id} className="flex items-center gap-2 rounded-card bg-ink-900 p-2">
+              <ExerciseThumb exerciseId={item.id} size="xs" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-bold text-bone-50">{item.name}</span>
                 <span className="meta block">

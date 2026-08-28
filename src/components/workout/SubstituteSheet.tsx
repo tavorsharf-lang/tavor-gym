@@ -3,7 +3,7 @@ import type { JSX } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Search, Trophy, X } from 'lucide-react'
 import { BottomSheet, EmptyState } from '@/components/ui'
-import { VideoThumb } from '@/components/media/VideoThumb'
+import { ExerciseThumb } from '@/components/media/ExerciseThumb'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { getAllPrs, getSubstituteCandidates } from '@/db/queries'
 import { EQUIPMENT_LABELS, MUSCLE_GROUPS } from '@/db/types'
@@ -60,7 +60,7 @@ function Row({
   const pr = prText(ex, prs)
   return (
     <li className="card flex items-center gap-3 p-2">
-      <VideoThumb exerciseId={ex.id} libraryId={ex.libraryId} size="sm" onOpen={onPlay} />
+      <ExerciseThumb exerciseId={ex.id} libraryId={ex.libraryId} size="sm" onOpen={onPlay} />
       <button
         type="button"
         onClick={onPick}
@@ -249,6 +249,7 @@ export function SubstituteSheet({
           libraryId={playing.libraryId}
           exerciseName={playing.name}
           open
+          startOnImage
           onClose={() => setPlaying(null)}
         />
       ) : null}

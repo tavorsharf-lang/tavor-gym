@@ -25,6 +25,20 @@ import { useWorkout } from './state/activeWorkoutStore'
 
 const SLOW = 15_000
 
+/**
+ * כפתור הבחירה של שורת תרגיל במסך תרגילי השריר.
+ *
+ * לא `findByRole('button', { name })`: לשורה שני כפתורים ששם התרגיל נמצא בשם
+ * הנגיש של שניהם — הריבוע שפותח את גלריית כרטיס השרירים, וגוף השורה שבוחר.
+ * ‏`aria-pressed` יושב רק על השני.
+ */
+async function pickRow(name: string): Promise<HTMLElement> {
+  const rows = await screen.findAllByRole('button', { name: new RegExp(name) }, { timeout: SLOW })
+  const row = rows.find((el) => el.hasAttribute('aria-pressed'))
+  if (!row) throw new Error(`לא נמצא כפתור בחירה לשורה "${name}"`)
+  return row
+}
+
 async function resetAll(): Promise<void> {
   useWorkout.setState({
     workout: null,
@@ -97,7 +111,15 @@ describe('מסכי בניית האימון', () => {
     expect(screen.getAllByText('עוד לא בוצע').length).toBeGreaterThan(0)
 
     // ─── בחירה ───
-    await user.click(await screen.findByRole('button', { name: /לחיצת רגליים/ }, { timeout: SLOW }))
+    /*
+      ‏`aria-pressed` ולא רק השם.
+
+      בשורה יש שני כפתורים שהשם של התרגיל מופיע בשם הנגיש של שניהם: הריבוע
+      ("אילו שרירים עובדים ב…", שפותח את הגלריה) וגוף השורה, שהוא זה שבוחר.
+      ‏`aria-pressed` קיים רק על השני, והוא גם מה שבאמת מבדיל ביניהם — בורר
+      דו-מצבי מול פותח תצוגה.
+    */
+    await user.click(await pickRow('לחיצת רגליים'))
     await waitFor(() => expect(useBasket.getState().items).toHaveLength(1))
     expect(useBasket.getState().items[0].muscleGroup).toBe('legs')
     // הפס הצף מופיע ברגע שיש משהו בסל
@@ -158,7 +180,7 @@ describe('מסכי בניית האימון', () => {
     await user.click(await screen.findByRole('button', { name: /יד קדמית/ }, { timeout: SLOW }))
     await screen.findByText('כפיפת פטיש', {}, { timeout: SLOW })
     // שם ייחודי בכוונה — לקטלוג יש שלוש כפיפות מרפקים שונות
-    await user.click(await screen.findByRole('button', { name: /כפיפת פטיש/ }, { timeout: SLOW }))
+    await user.click(await pickRow('כפיפת פטיש'))
 
     await user.click(
       await screen.findByRole('button', { name: /פתח את האימון שבניתי/ }, { timeout: SLOW })

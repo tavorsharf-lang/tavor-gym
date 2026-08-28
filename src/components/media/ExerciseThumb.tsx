@@ -29,7 +29,8 @@ export function ExerciseThumb({
   libraryId?: string
   /** חסר = התמונה דקורטיבית והשורה שמסביבה נלחצת, בדיוק כמו ב-VideoThumb */
   onOpen?: () => void
-  size?: 'sm' | 'md'
+  /** xs לשורות צפופות — התור, הסל, וסיכום אימון שעבר */
+  size?: 'xs' | 'sm' | 'md'
   keepFrame?: boolean
 }): JSX.Element | null {
   const image = primaryImageFor(exerciseId, libraryId)
@@ -45,7 +46,7 @@ export function ExerciseThumb({
     )
   }
 
-  const box = size === 'sm' ? 'h-14 w-14' : 'h-20 w-20'
+  const box = size === 'xs' ? 'h-10 w-10' : size === 'sm' ? 'h-14 w-14' : 'h-20 w-20'
   const frame = `relative shrink-0 overflow-hidden rounded-xl border border-ink-700 bg-bone-50 ${box}`
 
   const inner = (
@@ -62,7 +63,11 @@ export function ExerciseThumb({
         מאחוריה סרטונים.
       */}
       <span className="absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-ink-950/70 to-transparent pb-0.5 pt-2">
-        <Play size={size === 'sm' ? 11 : 14} className="text-bone-50 drop-shadow" fill="currentColor" />
+        <Play
+          size={size === 'md' ? 14 : size === 'sm' ? 11 : 9}
+          className="text-bone-50 drop-shadow"
+          fill="currentColor"
+        />
       </span>
     </>
   )

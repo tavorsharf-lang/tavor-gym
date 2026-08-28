@@ -32,6 +32,7 @@ import { summarize, weightModeLookup } from '@/domain/volume'
 import { prLabel, rebuildPrs } from '@/domain/prs'
 import { formatDateLong, formatTime } from '@/lib/dates'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
+import { ExerciseThumb } from '@/components/media/ExerciseThumb'
 import { BottomSheet, Button, EmptyState, toast } from '@/components/ui'
 
 /**
@@ -325,8 +326,9 @@ export function SessionDetailScreen(): JSX.Element {
               type="button"
               disabled={!block.exists}
               onClick={() => navigate(`/exercise/${block.exerciseId}`)}
-              className="flex w-full items-center gap-2 text-start disabled:opacity-70"
+              className="flex w-full items-center gap-2.5 text-start disabled:opacity-70"
             >
+              <ExerciseThumb exerciseId={block.exerciseId} size="xs" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-base font-extrabold text-bone-50">
                   {block.name}

@@ -13,7 +13,7 @@ import type {
 import { EQUIPMENT_LABELS, MUSCLE_GROUPS, RATING_LABELS } from '@/db/types'
 import { BottomSheet, Button, PlateProgress, Stepper } from '@/components/ui'
 import type { PlateSegState } from '@/components/ui'
-import { VideoThumb } from '@/components/media/VideoThumb'
+import { ExerciseThumb } from '@/components/media/ExerciseThumb'
 import { touchedGroups, useWorkout } from '@/state/activeWorkoutStore'
 import type { ExerciseSessionSummary } from '@/domain/recommendation'
 import { lastSessionSetsText, lastWorkedSession, recommendWeight } from '@/domain/recommendation'
@@ -395,7 +395,7 @@ export function ExerciseCard({
     >
       {/* 1 — מי אני, מה היעד, וכמה כבר עשיתי */}
       <div className="flex items-start gap-3">
-        <VideoThumb
+        <ExerciseThumb
           exerciseId={exercise.id}
           libraryId={exercise.libraryId}
           onOpen={onOpenVideo}

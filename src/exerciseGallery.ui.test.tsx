@@ -8,6 +8,7 @@ import { invalidateHiddenExercises } from './db/hiddenExercises'
 import { invalidateVideoPrefs } from './db/videoPrefs'
 import { primaryImageFor } from './db/exerciseImages'
 import { LIBRARY_CATALOG } from './db/libraryManifest'
+import { useBasket } from './state/builderBasket'
 
 /**
  * כרטיס השרירים ברשימת התרגילים, והגלריה שנפתחת ממנו.
@@ -24,6 +25,7 @@ const SLOW = 15_000
 
 async function resetAll(): Promise<void> {
   window.location.hash = '#/'
+  useBasket.getState().clear()
   invalidateHiddenVideos()
   invalidateHiddenExercises()
   invalidateVideoPrefs()
@@ -78,6 +80,30 @@ describe('כרטיס השרירים ברשימת התרגילים', () => {
     expect(row).not.toBeNull()
     await user.click(row!)
     await waitFor(() => expect(window.location.hash).toBe('#/exercise/machine-squat'))
+  }, 40000)
+
+  it('גם בבניית אימון השורה מציגה את הכרטיס ופותחת עליו', async () => {
+    const user = userEvent.setup()
+    window.location.hash = '#/builder/legs'
+    render(<App />)
+
+    const press = primaryImageFor('leg-press')
+    expect(press).not.toBeNull()
+
+    const thumb = await screen.findByRole(
+      'button',
+      { name: `אילו שרירים עובדים ב${press!.nameHe}` },
+      { timeout: SLOW }
+    )
+    expect(thumb.querySelector('img')?.getAttribute('src')).toContain(press!.thumb)
+
+    await user.click(thumb)
+    const dialog = await screen.findByRole('dialog', {}, { timeout: SLOW })
+    await waitFor(() =>
+      expect(dialog.querySelector(`img[alt="אילו שרירים עובדים ב${press!.nameHe}"]`)).not.toBeNull()
+    )
+    // הלחיצה על הריבוע לא בוחרת את התרגיל לסל — היא פותחת תצוגה
+    expect(useBasket.getState().items).toHaveLength(0)
   }, 40000)
 
   /*
