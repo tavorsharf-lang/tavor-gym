@@ -11,12 +11,6 @@ import { registerSW } from 'virtual:pwa-register'
  *
  * הרישום עצמו יושב ברמת המודול ולא בתוך ההוק: הוא חייב לקרות פעם אחת בלבד
  * בחיי הדף, גם אם ההוק מורכב מחדש (StrictMode) או נצרך בכמה מקומות.
- *
- * `startSW` מיוצא כדי ש-`main.tsx` יוכל לירות אותו לפני `createRoot`. הצרכן
- * היחיד של ההוק הוא `UpdateBanner`, שיושב בתוך Shell — ו-App מרנדר את Shell
- * רק אחרי `ensureReady` + `hydrate` + שלושה חימומי מטמון. כלומר בביקור ראשון
- * התקנת ה-precache חיכתה לכל שרשרת האתחול של Dexie במקום לרוץ במקביל לה.
- * הקריאה כאן חסינה להרצה כפולה, ולכן ההוק ממשיך לקרוא לה בלי תנאי.
  */
 
 type UpdateSW = (reloadPage?: boolean) => Promise<void>
@@ -33,7 +27,7 @@ function emit(): void {
   for (const listener of listeners) listener()
 }
 
-export function startSW(): void {
+function start(): void {
   if (started) return
   started = true
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
@@ -75,7 +69,7 @@ export function useSWUpdate(deferUpdates: boolean): SWUpdateState {
   const [state, setState] = useState(() => ({ needRefresh, offlineReady }))
 
   useEffect(() => {
-    startSW()
+    start()
 
     const sync = () => {
       setState((prev) =>
