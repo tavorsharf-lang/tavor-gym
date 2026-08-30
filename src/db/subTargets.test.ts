@@ -105,3 +105,69 @@ describe('שיוך תרגיל לתת-קטגוריה', () => {
     expect(subTargetFor('overhead-tricep-ext', 'triceps')).toBe('תלת-ראשי — ראש ארוך')
   })
 })
+
+/*
+  רשימת התוויות היא ממשק ולא פרט פנימי: היא מה שכתוב ככותרת במסך התרגילים,
+  מה שכתוב על הצ׳יפים, ומה שהמשתמש מחפש לפיו. שינוי שם הוא החלטה שצריך לקבל
+  במפורש, ולא תוצר לוואי של הוספת מיפוי לשריר חדש — ולכן הרשימה נעולה כאן.
+*/
+describe('רשימת התת-קטגוריות', () => {
+  const EXPECTED: Record<MuscleGroup, string[]> = {
+    chest: ['חזה עליון', 'חזה אמצעי', 'חזה תחתון', 'סראטוס'],
+    back: ['רחב גבי', 'עגול גדול', 'מעוינים', 'טרפז אמצעי-תחתון', 'זוקפי הגב'],
+    shoulders: ['כתף קדמית', 'כתף אמצעית', 'כתף אחורית', 'טרפז עליון', 'חוגרת המסובבים'],
+    biceps: ['דו-ראשי', 'דו-ראשי — ראש קצר', 'דו-ראשי — ראש ארוך', 'ברכיאליס'],
+    triceps: [
+      'תלת-ראשי',
+      'תלת-ראשי — ראש ארוך',
+      'תלת-ראשי — ראש חיצוני',
+      'תלת-ראשי — ראש פנימי',
+    ],
+    legs: [
+      'ארבע-ראשי',
+      'עכוז גדול',
+      'עכוז אמצעי',
+      'המסטרינגס',
+      'מקרבים',
+      'כופפי הירך',
+      'תאומים',
+      'סוליאוס',
+      'פרונאוס',
+    ],
+    abs: ['ישר בטני', 'אלכסונים', 'בטן עמוקה', 'כופפי הירך'],
+    forearms: ['כופפי אמה', 'פושטי אמה', 'ברכיורדיאליס'],
+  }
+
+  it('כל קבוצה מחזיקה בדיוק את התוויות שהוכרעו', () => {
+    const actual = {} as Record<MuscleGroup, string[]>
+    for (const { sub, group } of Object.values(MUSCLE_TAXONOMY)) {
+      const list = (actual[group] ??= [])
+      if (!list.includes(sub)) list.push(sub)
+    }
+    expect(actual).toEqual(EXPECTED)
+  })
+
+  /*
+    שלוש ההצמדות שאינן אנטומיה טהורה. הן מכוונות, ולכן הן כתובות ולא נסמכות
+    על הזיכרון של מי שיקרא את הקובץ בפעם הבאה.
+  */
+  it('העדין הוא מקרב, והחייט אינו המסטרינג', () => {
+    expect(MUSCLE_TAXONOMY['Gracilis']).toEqual({ sub: 'מקרבים', group: 'legs' })
+    expect(MUSCLE_TAXONOMY['Sartorius']).toEqual({ sub: 'כופפי הירך', group: 'legs' })
+  })
+
+  it('הברכיורדיאליס הוא שריר אמה', () => {
+    expect(MUSCLE_TAXONOMY['Brachioradialis'].group).toBe('forearms')
+  })
+
+  it('"כופפי הירך" חיה בשתי קבוצות במכוון — זה אותו שריר', () => {
+    expect(MUSCLE_TAXONOMY['Iliopsoas'].group).toBe('abs')
+    expect(MUSCLE_TAXONOMY['Sartorius'].sub).toBe(MUSCLE_TAXONOMY['Iliopsoas'].sub)
+  })
+
+  /* הפיצול של השוק הוא ההבדל היחיד שנראה על המסך: כותרת אחת התחלפה */
+  it('הרמת עקבים יושבת תחת תאומים ולא תחת שוק', () => {
+    expect(subTargetFor('calf-raise', 'legs')).toBe('תאומים')
+    expect(secondaryFor('calf-raise', 'legs').map((m) => m.he)).toContain('סוליאוס')
+  })
+})

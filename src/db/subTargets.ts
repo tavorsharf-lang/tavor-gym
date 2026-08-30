@@ -10,10 +10,20 @@ import { imagesFor } from './exerciseImages'
  * ו"גלוטאוס מקסימוס" הם אותו שריר בשלושה כרטיסים שונים. **השם האנגלי הוא
  * המפתח**, כי הוא היחיד שעקבי לאורך כל 89 הכרטיסים.
  *
+ * **השם העברי כאן אינו תמלול של הכרטיס אלא הכרעה אחת לכל שריר**: העברית
+ * המקצועית הנפוצה, זו שמופיעה באתרי כושר ובפיזיותרפיה בישראל. תעתיק נבחר רק
+ * כשאין לו מתחרה חי — ברכיאליס, המסטרינגס, סראטוס — ולא כשיש מילה עברית
+ * שכולם משתמשים בה (רחב גבי ולא "לאטס", זוקפי הגב ולא "ארקטור").
+ *
  * הקיבוץ עצמו הוא החלטת מוצר ולא ממצא: ארבעת ראשי הארבע-ראשי מתאחדים לאחד,
  * כי אף אחד לא בונה אימון סביב הוואסטוס אינטרמדיוס. ראשי הטרייספס דווקא
  * נשארים בנפרד, כי הבחירה בין פשיטה מעל הראש לפשיטה בפולי היא בדיוק הבחירה
- * הזו. המספרים עצמם מגיעים כמות שהם מ-MUSCLE_BREAKDOWN ולא חושבו כאן.
+ * הזו. התאומים והסוליאוס נפרדים מאותה סיבה — ברך ישרה מול ברך כפופה.
+ * המספרים עצמם מגיעים כמות שהם מ-MUSCLE_BREAKDOWN ולא חושבו כאן.
+ *
+ * שלוש הצמדות שאינן אנטומיה טהורה ומסומנות במקומן: "כופפי הירך" חי גם ברגליים
+ * וגם בבטן, הברכיורדיאליס יושב באמות ולא ביד קדמית, ו"עכוז אמצעי" בולע גם את
+ * הקטן וגם את מותח המתלה.
  */
 export const MUSCLE_TAXONOMY: Readonly<Record<string, { sub: string; group: MuscleGroup }>> = {
   // ─── חזה ───
@@ -24,7 +34,9 @@ export const MUSCLE_TAXONOMY: Readonly<Record<string, { sub: string; group: Musc
   'Pectoralis Major': { sub: 'חזה אמצעי', group: 'chest' },
   'Sternocostal Pectoralis': { sub: 'חזה אמצעי', group: 'chest' },
   'Lower Pectoralis': { sub: 'חזה תחתון', group: 'chest' },
-  'Serratus Anterior': { sub: 'מסור קדמי', group: 'chest' },
+  // "מסור קדמי" הוא תרגום מילולי של serratus. בחדר כושר קוראים לו סראטוס,
+  // ובספר אנטומיה "המשונן הקדמי" — אף אחד מהם אינו "מסור".
+  'Serratus Anterior': { sub: 'סראטוס', group: 'chest' },
   // ─── גב ───
   'Latissimus Dorsi': { sub: 'רחב גבי', group: 'back' },
   'Lower Lat Region': { sub: 'רחב גבי', group: 'back' },
@@ -36,7 +48,8 @@ export const MUSCLE_TAXONOMY: Readonly<Record<string, { sub: string; group: Musc
   'Lower Trapezius': { sub: 'טרפז אמצעי-תחתון', group: 'back' },
   'Middle & Lower Trapezius': { sub: 'טרפז אמצעי-תחתון', group: 'back' },
   'Middle Trapezius': { sub: 'טרפז אמצעי-תחתון', group: 'back' },
-  'Erector Spinae': { sub: 'זוקפי גב', group: 'back' },
+  // עשרה כרטיסים מתוך עשרה כותבים "זוקפי הגב", וכך גם אומרים
+  'Erector Spinae': { sub: 'זוקפי הגב', group: 'back' },
   // ─── כתפיים ───
   'Anterior Deltoid': { sub: 'כתף קדמית', group: 'shoulders' },
   'Lateral Deltoid': { sub: 'כתף אמצעית', group: 'shoulders' },
@@ -44,22 +57,25 @@ export const MUSCLE_TAXONOMY: Readonly<Record<string, { sub: string; group: Musc
   'Levator Scapulae': { sub: 'טרפז עליון', group: 'shoulders' },
   'Upper / Lower Trapezius': { sub: 'טרפז עליון', group: 'shoulders' },
   'Upper Trapezius': { sub: 'טרפז עליון', group: 'shoulders' },
-  'Infraspinatus': { sub: 'חוגרת מסובבת', group: 'shoulders' },
-  'Supraspinatus': { sub: 'חוגרת מסובבת', group: 'shoulders' },
-  'Teres Minor': { sub: 'חוגרת מסובבת', group: 'shoulders' },
+  // rotator cuff. "חוגרת המסובבים" הוא המונח שבו משתמשים פיזיותרפיסטים בעברית;
+  // "חוגרת מסובבת" לא אומר כלום.
+  'Infraspinatus': { sub: 'חוגרת המסובבים', group: 'shoulders' },
+  'Supraspinatus': { sub: 'חוגרת המסובבים', group: 'shoulders' },
+  'Teres Minor': { sub: 'חוגרת המסובבים', group: 'shoulders' },
   // ─── יד קדמית ───
   'Biceps': { sub: 'דו-ראשי', group: 'biceps' },
   'Biceps Brachii': { sub: 'דו-ראשי', group: 'biceps' },
   'Biceps Short Head': { sub: 'דו-ראשי — ראש קצר', group: 'biceps' },
   'Biceps Long Head': { sub: 'דו-ראשי — ראש ארוך', group: 'biceps' },
   'Brachialis': { sub: 'ברכיאליס', group: 'biceps' },
-  'Brachioradialis': { sub: 'ברכיורדיאליס', group: 'biceps' },
   // ─── יד אחורית ───
   'Triceps': { sub: 'תלת-ראשי', group: 'triceps' },
   'Triceps Brachii': { sub: 'תלת-ראשי', group: 'triceps' },
   'Triceps Long Head': { sub: 'תלת-ראשי — ראש ארוך', group: 'triceps' },
-  'Triceps Lateral Head': { sub: 'תלת-ראשי — ראש צידי', group: 'triceps' },
-  'Triceps Medial Head': { sub: 'תלת-ראשי — ראש תיכוני', group: 'triceps' },
+  // לטרלי הוא הראש החיצוני ומדיאלי הוא הפנימי. הכרטיסים משתמשים בשני הזוגות,
+  // וזה שאומרים בעל פה הוא חיצוני/פנימי.
+  'Triceps Lateral Head': { sub: 'תלת-ראשי — ראש חיצוני', group: 'triceps' },
+  'Triceps Medial Head': { sub: 'תלת-ראשי — ראש פנימי', group: 'triceps' },
   // ─── רגליים ───
   'Quadriceps': { sub: 'ארבע-ראשי', group: 'legs' },
   'Rectus Femoris': { sub: 'ארבע-ראשי', group: 'legs' },
@@ -70,13 +86,20 @@ export const MUSCLE_TAXONOMY: Readonly<Record<string, { sub: string; group: Musc
   'Gluteus Medius': { sub: 'עכוז אמצעי', group: 'legs' },
   'Gluteus Minimus': { sub: 'עכוז אמצעי', group: 'legs' },
   'Tensor Fasciae Latae': { sub: 'עכוז אמצעי', group: 'legs' },
-  'Gracilis': { sub: 'המסטרינגס', group: 'legs' },
   'Hamstrings': { sub: 'המסטרינגס', group: 'legs' },
-  'Sartorius': { sub: 'המסטרינגס', group: 'legs' },
+  // העדין (gracilis) הוא מקרב ולא ירך אחורית — הוא ישב תחת המסטרינגס בטעות
   'Adductor Magnus': { sub: 'מקרבים', group: 'legs' },
-  'Gastrocnemius': { sub: 'שוק', group: 'legs' },
-  'Peroneus Longus': { sub: 'שוק', group: 'legs' },
-  'Soleus': { sub: 'שוק', group: 'legs' },
+  'Gracilis': { sub: 'מקרבים', group: 'legs' },
+  // החייט (sartorius) הוא כופף ירך שגם מכופף ברך, ולכן הוא מופיע על כרטיס של
+  // כפיפת ברכיים. הוא עדיין לא המסטרינג. התווית משותפת עם הבטן במכוון: זה אותו
+  // שריר, ומה שקובע מי יכול לזכות בכותרת הוא הקבוצה של התרגיל.
+  'Sartorius': { sub: 'כופפי הירך', group: 'legs' },
+  // השוק נפרד לשניים: התאומים עובדים בברך ישרה והסוליאוס בברך כפופה
+  'Gastrocnemius': { sub: 'תאומים', group: 'legs' },
+  'Soleus': { sub: 'סוליאוס', group: 'legs' },
+  // הפרונאוס אינו שריר תאומים ואינו סוליאוס. הוא לא יזכה בכותרת לעולם (10%
+  // לכל היותר), אבל הוא כן מה שכתוב על הכרטיס ולכן הוא מקבל תווית משלו.
+  'Peroneus Longus': { sub: 'פרונאוס', group: 'legs' },
   // ─── בטן ───
   'Rectus Abdominis': { sub: 'ישר בטני', group: 'abs' },
   'External Oblique': { sub: 'אלכסונים', group: 'abs' },
@@ -84,7 +107,7 @@ export const MUSCLE_TAXONOMY: Readonly<Record<string, { sub: string; group: Musc
   'Obliques': { sub: 'אלכסונים', group: 'abs' },
   'Deep Core': { sub: 'בטן עמוקה', group: 'abs' },
   'Transversus Abdominis': { sub: 'בטן עמוקה', group: 'abs' },
-  'Iliopsoas': { sub: 'כופפי ירך', group: 'abs' },
+  'Iliopsoas': { sub: 'כופפי הירך', group: 'abs' },
   // ─── אמות ───
   'Flexor Carpi Radialis': { sub: 'כופפי אמה', group: 'forearms' },
   'Flexor Carpi Ulnaris': { sub: 'כופפי אמה', group: 'forearms' },
@@ -93,6 +116,9 @@ export const MUSCLE_TAXONOMY: Readonly<Record<string, { sub: string; group: Musc
   'Palmaris Longus': { sub: 'כופפי אמה', group: 'forearms' },
   'Extensor Carpi Radialis': { sub: 'פושטי אמה', group: 'forearms' },
   'Extensor Carpi Ulnaris': { sub: 'פושטי אמה', group: 'forearms' },
+  // הברכיורדיאליס הוא שריר אמה שחוצה את המרפק, לא שריר של היד הקדמית. הוא
+  // ממשיך להופיע כתגית משנית על כל כפיפת מרפקים — התגיות אינן מוגבלות לקבוצה.
+  'Brachioradialis': { sub: 'ברכיורדיאליס', group: 'forearms' },
 }
 
 /**
@@ -121,7 +147,7 @@ export function breakdownFor(exerciseId: string, libraryId?: string) {
 }
 
 /**
- * תת-הקטגוריה של תרגיל: השריר בעל האחוז הגבוה ביותר **מתוך קבוצת השריר של
+ * התת-קטגוריה של תרגיל: השריר בעל האחוז הגבוה ביותר **מתוך קבוצת השריר של
  * התרגיל עצמו**.
  *
  * ההגבלה לקבוצה אינה קישוט. מקבילים במכונה יושבים בקטלוג תחת יד אחורית, אבל
