@@ -5,9 +5,10 @@ import { roundToIncrement, weightStep } from '@/domain/units'
 /**
  * הצעת חימום.
  *
- * החימום נקשר לקבוצת השריר ולא לתרגיל: מחממים פעם אחת כשנכנסים לחזה,
- * ולא שוב לפני כל תרגיל חזה באותו אימון. לכן ההחלטה תלויה במה שכבר תועד
- * באימון הנוכחי, לא בהיסטוריה.
+ * לכל תרגיל יש הצעה — כי לכל תרגיל יש כפתור חימום. מה שקבוצת השריר קובעת זה
+ * *כמה* חימום: בתרגיל הראשון בחזה מחממים את השריר, ובפרפר שאחריו כבר נשאר
+ * לחמם רק את התנועה במכונה החדשה. לכן ההחלטה תלויה במה שכבר תועד באימון
+ * הנוכחי, לא בהיסטוריה.
  *
  * לתרגיל בידוד סט אחד מספיק. לתרגיל מורכב כבד — לחיצת רגליים ב-160, סקוואט
  * ב-120 — קפיצה מסט יחיד ישר למשקל העבודה היא דלה מקצועית: מה שצריך הכנה שם
@@ -20,7 +21,7 @@ export interface WarmupContext {
   touchedGroups: ReadonlySet<MuscleGroup>
   /** משקל העבודה המתוכנן להיום — מההמלצה או מהאימון הקודם. null כשלא ידוע. */
   plannedWeightKg: number | null
-  /** settings.autoWarmup */
+  /** settings.autoWarmup — כיבוי מלא של הצעות החימום */
   enabled: boolean
   /** settings.warmupPercent — האחוז של סט החימום היחיד */
   percent: number
@@ -63,6 +64,15 @@ const RAMP_GROUPS: readonly MuscleGroup[] = ['legs', 'back', 'chest']
  */
 const RAMP_MIN_STEPS = 20
 
+/**
+ * האחוז של סט ההכרות — התרגיל השני ואילך באותה קבוצת שריר.
+ *
+ * שם השריר כבר חם, ומה שנשאר לא מוכר הוא המכונה: גובה המושב, מסלול התנועה,
+ * הנקודה שבה זה נתפס. סט קל אחד עונה על זה בלי לגנוב מהסטים שאחריו. מוגבל
+ * כלפי מטה מול האחוז שבהגדרות, כדי שההכרות לעולם לא תהיה כבדה מהחימום המלא.
+ */
+const PRIMER_PERCENT = 40
+
 function clamp(n: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, n))
 }
@@ -83,7 +93,6 @@ function wantsRamp(exercise: Exercise, plannedWeightKg: number, increment: numbe
 export function suggestWarmup(ctx: WarmupContext): WarmupSuggestion[] {
   const { exercise, touchedGroups, plannedWeightKg, enabled, percent } = ctx
   if (!enabled) return []
-  if (touchedGroups.has(exercise.muscleGroup)) return []
   if (exercise.weightMode === 'bodyweight') return []
   if (plannedWeightKg === null || plannedWeightKg <= 0) return []
 
@@ -92,6 +101,17 @@ export function suggestWarmup(ctx: WarmupContext): WarmupSuggestion[] {
   // מעגלים כלפי מטה — חימום כבד מדי מפספס את המטרה. אף פעם לא פחות מקפיצה אחת.
   const at = (pct: number): number =>
     Math.max(increment, roundToIncrement((plannedWeightKg * pct) / 100, increment, 'down'))
+
+  // השריר כבר עבד היום — נשאר לחמם את התנועה, לא את הסיב. סט אחד קל, בלי רמפה.
+  if (touchedGroups.has(exercise.muscleGroup)) {
+    return [
+      {
+        weightKg: at(Math.min(percent, PRIMER_PERCENT)),
+        reps: clamp(exercise.targetReps.max, 6, 10),
+        reason: `סט הכרות למכונה — כבר עבדת על ${group} היום`,
+      },
+    ]
+  }
 
   if (wantsRamp(exercise, plannedWeightKg, increment)) {
     const steps = RAMP.map((step) => ({ weightKg: at(step.percent), reps: step.reps }))

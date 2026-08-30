@@ -86,6 +86,16 @@ export const VIDEO_MANIFEST: Record<string, BundledVideo[]> = {
       "sizeBytes": 616643
     }
   ],
+  "decline-pec-fly": [
+    {
+      "src": "videos/decline-pec-fly-01.mp4",
+      "poster": "videos/decline-pec-fly-01.jpg",
+      "width": 406,
+      "height": 720,
+      "durationSec": 108.9,
+      "sizeBytes": 4008706
+    }
+  ],
   "overhead-tricep-ext": [
     {
       "src": "videos/overhead-tricep-ext-01.mp4",
@@ -220,6 +230,16 @@ export const VIDEO_MANIFEST: Record<string, BundledVideo[]> = {
       "sizeBytes": 639705
     }
   ],
+  "behind-body-cable-curl": [
+    {
+      "src": "videos/behind-body-cable-curl-01.mp4",
+      "poster": "videos/behind-body-cable-curl-01.jpg",
+      "width": 406,
+      "height": 720,
+      "durationSec": 13.2,
+      "sizeBytes": 313139
+    }
+  ],
   "forearm-straight-bar": [
     {
       "src": "videos/forearm-straight-bar-01.mp4",
@@ -337,7 +357,7 @@ export const VIDEO_MANIFEST: Record<string, BundledVideo[]> = {
 }
 
 /** סך כל המשקל של הסרטונים המצורפים, בבתים */
-export const VIDEO_TOTAL_BYTES = 26075080
+export const VIDEO_TOTAL_BYTES = 30396925
 
 /** מספר הסרטונים המצורפים */
-export const VIDEO_COUNT = 34
+export const VIDEO_COUNT = 36

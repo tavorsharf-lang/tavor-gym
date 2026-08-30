@@ -30,7 +30,7 @@ import type { BundledVideo } from '@/db/videoManifest'
 import type { VideoAsset } from '@/db/types'
 import { MUSCLE_GROUPS } from '@/db/types'
 import { formatBytes, newId } from '@/domain/units'
-import { useStorageStatus } from '@/hooks/useStorageStatus'
+import { ensurePersisted, useStorageStatus } from '@/hooks/useStorageStatus'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { BottomSheet, Button, EmptyState, toast } from '@/components/ui'
 
@@ -270,6 +270,17 @@ export function MediaScreen(): JSX.Element {
     // שומר הכניסה היחיד הוא ה-ref: מצב ה-progress מתעדכן רק ברינדור הבא,
     // ולחיצה כפולה מהירה הייתה מספיקה כדי להפעיל שתי לולאות במקביל.
     if (abortRef.current) return
+
+    /*
+      בקשת אחסון קבוע לפני הכתיבה הגדולה ביותר שהאפליקציה עושה (עד ~192MB).
+
+      בלי "persistent" הדפדפן רשאי לפנות את כל ה-IndexedDB כשנגמר המקום —
+      כלומר גם את היסטוריית האימונים, לא רק את הסרטונים. עד כאן הקריאה
+      האוטומטית היחידה הייתה בסוף אימון שלם, ודווקא המסלול שממלא את הדיסק לא
+      ביקש כלום. בלשונית זה מחזיר false ולא עולה כלום; באפליקציה מותקנת ספארי
+      מאשרת בשקט בלי דיאלוג. לא חוסם את ההתקנה בשום מקרה.
+    */
+    void ensurePersisted()
 
     const jobs = jobsFrom(source === 'program' ? VIDEO_MANIFEST : LIBRARY_MANIFEST, hidden)
     const controller = new AbortController()

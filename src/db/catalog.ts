@@ -4,6 +4,7 @@ import type { LibraryExercise } from './libraryManifest'
 import { getAllExercises } from './queries'
 import { withSecondaryMuscles } from './muscleTags'
 import { loadHiddenExerciseIds, unhideExercises } from './hiddenExercises'
+import { loadMuscleFixes } from './muscleFixes'
 import { DEFAULT_REST_SECONDS, DEFAULT_TARGET_SETS } from './seed'
 import type { Exercise, MuscleGroup, Routine } from './types'
 import { newId } from '@/domain/units'
@@ -203,6 +204,20 @@ export async function removeFromMine(id: string): Promise<void> {
 }
 
 /**
+ * שינוי שם לתרגיל בקטלוג.
+ *
+ * ‏`update` חלקי ולא `put` של אובייקט שנקרא קודם, מאותה סיבה כמו ב-
+ * `removeFromMine`: כתיבה מלאה יכולה להחזיר לאחור עריכה מקבילה של אותה שורה.
+ *
+ * בטוח לגמרי מבחינת נתונים — שום טבלה לא משכפלת את השם, וההיסטוריה, השיאים
+ * והסרטונים ממופתחים ב-`id`. מה שכן צריך רענון הוא סל הבונה, שמחזיק תצלום
+ * שם, והקוראים מטפלים בו (`renameItem`).
+ */
+export async function renameExercise(id: string, name: string): Promise<void> {
+  await db.exercises.update(id, { name, updatedAt: Date.now() })
+}
+
+/**
  * מחזיר תרגיל שהוצא.
  *
  * ‏`order` לא נגעים בו בכוונה — התרגיל חוזר בדיוק למקום שבו היה בקבוצת השריר
@@ -239,10 +254,20 @@ export async function addFromLibrary(
     return { exercise: { ...existing, isActive: true }, outcome: 'restored' }
   }
 
+  /*
+    תיקון שיוך שנשמר על שורת המאגר עובר לכרטיס שנוצר ממנה.
+
+    בלי זה הוא היה מתאדה בשקט ברגע ההוספה: `groupOf` נותן לכרטיס לגבור על
+    שכבת התיקונים — הרשומה היא האמת ברגע שהיא קיימת — ולכן קבוצה שהמשתמש
+    תיקן ידנית הייתה חוזרת למה שכתוב במניפסט. הראש נשאר בשכבה (אין לו מקום
+    כתיבה), ורק נכתב גם כמיקוד החופשי כדי שהשורה תציג תשובה אחת.
+  */
+  const fix = (await loadMuscleFixes())[lib.id]
   const created = await blankExercise({
     name: lib.nameHe,
     nameEn: lib.nameEn,
-    muscleGroup: lib.muscleGroup,
+    muscleGroup: fix?.group ?? lib.muscleGroup,
+    subTarget: fix?.sub ?? '',
     libraryId: lib.id,
   })
   // add ולא put: התנגשות מזהה חייבת לזרוק ולא לדרוס תרגיל קיים בשקט

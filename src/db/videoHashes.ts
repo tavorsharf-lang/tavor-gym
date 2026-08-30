@@ -5,6 +5,7 @@
 
 export const VIDEO_HASHES: Record<string, string> = {
   'videos/abs-01.jpg': '3a2aaa0f0f8e8e96',
+  'videos/behind-body-cable-curl-01.jpg': '0d3537381eba4d0f',
   'videos/cable-tricep-pushdown-01.jpg': '1dd9131f9f993b1b',
   'videos/calf-raise-01.jpg': '68e262466eeaf68e',
   'videos/cross-cable-tricep-01.jpg': 'ffd733154b56feec',
@@ -14,6 +15,7 @@ export const VIDEO_HASHES: Record<string, string> = {
   'videos/db-bench-press-04.jpg': '33263e3d13031b1b',
   'videos/decline-machine-press-01.jpg': '291a83891f1acacb',
   'videos/decline-machine-press-02.jpg': '18bacac4c87c5cc6',
+  'videos/decline-pec-fly-01.jpg': '6a26a2e662705151',
   'videos/dips-01.jpg': '8c8db9b0a12cd10d',
   'videos/forearm-dumbbell-01.jpg': 'c3435f3c9d3f230f',
   'videos/forearm-straight-bar-01.jpg': '33727773df4b5c58',

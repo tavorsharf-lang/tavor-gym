@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react'
-import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { ensureReady } from '@/db/db'
+import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { db, ensureReady } from '@/db/db'
+import { isFirstRun, markFirstRunSeen } from '@/db/firstRun'
 import { repairAssetOrigins, repairReplacedBundled } from '@/db/mediaDb'
 import { loadHiddenVideoIds } from '@/db/hiddenVideos'
 import { loadVideoPrefs } from '@/db/videoPrefs'
 import { loadHiddenExerciseIds } from '@/db/hiddenExercises'
+import { loadMuscleFixes } from '@/db/muscleFixes'
 import { useWorkout } from '@/state/activeWorkoutStore'
 import { useScrollMemory } from '@/hooks/useScrollMemory'
+import { useColdLaunchHome } from '@/hooks/useColdLaunchHome'
+import { ensurePersisted } from '@/hooks/useStorageStatus'
 import { ToastHost } from '@/components/ui'
 import { TabBar } from '@/components/shell/TabBar'
 import { UpdateBanner } from '@/components/shell/UpdateBanner'
+import { WelcomeScreen } from '@/screens/WelcomeScreen'
 import { HomeScreen } from '@/screens/HomeScreen'
 import { BuilderScreen } from '@/screens/BuilderScreen'
 import { BuilderMuscleScreen } from '@/screens/BuilderMuscleScreen'
@@ -31,11 +36,60 @@ import { BackupScreen } from '@/screens/settings/BackupScreen'
 const TAB_ROUTES = ['/', '/history', '/stats', '/settings']
 
 function Shell() {
+  /*
+    כל ההוקים כאן, מעל ה-return המוקדם של מסך הפתיחה — וזה לא סגנון.
+
+    ‏`done` הופך את `welcome` מ-true ל-false על אותו מופע Shell, ולכן הוק
+    שיישב מתחת ל-return היה עובר מ"לא נקרא" ל"נקרא" בין שני רינדורים. React
+    זורק על זה "Rendered more hooks than during the previous render" — בדיוק
+    בלחיצה היחידה שכל הזרימה הזו קיימת בשבילה.
+  */
   const { pathname } = useLocation()
-  const showTabs = TAB_ROUTES.includes(pathname)
+  const navigate = useNavigate()
 
   // מסך חדש נפתח מלמעלה, חזרה אחורה חוזרת למקום שבו היינו
   useScrollMemory()
+  // פתיחה קרה של האפליקציה המותקנת נוחתת בבית ולא בפרגמנט שנלכד בהתקנה
+  useColdLaunchHome()
+
+  const [welcome, setWelcome] = useState(false)
+  useEffect(() => {
+    /*
+      השער הסינכרוני קודם, ובכוונה: אצל מי שכבר משתמש באפליקציה המפתח אינו
+      'new', ולכן המכשיר שלו אפילו לא שולח את ספירת האימונים. ספירת האימונים
+      היא החגורה השנייה — מסד שנזרע זה עתה אבל כבר יש בו היסטוריה הוא סימן
+      שמשהו לא צפוי קרה, ואז עדיף לא להציג כלום.
+    */
+    if (!isFirstRun()) return
+    void (async () => {
+      if ((await db.sessions.count()) === 0) setWelcome(true)
+    })()
+  }, [])
+
+  const finishWelcome = (to: string): void => {
+    markFirstRunSeen()
+    setWelcome(false)
+    /*
+      ‏`ensurePersisted` כאן הוא תיקון תזמון אמיתי: הקריאה האוטומטית היחידה
+      עד היום הייתה בסוף אימון שלם, בזמן שהכתיבה הגדולה ביותר של משתמש חדש —
+      "התקן סרטונים למכשיר" — לא ביקשה קביעות בכלל. בלשונית זה מחזיר false
+      ולא עולה כלום; באפליקציה מותקנת ספארי מאשרת בשקט בלי דיאלוג.
+    */
+    void ensurePersisted()
+    // הניווט מנקה גם פרגמנט ש"הוסף למסך הבית" לכד לפני שהמסך נסגר
+    navigate(to, { replace: true })
+  }
+
+  if (welcome) {
+    return (
+      <>
+        <WelcomeScreen onDone={finishWelcome} />
+        <ToastHost />
+      </>
+    )
+  }
+
+  const showTabs = TAB_ROUTES.includes(pathname)
 
   return (
     <>
@@ -104,6 +158,9 @@ export function App() {
         await loadVideoPrefs()
         // ומאותה סיבה — התרגילים המוסתרים: בלי החימום שורה מוסתרת מבליחה ונעלמת
         await loadHiddenExerciseIds()
+        // ומאותה סיבה — תיקוני שיוך השריר: בלי החימום השורה מרונדרת תחת
+        // הכותרת שהמשתמש כבר תיקן, וקופצת לכותרת הנכונה פריים אחר-כך
+        await loadMuscleFixes()
         if (!cancelled) setReady(true)
         // אחרי שהמסך כבר עולה — אלה תיקונים של מדיה ישנה ולא תנאי לפתיחה
         void repairReplacedBundled()

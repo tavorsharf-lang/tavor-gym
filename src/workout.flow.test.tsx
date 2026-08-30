@@ -89,6 +89,20 @@ describe('זרימת אימון', () => {
     expect(workout?.queue[0].targetSets).toBe(2)
     expect(workout?.queue[0].restSeconds).toBe(120)
 
+    /*
+      קודם משקל, ורק אז תיעוד — וזו הזרימה האמיתית של סט ראשון בחיים.
+
+      בהתקנה חדשה אין משקלי זריעה, ולכן שדה המשקל נפתח על 0 והכפתור הראשי
+      מושבת ומסומן "קבע משקל כדי לרשום". זה בכוונה: לחיצה על כפתור פעיל בשדה
+      ריק הייתה רושמת סט עבודה של 0 ק״ג, ומאותו רגע ההמלצה וההיסטוריה של
+      התרגיל מדברות על אפס.
+    */
+    expect(screen.getByRole('button', { name: 'קבע משקל כדי לרשום' })).toBeTruthy()
+
+    const weight = screen.getByLabelText('משקל')
+    await user.clear(weight)
+    await user.type(weight, '80')
+
     // תיעוד סט
     const finishSet = await screen.findByRole('button', { name: /סיים סט/ })
     await user.click(finishSet)
@@ -105,8 +119,28 @@ describe('זרימת אימון', () => {
     expect(logged.length).toBe(1)
     expect(logged[0].exerciseId).toBe('leg-press')
 
-    // טיימר המנוחה התחיל
-    expect(useWorkout.getState().workout?.restEndsAt).not.toBeNull()
+    /*
+      טיימר המנוחה התחיל.
+
+      ‏`waitFor` ולא טענה ישירה, וזה לא הידור: `commitSet` מריץ שתי כתיבות
+      נפרדות בזו אחר זו — `logSet` ואז `startRest` (ExerciseCard.tsx:347,359).
+      ה-`waitFor` שלמעלה נפתר ברגע שהראשונה נכתבה, כלומר בזמן שהשנייה עוד
+      תלויה. הטענה הישירה שהייתה כאן נכשלה בהרצה מלאה תחת עומס ועברה בהרצה
+      בודדת — התנהגות שנקראת "רעידה" אבל היא מרוץ אמיתי בבדיקה.
+    */
+    await waitFor(() => {
+      expect(useWorkout.getState().workout?.restEndsAt).not.toBeNull()
+    })
+
+    /*
+      שעון האימון שורד את שכבת המנוחה.
+
+      השכבה חוסמת את כל הכותרת, ולכן שעון שקיים רק שם היה נעלם בדיוק בדקה
+      שבה שואלים "כמה זמן אני כבר פה". שני השעונים חיים יחד ולכן יש להם
+      שמות נגישים שונים.
+    */
+    expect(screen.getByRole('timer', { name: 'זמן מתחילת האימון' })).toBeTruthy()
+    expect(screen.getByRole('timer', { name: /בזמן מנוחה/ })).toBeTruthy()
 
     // סיום האימון
     await useWorkout.getState().stopRest()
@@ -277,6 +311,63 @@ describe('זרימת אימון', () => {
     const session = await db.sessions.get(id ?? '')
     expect(session?.totalVolumeKg).toBe(450) // 22.5 × 2 צדדים × 10 חזרות
   }, 20000)
+})
+
+/**
+ * כפתור סט החימום קיים בכל תרגיל, לא רק בראשון של קבוצת השריר.
+ *
+ * הבדיקה נכנסת דרך המסך האמיתי ולא דרך ה-store, כי שני הכשלים כאן חיים רק שם:
+ * הכרטיס הפרוש נעלם אחרי "לא צריך" ובלי הכפתור המכווץ אחריו לא נשאר שום מסלול
+ * לסט חימום; ושדה המשקל מתאפס אחרי סט חימום, ובלי נעילת המשקל הידוע הכפתור
+ * היה נעלם בדיוק בין שלב לשלב ברמפה. בהתקנה טרייה אין לאף תרגיל משקל שמור,
+ * ולכן זו גם הבדיקה שהמשקל שנקבע בשדה מספיק כדי שההצעה תיוולד.
+ */
+describe('כפתור סט חימום', () => {
+  beforeEach(resetAll)
+
+  it('נולד מהמשקל שבשדה, שורד "לא צריך", ומקדם את הרמפה', async () => {
+    const user = userEvent.setup()
+    await useWorkout.getState().start('C', []) // רגליים — לחיצת רגליים ראשונה
+    const key = useWorkout.getState().workout!.currentKey!
+    window.location.hash = '#/workout'
+    render(<App />)
+
+    // התקנה טרייה: אין משקל, ולכן עדיין אין מה להציע
+    const plate = await screen.findByRole(
+      'button',
+      { name: 'הוסף פלטה של 20 קילו לכל צד' },
+      { timeout: 15000 }
+    )
+    expect(screen.queryByText(/חימום/)).toBeTruthy() // מתג סוג הסט קיים תמיד
+    expect(screen.queryByRole('button', { name: 'לא צריך' })).toBeNull()
+
+    // שלוש פלטות של 20 לכל צד = 120 ק״ג, ומשם נולדת רמפה של שלושה שלבים
+    for (let i = 0; i < 3; i++) await user.click(plate)
+    const dismiss = await screen.findByRole('button', { name: 'לא צריך' })
+    expect(document.body.textContent).toContain('רמפת חימום לרגליים')
+
+    // "לא צריך" מקפל את ההצעה — ומשאיר כפתור
+    await user.click(dismiss)
+    const button = await screen.findByRole('button', { name: /^סט חימום/ })
+    expect(button.textContent).toContain('45 ק״ג') // 40% מ-120, מעוגל לרשת של 5
+    expect(button.textContent).toContain('10')
+
+    await user.click(button)
+    await waitFor(() => {
+      expect((useWorkout.getState().workout?.setsByKey[key] ?? []).length).toBe(1)
+    })
+    const first = useWorkout.getState().workout!.setsByKey[key]![0]
+    expect(first.type).toBe('warmup')
+    expect(first.weightKg).toBe(45)
+
+    /*
+      והשלב הבא. שדה המשקל התאפס עם רישום הסט — בלי נעילת המשקל הידוע הכפתור
+      היה נעלם כאן, ורמפה בת שלושה שלבים הייתה נגמרת אחרי אחד.
+    */
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^סט חימום/ }).textContent).toContain('70 ק״ג')
+    })
+  }, 30000)
 })
 
 describe('ניווט', () => {

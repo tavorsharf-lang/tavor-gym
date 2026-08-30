@@ -1,6 +1,17 @@
 import { useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
-import { Check, ChevronDown, Clock, Minus, NotebookPen, Plus, Repeat, SkipForward, Timer } from 'lucide-react'
+import {
+  Check,
+  ChevronDown,
+  Clock,
+  Flame,
+  Minus,
+  NotebookPen,
+  Plus,
+  Repeat,
+  SkipForward,
+  Timer,
+} from 'lucide-react'
 import type {
   AppSettings,
   DraftSet,
@@ -320,11 +331,31 @@ export function ExerciseCard({
 
   const autoRated = useRef(false)
 
+  /*
+    משקל העבודה שהחימום נגזר ממנו.
+
+    שדה ההזנה נכנס אחרון בכוונה. כל עוד יש המלצה או היסטוריה ההצעה יציבה ולא
+    רצה עם הסטפר; אבל בתרגיל חדש לגמרי — בלי היסטוריה ובלי משקל זריעה, כלומר
+    כל תרגיל בהתקנה טרייה — הוא מה שמאפשר לכפתור החימום להופיע בכלל, ברגע
+    שנקבע משקל.
+
+    והנעילה: אחרי סט חימום שדה המשקל מתאפס (סט חימום אינו "הסט הקודם"), ובלעדיה
+    הכפתור היה נעלם בדיוק אחרי השלב הראשון ברמפה — הכשל שהוא בא למנוע. הכרטיס
+    ממילא מקבל key לפי פריט התור, ולכן הנעילה מתה עם המעבר לתרגיל הבא.
+  */
+  const knownPlanned =
+    recommendation.weightKg ??
+    previousTop?.weightKg ??
+    exercise.seedWeightKg ??
+    (entry.weightKg > 0 ? entry.weightKg : null)
+  const lastPlanned = useRef<number | null>(null)
+  if (knownPlanned !== null) lastPlanned.current = knownPlanned
+
   const groups = touchedGroups(workout, exercisesById)
   const warmupPlan = suggestWarmup({
     exercise,
     touchedGroups: groups,
-    plannedWeightKg: recommendation.weightKg ?? previousTop?.weightKg ?? exercise.seedWeightKg,
+    plannedWeightKg: knownPlanned ?? lastPlanned.current,
     enabled: settings.autoWarmup,
     percent: settings.warmupPercent,
   })
@@ -334,6 +365,11 @@ export function ExerciseCard({
   */
   const warmupDone = sets.filter((s) => s.type === 'warmup').length
   const warmupSuggestion = warmupPlan[warmupDone] ?? null
+  /*
+    מה שהכפתור ירשום. אחרי שהרמפה נגמרה אין "שלב הבא", אבל הכפתור לא נעלם —
+    מי שרוצה עוד סט חימום מקבל את השלב האחרון שוב, הכבד שבהם.
+  */
+  const warmupNext = warmupSuggestion ?? warmupPlan[warmupPlan.length - 1] ?? null
 
   // שיא שנרשם באימון הזה מסומן לפי רגע הסט — הרשומה נשמרת עם אותה חותמת
   const prStamps = new Set(
@@ -342,8 +378,16 @@ export function ExerciseCard({
 
   const segments: PlateSegState[] = sets.map((s) => (s.type === 'warmup' ? 'warmup' : 'work'))
 
+  /*
+    משקל אפס בתרגיל שאמור להיות עם משקל. תרגיל משקל גוף ותרגיל זמן נשמרים
+    באפס בכוונה ולכן הם מוחרגים — בפלאנק ובשכיבות סמיכה 0 ק״ג הוא הערך הנכון.
+  */
+  const zeroWeight = !bodyweight && !timed && entry.weightKg <= 0
+
   const commitSet = async (type: SetType, weightKg: number, reps: number): Promise<void> => {
     if (busy || reps <= 0) return
+    // אותו כלל כמו על הכפתור, כדי שגם מסלול שלא עובר דרכו לא ירשום סט ריק
+    if (!bodyweight && !timed && weightKg <= 0) return
     setBusy(true)
     try {
       await logSet(item.key, type, weightKg, reps)
@@ -374,11 +418,20 @@ export function ExerciseCard({
     }
   }
 
-  const heroLabel = isWarmup
-    ? 'סיים סט חימום'
-    : workCount + 1 === item.targetSets
-      ? 'סיים סט אחרון'
-      : 'סיים סט'
+  /*
+    כשהמשקל עדיין 0 הכפתור מושבת, ולכן הוא חייב לומר למה.
+
+    זה לא מקרה קצה אלא הסט הראשון בכל תרגיל שאין לו היסטוריה — כלומר כל 29
+    התרגילים בהתקנה חדשה. כפתור ענום בלי מילה אחת של הסבר היה הופך את המסך
+    הראשון של האפליקציה לחידה.
+  */
+  const heroLabel = zeroWeight
+    ? 'קבע משקל כדי לרשום'
+    : isWarmup
+      ? 'סיים סט חימום'
+      : workCount + 1 === item.targetSets
+        ? 'סיים סט אחרון'
+        : 'סיים סט'
 
   const setLine =
     workCount < item.targetSets
@@ -539,8 +592,15 @@ export function ExerciseCard({
         </ul>
       )}
 
-      {/* 6 — הצעת חימום, פעם אחת לכל קבוצת שריר */}
-      {warmupSuggestion && !item.warmupOffered && (
+      {/*
+        6 — סט חימום. יש כזה בכל תרגיל שיש לו משקל, ולא רק בראשון של הקבוצה.
+
+        שני מצבים לאותו דבר: כל עוד יש שלב שלא הוצע, ההצעה פרושה עם הנימוק —
+        למה דווקא המשקל הזה, ואם זו רמפה, איזה שלב מתוך כמה. אחרי ש"לא צריך"
+        נלחץ או שהרמפה נגמרה, היא מתכווצת לכפתור אחד שנשאר זמין עד סוף התרגיל.
+        בשני המצבים לחיצה אחת רושמת את הסט — לא ממלאת שדות שצריך לאשר.
+      */}
+      {warmupSuggestion && !item.warmupOffered ? (
         <div className="mt-3 rounded-card border border-dashed border-warmup-400/45 bg-warmup-400/[0.06] p-3">
           <p className="text-[0.8125rem] font-bold text-warmup-400">{warmupSuggestion.reason}</p>
           <p className="tnum mt-0.5 text-sm font-semibold text-bone-200">
@@ -570,7 +630,21 @@ export function ExerciseCard({
             </Button>
           </div>
         </div>
-      )}
+      ) : warmupNext ? (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void commitSet('warmup', warmupNext.weightKg, warmupNext.reps)}
+          className="mt-3 flex min-h-12 w-full items-center gap-2 rounded-card border border-warmup-400/40 bg-warmup-400/[0.06] px-3 py-2 text-warmup-400 active:bg-warmup-400/15 disabled:opacity-40"
+        >
+          <Flame size={16} className="shrink-0" aria-hidden="true" />
+          <span className="shrink-0 text-[0.8125rem] font-extrabold">סט חימום</span>
+          <span className="tnum ms-auto text-[0.8125rem] font-bold text-bone-200">
+            {formatWeight(warmupNext.weightKg, exercise.weightMode)} ×{' '}
+            {timed ? formatClock(warmupNext.reps) : warmupNext.reps}
+          </span>
+        </button>
+      ) : null}
 
       {/* 7 — הזנת הסט */}
       <div className="mt-4">
@@ -614,10 +688,18 @@ export function ExerciseCard({
                 onChange={(weightKg) => setEntry((e) => ({ ...e, weightKg }))}
                 step={weightStep(exercise)}
                 min={0}
+                /*
+                  בתרגיל צלחות הרמז בדרך כלל מיותר — השבבים שמתחת הם המסלול.
+                  אבל כשהשדה עדיין על 0 (תרגיל בלי היסטוריה ובלי משקל זריעה)
+                  השבבים לבדם דורשים הרבה לחיצות כדי להגיע למשקל אמיתי, ולכן
+                  שם דווקא כדאי לומר שאפשר פשוט להקליד.
+                */
                 hint={
-                  exercise.usesPlates
-                    ? undefined
-                    : 'אפשר להקליד בדיוק את המספר שכתוב על המכונה'
+                  !exercise.usesPlates
+                    ? 'אפשר להקליד בדיוק את המספר שכתוב על המכונה'
+                    : entry.weightKg <= 0
+                      ? 'אפשר גם להקליד את המשקל ישירות'
+                      : undefined
                 }
               />
               {exercise.usesPlates ? (
@@ -684,9 +766,17 @@ export function ExerciseCard({
       </div>
 
       {/* 9 — הפעולה הראשית. כפתור אחד, ענק, במקום קבוע בכל תרגיל */}
+      {/*
+        משקל 0 חוסם את הכפתור בדיוק כמו 0 חזרות.
+
+        בלי זה, תרגיל בלי היסטוריה ובלי משקל זריעה נפתח על 0 והכפתור הראשי
+        פעיל — כלומר הלחיצה הכי סבירה בעולם רושמת "סט עבודה של 0 ק״ג", ומאותו
+        רגע ההמלצה וההיסטוריה מדברות על אפס. שני הסייגים חובה: תרגיל משקל גוף
+        ותרגיל זמן שומרים אפס בכוונה.
+      */}
       <button
         type="button"
-        disabled={busy || entry.reps <= 0}
+        disabled={busy || entry.reps <= 0 || zeroWeight}
         onClick={() => void commitSet(isWarmup ? 'warmup' : 'work', entry.weightKg, entry.reps)}
         className="btn-flame mt-4 flex min-h-[4.5rem] w-full items-center justify-center rounded-card text-2xl font-extrabold [-webkit-touch-callout:none] disabled:opacity-40 disabled:shadow-none disabled:[filter:none] disabled:[transform:none]"
       >

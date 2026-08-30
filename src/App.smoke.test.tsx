@@ -60,11 +60,19 @@ describe('App', () => {
     expect(active.sort()).toEqual(['F1', 'F2'])
   })
 
-  it('לתוכנית החזרה יש משקלי התחלה מופחתים', async () => {
+  it('התקנה חדשה מקבלת את התוכניות בלי משקלי התחלה', async () => {
     const f1 = await db.routines.get('F1')
     const legPress = f1?.items.find((i) => i.exerciseId === 'leg-press')
-    // 160 בקטלוג, 60% מזה מעוגל לקפיצה של 5
-    expect(legPress?.startWeightKg).toBe(95)
+    /*
+      שני הצדדים ריקים, וזה חייב להיבדק בשניהם: `PlanItem.startWeightKg` גובר
+      על `Exercise.seedWeightKg` בזמן ריצה, ולכן ריקון של אחד מהם לבדו לא היה
+      משנה כלום בפועל.
+
+      המספרים ב-SEED_* הם המשקלים של תבור. התקנה חדשה נזרעת דרך `freshSeed*`,
+      אחרת הסט הראשון בחייו של מישהו אחר היה נפתח על 95 ק״ג בלחיצת רגליים.
+    */
+    expect(legPress?.startWeightKg).toBeNull()
+    expect((await db.exercises.get('leg-press'))?.seedWeightKg).toBeNull()
     // ברירת המחדל אחידה לכל תרגיל — שני סטים ושתי דקות מנוחה
     expect(legPress?.targetSets).toBe(2)
     expect(legPress?.restSeconds).toBe(120)
@@ -153,18 +161,26 @@ describe('ספריית התרגילים', () => {
     expect(screen.getByText('Lat Pulldown')).toBeTruthy()
   }, 30000)
 
-  it('מפרידה בין שני תרגילים בעלי אותו שם לפי המשקל', async () => {
+  it('מפרידה בין שני תרגילים בעלי אותו שם — בשם עצמו, כשאין משקל', async () => {
     const user = userEvent.setup()
     render(<App />)
 
     await openLibrary(user)
     await waitFor(() => expect(screen.getByText('לחיצת רגליים')).toBeTruthy(), { timeout: 5000 })
 
-    // שתי החתירות נשארות שני תרגילים נפרדים, והמשקל הוא מה שמבדיל ביניהן
-    const rows = screen.getAllByText('חתירה במכונה')
-    expect(rows.length).toBe(2)
-    expect(screen.getByText(/60 ק״ג כל צד/)).toBeTruthy()
-    expect(screen.getByText(/50 ק״ג כל צד/)).toBeTruthy()
+    /*
+      עד היום המשקל היה מה שהבדיל בין שתי החתירות ("60 ק״ג" מול "50 ק״ג").
+      בהתקנה חדשה אין משקלים, ולכן `distinguisher` לא יכול היה להחזיר כלום
+      ושתי שורות זהות לחלוטין היו יושבות זו מעל זו — כולל בגיליון ההחלפה
+      באמצע אימון. `freshSeedExercises` נותנת לשני מכל זוג שם משלו.
+
+      נבדק על הזוג שיש לו גם טווח חזרות שונה, כי דווקא שם פתרון מבוסס-טווח
+      היה מצביע על השורה ההפוכה: הקטלוג אומר 8–12 לכבדה, אבל F2 מריצה אותה
+      ב-10–12 — בדיוק הטווח של הקלה.
+    */
+    expect(screen.getByText('חתירה במכונה')).toBeTruthy()
+    expect(screen.getByText('חתירה במכונה (וריאציה שנייה)')).toBeTruthy()
+    expect(screen.getByText('לחיצת חזה במכונה (מכונה שנייה)')).toBeTruthy()
   }, 30000)
 })
 

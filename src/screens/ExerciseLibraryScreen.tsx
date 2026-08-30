@@ -33,7 +33,9 @@ import { useHiddenVideoIds } from '@/db/hiddenVideos'
 import { groupContextId, useVideoPrefs } from '@/db/videoPrefs'
 import { cancelScrollRestore } from '@/hooks/useScrollMemory'
 import { normalize } from '@/lib/text'
-import { secondaryFor, subTargetFor } from '@/db/subTargets'
+import { groupOf, secondaryOf, subOf, useMuscleFixes } from '@/db/muscleFixes'
+import { FixEntrySheet } from '@/components/exercises/FixEntrySheet'
+import { useLongPress } from '@/hooks/useLongPress'
 
 /**
  * מסך התרגילים — רשימה אחת, שני מצבים.
@@ -75,6 +77,16 @@ export function ExerciseLibraryScreen({
   const [gallery, setGallery] = useState<CatalogEntry | null>(null)
   /** תת-קטגוריה שנבחרה בשורת הצ׳יפים; null = הכל */
   const [subFilter, setSubFilter] = useState<string | null>(null)
+  /** השורה שנלחצה לחיצה ארוכה — גיליון התיקון נפתח עליה */
+  const [fixing, setFixing] = useState<CatalogEntry | null>(null)
+
+  /*
+    תיקוני השיוך. הם נכנסים כאן ולא ב-`getCatalogEntries` בכוונה: השכבה היא
+    תצוגה של הרשימה הזו ושל הבונה, ולא נתון של הקטלוג — הנפח, השיאים והחימום
+    ממשיכים לקרוא את `Exercise.muscleGroup` בלבד, ולכן תיקון שנכתב לרשומה
+    מגיע אליהם דרך המסד ותיקון של שורת מאגר לא נוגע בהם בכלל.
+  */
+  const fixes = useMuscleFixes()
 
   /*
     מדפי הסרטונים של קבוצות השריר: סרטון שהועבר אל `group:<שריר>` (מתוך פאנל
@@ -114,12 +126,14 @@ export function ExerciseLibraryScreen({
   // מחושב על כל הקטלוג ולא על תוצאות החיפוש — תרגיל לא משנה זהות לפי מה שהוקלד
   const duplicates = useMemo(() => duplicateNames(catalogExercises), [catalogExercises])
 
-  const matches = (entry: CatalogEntry, q: string): boolean =>
+  const matches = (entry: CatalogEntry, q: string, group: MuscleGroup): boolean =>
     !q ||
     normalize(entry.name).includes(q) ||
     normalize(entry.nameEn ?? '').includes(q) ||
     normalize(entry.exercise?.subTarget ?? '').includes(q) ||
-    normalize(MUSCLE_GROUPS[entry.muscleGroup].label).includes(q)
+    // הקבוצה שאחרי תיקון, לא זו שבמניפסט — אחרת חיפוש "חזה" לא היה מוצא
+    // שורה שהמשתמש בעצמו העביר לחזה
+    normalize(MUSCLE_GROUPS[group].label).includes(q)
 
   const q = normalize(query)
   const mine = useMemo(() => entries.filter((e) => e.state === 'mine'), [entries])
@@ -128,10 +142,11 @@ export function ExerciseLibraryScreen({
     const source = mode === 'mine' ? mine : entries
     const byGroup = new Map<MuscleGroup, CatalogEntry[]>()
     for (const entry of source) {
-      if (!matches(entry, q)) continue
-      const list = byGroup.get(entry.muscleGroup)
+      const group = groupOf(entry, fixes)
+      if (!matches(entry, q, group)) continue
+      const list = byGroup.get(group)
       if (list) list.push(entry)
-      else byGroup.set(entry.muscleGroup, [entry])
+      else byGroup.set(group, [entry])
     }
     return MUSCLE_GROUP_BY_SIZE.filter((g) => byGroup.has(g)).map((group) => ({
       group,
@@ -144,7 +159,7 @@ export function ExerciseLibraryScreen({
       list: (byGroup.get(group) ?? []).sort(mode === 'mine' ? compareEntries : compareByName),
     }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, mine, mode, q])
+  }, [entries, mine, mode, q, fixes])
 
   /*
     חלוקה לתת-קטגוריות לפי כרטיס השרירים.
@@ -161,8 +176,7 @@ export function ExerciseLibraryScreen({
       groups.map(({ group, list }) => {
         const bySub = new Map<string, CatalogEntry[]>()
         for (const entry of list) {
-          const sub =
-            subTargetFor(entry.exercise?.id ?? entry.id, group, entry.exercise?.libraryId) ?? OTHER
+          const sub = subOf(entry, group, fixes) ?? OTHER
           const bucket = bySub.get(sub)
           if (bucket) bucket.push(entry)
           else bySub.set(sub, [entry])
@@ -173,7 +187,7 @@ export function ExerciseLibraryScreen({
           .map(([sub, items]) => ({ sub, items }))
         return { group, list, subs }
       }),
-    [groups]
+    [groups, fixes]
   )
 
   /** כל תת-הקטגוריות שיש להן תרגילים כרגע — הן ממלאות את שורת הצ׳יפים */
@@ -200,7 +214,11 @@ export function ExerciseLibraryScreen({
 
   const total = groups.reduce((n, g) => n + g.list.length, 0)
   // כמה תוצאות יש בצד השני — מה שהופך "לא נמצא" להצעה ולא לקיר
-  const allHits = useMemo(() => entries.filter((e) => matches(e, q)).length, [entries, q])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const allHits = useMemo(
+    () => entries.filter((e) => matches(e, q, groupOf(e, fixes))).length,
+    [entries, q, fixes]
+  )
 
   const switchMode = (next: ExercisesMode): void => {
     if (next === mode) return
@@ -468,6 +486,7 @@ export function ExerciseLibraryScreen({
                     key={entry.id}
                     entry={entry}
                     group={group}
+                    sub={sub === OTHER ? null : sub}
                     mode={mode}
                     duplicates={duplicates}
                     lastPerformed={lastPerformed}
@@ -480,6 +499,7 @@ export function ExerciseLibraryScreen({
                     onPlay={() => setGallery(entry)}
                     onAdd={() => handleAdd(entry)}
                     onRemove={() => handleRemoveTap(entry)}
+                    onFix={() => setFixing(entry)}
                   />
                 ))}
                     </div>
@@ -510,6 +530,8 @@ export function ExerciseLibraryScreen({
           ) : null}
         </div>
       )}
+
+      <FixEntrySheet entry={fixing} onClose={() => setFixing(null)} />
 
       <RemoveExerciseSheet
         open={pending !== null}
@@ -551,10 +573,15 @@ export function ExerciseLibraryScreen({
  * הריבוע הוא כפתור **אח** לגוף השורה ולא ילד שלו, ומאותה סיבה בדיוק: כפתור
  * מקונן היה מפעיל את שני המטפלים בלחיצה אחת. הפיצול הוא גם מה שנותן לשורה שני
  * יעדים — הריבוע פותח את הגלריה, והשאר פותח את מסך התרגיל.
+ *
+ * והיעד השלישי הוא לחיצה ארוכה על גוף השורה — תיקון השם ושיוך השריר. הוא לא
+ * קיבל פקד משלו בכוונה: זו פעולה שנעשית פעם בחודש ("טעיתי, זה לא יושב שם"),
+ * ואייקון שלישי היה מכווץ את שני היעדים שנלחצים כל יום.
  */
 function Row({
   entry,
   group,
+  sub,
   mode,
   duplicates,
   lastPerformed,
@@ -563,9 +590,12 @@ function Row({
   onPlay,
   onAdd,
   onRemove,
+  onFix,
 }: {
   entry: CatalogEntry
   group: MuscleGroup
+  /** ראש השריר שהשורה יושבת תחתיו כרגע. null = "אחר", בלי כרטיס. */
+  sub: string | null
   mode: ExercisesMode
   duplicates: ReadonlySet<string>
   lastPerformed: Map<string, { weightKg: number; reps: number; at: number; sets: number }>
@@ -575,6 +605,8 @@ function Row({
   onPlay: () => void
   onAdd: () => void
   onRemove: () => void
+  /** לחיצה ארוכה — גיליון תיקון השם והשיוך */
+  onFix: () => void
 }): JSX.Element {
   const ex = entry.exercise
   const last = ex ? lastPerformed.get(ex.id) : undefined
@@ -585,7 +617,8 @@ function Row({
     באנגלית, תת-מיקוד, ציוד וביצוע אחרון, וחמש תגיות היו הופכות אותה לקיר.
     השניים הראשונים הם בעלי האחוז הגבוה, ולכן גם המעניינים.
   */
-  const secondary = secondaryFor(ex?.id ?? entry.id, group, ex?.libraryId).slice(0, 2)
+  const secondary = secondaryOf(entry, group, sub).slice(0, 2)
+  const press = useLongPress(onOpen, onFix)
 
   return (
     <div className={['flex items-center', out ? 'opacity-60' : ''].join(' ')}>
@@ -600,8 +633,12 @@ function Row({
       </span>
       <button
         type="button"
-        onClick={onOpen}
-        className="flex min-w-0 flex-1 items-center gap-3 p-3 text-start transition-colors active:bg-ink-800"
+        {...press}
+        aria-description="לחיצה ארוכה — תיקון השם ושיוך השריר"
+        /* בלי select-none ובלי הביטול של הקאלאאוט, לחיצה ארוכה באייפון מרימה
+           את תפריט הבחירה של הדפדפן מעל הגיליון שהיא בדיוק פתחה */
+        style={{ WebkitTouchCallout: 'none' }}
+        className="flex min-w-0 flex-1 select-none items-center gap-3 p-3 text-start transition-colors active:bg-ink-800"
       >
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[0.9375rem] font-bold text-bone-50">

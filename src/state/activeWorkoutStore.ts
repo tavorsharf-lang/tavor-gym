@@ -880,6 +880,19 @@ export const useWorkout = create<WorkoutState>((set, get) => {
      */
     async addExercise(exerciseId) {
       /*
+        אין אימון פתוח — ולכן ההוספה לא קרתה.
+
+        `mutate` מוותר בשקט כשאין אימון, והחזרת `true` אחריו הפרה את החוזה
+        שכתוב שורה מעל: הקורא מבטיח בטוסט משהו שלא קרה. זה לא תיאורטי —
+        הקוראים מריצים לפני זה סבב אסינכרוני למסד (`ensureTrainable` בבורר,
+        `materialize` בפס הסל), והאימון יכול להיסגר בדיוק בחלון הזה: סיום
+        מטלפון שני, התאוששות שמחקה אימון תקוע, או `discard`.
+
+        השער כאן ולא רק אחרי ה-await, כי הוא זול והוא סוגר גם את המקרה הפשוט.
+      */
+      if (!get().workout) return false
+
+      /*
         התצלום שבזיכרון קודם, והמסד כרשת מתחתיו.
 
         `exercisesById` נלקח בתחילת האימון, ולכן תרגיל שנוצר אחריו — למשל
@@ -908,6 +921,9 @@ export const useWorkout = create<WorkoutState>((set, get) => {
         status: 'pending',
         warmupOffered: false,
       }
+
+      // והשער שוב, אחרי סבב המסד — זה החלון שבו האימון באמת יכול להיעלם
+      if (!get().workout) return false
 
       await mutate((w) => {
         const queue = [...w.queue, fresh]

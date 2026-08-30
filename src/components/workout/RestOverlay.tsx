@@ -4,6 +4,7 @@ import { Minus, Plus, TimerOff, X } from 'lucide-react'
 import { useRestTimer } from '@/hooks/useRestTimer'
 import type { AudioCue } from '@/hooks/useAudioCue'
 import { formatClock } from '@/domain/units'
+import { ElapsedClock } from './ElapsedClock'
 
 /**
  * טיימר המנוחה.
@@ -23,6 +24,8 @@ export function RestOverlay({
   onSkip,
   onDisable,
   nextLabel,
+  onAddExercise,
+  startedAt,
 }: {
   endsAt: number | null
   totalSeconds: number
@@ -37,6 +40,25 @@ export function RestOverlay({
   onDisable: () => void
   /** מה מחכה אחרי המנוחה, למשל "סט 3 מתוך 4" */
   nextLabel?: string
+  /**
+   * פותח את בורר התרגילים מתוך המנוחה.
+   *
+   * המנוחה היא הדקה היחידה באימון שבה יש ידיים פנויות וראש פנוי, וזה בדיוק
+   * הזמן שבו מחליטים מה הלאה. עד כאן המסך הזה חסם את כל הכותרת, ולכן הוספת
+   * תרגיל דרשה קודם לדלג על הטיימר — כלומר לוותר על המנוחה כדי לתכנן אותה.
+   *
+   * הגיליון נפתח *מעל* המסך הזה ולא במקומו: שני פורטלים, והאחרון ב-DOM הוא
+   * שלמעלה. הספירה ממשיכה מתחתיו, וסגירת הגיליון מחזירה אליה.
+   */
+  onAddExercise?: () => void
+  /**
+   * תחילת האימון, כדי ששעון האימון ימשיך להיראות גם מכאן.
+   *
+   * המסך הזה חוסם את כותרת האימון לגמרי, ומנוחה היא בדיוק הרגע שבו שואלים
+   * "כמה זמן אני כבר פה". בלי זה השעון היחיד שרואים בזמן מנוחה הוא הספירה
+   * לאחור — ושני מספרים שונים עדיף להם לחיות במקומות שונים על המסך.
+   */
+  startedAt: number
 }) {
   const [flash, setFlash] = useState(false)
   const flashTimer = useRef<number | null>(null)
@@ -83,11 +105,19 @@ export function RestOverlay({
         <div className="pointer-events-none absolute inset-0 animate-flash bg-flame-500" />
       )}
 
-      {/* בראש המסך, הרחק מכפתורי הפעולה שבתחתית — לחיצה עליו היא החלטה, לא רפלקס */}
+      {/*
+        שעון האימון בראש, וכיבוי הטיימר מתחתיו — הרחק מכפתורי הפעולה שבתחתית,
+        כי לחיצה עליו היא החלטה ולא רפלקס.
+      */}
       <div
-        className="relative flex justify-center"
+        className="relative flex flex-col items-center gap-2"
         style={{ paddingTop: 'calc(var(--safe-t) + 0.75rem)' }}
       >
+        <ElapsedClock
+          startedAt={startedAt}
+          className="min-h-9"
+          label="זמן מתחילת האימון, בזמן מנוחה"
+        />
         <button
           onClick={onDisable}
           className="flex min-h-11 items-center gap-2 rounded-pill border border-ink-700 bg-ink-900/70 px-4 text-xs font-bold text-bone-400 active:bg-ink-800"
@@ -139,6 +169,28 @@ export function RestOverlay({
         </div>
 
         {nextLabel && <p className="mt-8 text-sm font-semibold text-bone-400">{nextLabel}</p>}
+
+        {/*
+          באמצע המסך ולא בשורת הפעולות שבתחתית: שם יושבים ‎±15 ו"דלג", שלושתם
+          רפלקס של אמצע סט. זו החלטה שקטה יותר ולכן היא רחוקה מהאגודל.
+        */}
+        {onAddExercise ? (
+          <button
+            onClick={onAddExercise}
+            /*
+              תווית מפורשת ושונה מזו של הכפתור בכותרת האימון. שני כפתורים
+              באותו שם נגיש שיכולים להיות על המסך יחד הם עמימות אמיתית — גם
+              לקורא מסך, וגם לכל שאילתת בדיקה שמחפשת אחד מהם לפי שם.
+            */
+            aria-label="הוסף תרגיל לאימון בזמן המנוחה"
+            className={`flex min-h-12 items-center gap-2 rounded-pill border border-ink-700 bg-ink-900/70 px-4 text-sm font-bold text-bone-300 active:bg-ink-800 ${
+              nextLabel ? 'mt-5' : 'mt-8'
+            }`}
+          >
+            <Plus size={16} />
+            הוסף תרגיל
+          </button>
+        ) : null}
       </div>
 
       <div className="relative px-5 pb-safe">

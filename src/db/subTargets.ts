@@ -122,6 +122,24 @@ export const MUSCLE_TAXONOMY: Readonly<Record<string, { sub: string; group: Musc
 }
 
 /**
+ * כל ראשי השרירים של כל קבוצה, בסדר שבו הם מופיעים בטקסונומיה.
+ *
+ * נגזר ולא נכתב ביד: רשימה מקבילה הייתה מתיישנת ברגע שתווית חדשה נכנסת
+ * לטקסונומיה, ובשקט — היא פשוט לא הייתה מוצעת בגיליון תיקון השיוך.
+ *
+ * ‏"כופפי הירך" מופיע בשתי קבוצות (רגליים ובטן) וזה מכוון — זה אותו שריר,
+ * והקבוצה של התרגיל היא שקובעת תחת איזו כותרת הוא נספר.
+ */
+export const SUBS_BY_GROUP: Readonly<Record<MuscleGroup, readonly string[]>> = (() => {
+  const out = {} as Record<MuscleGroup, string[]>
+  for (const { sub, group } of Object.values(MUSCLE_TAXONOMY)) {
+    const list = (out[group] ??= [])
+    if (!list.includes(sub)) list.push(sub)
+  }
+  return out
+})()
+
+/**
  * שרירים שאינם תת-קטגוריה. "מייצבים" אינו שריר ממוקד שאפשר לבנות סביבו
  * אימון — הוא מופיע על הכרטיס כשארית ולא כמטרה.
  */

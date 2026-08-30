@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { JSX } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ListOrdered, MessageCircleQuestion, Timer, Trophy } from 'lucide-react'
+import { ListOrdered, MessageCircleQuestion, Plus, Timer, Trophy } from 'lucide-react'
 import { getSettings, saveSettings } from '@/db/db'
 import { getBlocks, getExerciseHistory, getFinishedSessions, getRoutines } from '@/db/queries'
 import type { DraftSet, ExerciseMetric, WeightMode } from '@/db/types'
@@ -15,18 +15,19 @@ import type { PlanUsage } from '@/db/catalog'
 import { shouldSuggestRemoval } from '@/domain/skipStreak'
 import { SkipStreakSheet } from '@/components/workout/SkipStreakSheet'
 import { prHeadline } from '@/domain/prs'
-import { formatClock, formatSetShort } from '@/domain/units'
+import { formatSetShort } from '@/domain/units'
 import { distinguisher, duplicateNames } from '@/domain/naming'
 import type { ExerciseSessionSummary } from '@/domain/recommendation'
-import { useNow } from '@/hooks/useNow'
 import { useAudioCue } from '@/hooks/useAudioCue'
 import { useWakeLock } from '@/hooks/useWakeLock'
+import { ElapsedClock } from '@/components/workout/ElapsedClock'
 import { ExerciseCard } from '@/components/workout/ExerciseCard'
 import { QueueRow } from '@/components/workout/QueueRow'
 import { RestOverlay } from '@/components/workout/RestOverlay'
 import { RatingSheet } from '@/components/workout/RatingSheet'
 import { SubstituteSheet } from '@/components/workout/SubstituteSheet'
 import { QueueSheet } from '@/components/workout/QueueSheet'
+import { AddExerciseSheet } from '@/components/workout/AddExerciseSheet'
 import { FinishSheet } from '@/components/workout/FinishSheet'
 
 /**
@@ -40,20 +41,7 @@ import { FinishSheet } from '@/components/workout/FinishSheet'
  *     כל נגיעה, והאזנה אליה הייתה מרנדרת את המסך בלי סוף.
  */
 
-type SheetName = 'finish' | 'queue' | 'rating' | 'substitute'
-
-/**
- * שעון האימון. יושב ברכיב נפרד בכוונה — כך הטיק של כל שנייה מרנדר מחדש
- * שורה אחת ולא את כרטיס התרגיל וכל התור.
- */
-function ElapsedClock({ startedAt }: { startedAt: number }): JSX.Element {
-  const now = useNow(1000)
-  return (
-    <span dir="ltr" className="tnum text-sm font-bold text-bone-300">
-      {formatClock(Math.max(0, (now - startedAt) / 1000))}
-    </span>
-  )
-}
+type SheetName = 'add' | 'finish' | 'queue' | 'rating' | 'substitute'
 
 /**
  * "4 סטים · 25×10" לשורה המכווצת, מפורק לשני חלקים.
@@ -341,7 +329,20 @@ export function WorkoutScreen(): JSX.Element | null {
           </div>
 
           <div className="flex shrink-0 items-center gap-0.5">
-            <ElapsedClock startedAt={workout.startedAt} />
+            <ElapsedClock startedAt={workout.startedAt} className="me-1 min-h-9" />
+            {/*
+              ההוספה יושבת בכותרת ולא במזח, ובכוונה רחוק מהכתום של "סיים סט":
+              היא הפעולה שהופכת את המסך הזה לבנייה ולא רק לתיעוד, אבל היא
+              לעולם לא מתחרה על האגודל מול היעד היחיד של אזור התחתון.
+            */}
+            <button
+              type="button"
+              aria-label="הוסף תרגיל לאימון"
+              onClick={() => setSheet('add')}
+              className="flex size-12 items-center justify-center rounded-full text-bone-400 active:bg-ink-800"
+            >
+              <Plus size={20} />
+            </button>
             <button
               type="button"
               aria-label="תור התרגילים"
@@ -398,7 +399,17 @@ export function WorkoutScreen(): JSX.Element | null {
       {total === 0 ? (
         <EmptyState
           title="אין תרגילים באימון הזה"
-          hint="אפשר להוסיף תרגיל מתוך התור, או פשוט לסיים ולהתחיל אימון אחר."
+          hint="אפשר להוסיף תרגיל עכשיו, או פשוט לסיים ולהתחיל אימון אחר."
+          action={
+            <button
+              type="button"
+              onClick={() => setSheet('add')}
+              className="flex min-h-13 items-center gap-2 rounded-pill border border-flame-500/40 bg-flame-500/12 px-5 text-sm font-bold text-flame-300"
+            >
+              <Plus size={18} />
+              הוסף תרגיל
+            </button>
+          }
         />
       ) : (
         <div className="flex flex-col gap-2">
@@ -485,6 +496,8 @@ export function WorkoutScreen(): JSX.Element | null {
           toast('טיימר המנוחה כבוי — מדליקים חזרה במתג שבראש מסך האימון')
         }}
         nextLabel={restLabel}
+        startedAt={workout.startedAt}
+        onAddExercise={() => setSheet('add')}
       />
 
       {activeExercise && (
@@ -520,7 +533,18 @@ export function WorkoutScreen(): JSX.Element | null {
         </>
       )}
 
-      <QueueSheet open={sheet === 'queue'} onClose={() => setSheet(null)} />
+      {/*
+        שני גיליונות אחים ולא מקוננים. סדר האימון ובורר התרגילים הם שתי
+        שאלות שונות — "באיזה סדר" מול "מה בכלל" — ובגיליון אחד בתוך השני
+        הסגירה של הפנימי הייתה מחזירה למצב שממנו כבר לא רואים את התור.
+      */}
+      <QueueSheet
+        open={sheet === 'queue'}
+        onClose={() => setSheet(null)}
+        onAddExercise={() => setSheet('add')}
+      />
+
+      <AddExerciseSheet open={sheet === 'add'} onClose={() => setSheet(null)} />
 
       <SkipStreakSheet
         open={streakCandidate !== null}

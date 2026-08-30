@@ -9,6 +9,7 @@ import { formatBytes, formatClock, formatKg, round2 } from '@/domain/units'
 import { formatDayCount } from '@/lib/dates'
 import { useStorageStatus } from '@/hooks/useStorageStatus'
 import { Screen } from '@/components/shell/ScreenHeader'
+import { InstallCard } from '@/components/onboarding/InstallCard'
 import { Button, toast } from '@/components/ui'
 import {
   SettingLink,
@@ -24,7 +25,12 @@ import {
  * חוזר על פעולה שרואים אותה קורית הוא רק רעש.
  */
 
-const APP_VERSION = '1.0.0'
+/*
+  מגיע מ-`package.json` בזמן בנייה (`define` ב-vite.config.ts) ולא ממחרוזת
+  שיושבת כאן. זה המספר שמצטטים בדיווח על באג — גרסה שלא מתעדכנת עם המאגר היא
+  בדיוק המספר שיטעה את מי שמנסה להבין איזו גרסה רצה אצלו.
+*/
+const APP_VERSION = __APP_VERSION__
 
 /** הפלטות הסטנדרטיות במכון, לכל צד */
 const STANDARD_PLATES = [25, 20, 15, 10, 5, 2.5, 1.25]
@@ -128,6 +134,18 @@ export function SettingsScreen(): JSX.Element {
         <h1 className="mt-2 text-2xl font-extrabold text-bone-50">הגדרות</h1>
       </header>
 
+      {/*
+        הוראות ההתקנה, למי שממשיך לעבוד בלשונית.
+
+        `InstallCard` מרנדר `null` כשהאפליקציה כבר מותקנת, ולכן במכשיר מותקן
+        השורה הזו לא עולה כלום ולא נראית בכלל. היא כאן כדי שמסך הפתיחה יוכל
+        לומר "ההוראות ימתינו לך במסך ההגדרות" ושזה יהיה נכון — הוא מוצג פעם
+        אחת בלבד, ובלי זה מי שדחה את ההתקנה לא היה מוצא אותה שוב.
+      */}
+      <div className="mb-5">
+        <InstallCard />
+      </div>
+
       {!settings ? (
         <div className="flex flex-col gap-3" aria-hidden="true">
           <div className="card h-44 animate-pulse opacity-40" />
@@ -191,15 +209,15 @@ export function SettingsScreen(): JSX.Element {
               onChange={(v) => update({ wakeLockEnabled: v })}
             />
             <SettingToggle
-              label="סט חימום אוטומטי"
-              description="מוצע בתרגיל הראשון של כל קבוצת שריר"
+              label="הצעת סט חימום"
+              description="כפתור בכל תרגיל, עם משקל וחזרות מומלצים"
               checked={settings.autoWarmup}
               onChange={(v) => update({ autoWarmup: v })}
             />
             {settings.autoWarmup ? (
               <SettingNumber
                 label="אחוז החימום"
-                description="ממשקל העבודה הצפוי"
+                description="ממשקל העבודה, בתרגיל הראשון של כל קבוצת שריר"
                 value={settings.warmupPercent}
                 onChange={(v) => update({ warmupPercent: v })}
                 step={5}

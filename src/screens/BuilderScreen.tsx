@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react'
 import type { JSX } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ChevronLeft, LayoutGrid, List, Wand2 } from 'lucide-react'
+import { ChevronLeft, LayoutGrid, List, Play, Wand2 } from 'lucide-react'
 import { getSettings } from '@/db/db'
+import { assetUrl } from '@/db/mediaDb'
+import { groupCardFor } from '@/db/muscleCards'
 import { getAllExercises, getLastPerformedMap, getSessionsSince } from '@/db/queries'
 import { MUSCLE_GROUPS } from '@/db/types'
 import type { MuscleCoverage } from '@/domain/coverage'
@@ -16,7 +18,9 @@ import {
 import { formatDayCount } from '@/lib/dates'
 import { countMasculine } from '@/lib/text'
 import { useNow } from '@/hooks/useNow'
+import { useAudioCue } from '@/hooks/useAudioCue'
 import { useBasket } from '@/state/builderBasket'
+import { useWorkout } from '@/state/activeWorkoutStore'
 import { useHiddenExerciseIds } from '@/db/hiddenExercises'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { toast } from '@/components/ui'
@@ -57,6 +61,12 @@ export function BuilderScreen(): JSX.Element {
   const toggle = useBasket((s) => s.toggle)
   const hidden = useHiddenExerciseIds()
 
+  const workout = useWorkout((s) => s.workout)
+  const { unlock } = useAudioCue(settings?.soundEnabled ?? true, settings?.soundVolume ?? 0.8)
+  const [starting, setStarting] = useState(false)
+  /** אימון פתוח נמחק בהתחלה חדשה — לכן הכפתור שואל לפני, כמו בפס הסל */
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+
   const windowDays = settings?.coverageWindowDays ?? 4
   const ready = exercises !== undefined && history !== undefined && settings !== undefined
 
@@ -92,6 +102,46 @@ export function BuilderScreen(): JSX.Element {
     }
     toast(`${fresh.length} תרגילים נכנסו לסל`, { tone: 'success' })
   }
+
+  /**
+   * אימון בלי אף תרגיל, שנבנה כולו תוך כדי.
+   *
+   * זו הצורה השלישית של "מה אני עושה היום", לצד התוכנית הקבועה ולצד הסל:
+   * *עוד לא החלטתי*. מי שמגיע לחדר ומחליט מול המכונה הפנויה לא צריך לבחור
+   * שישה תרגילים מראש רק כדי לקבל מסך שאפשר לתעד בו — הוא מתחיל ריק ומוסיף
+   * מהכפתור שבכותרת האימון, אחד-אחד, בקצב של החדר.
+   *
+   * ‏`startWithItems([])` ולא `start(null, [])`: השני קורא לתוכניות ולבלוקים
+   * ובונה תור מהן, והראשון הוא בדיוק "אימון חופשי מהרשימה הזו" — עם רשימה
+   * ריקה הוא נותן תור ריק ו-`currentKey: null`, שזה המצב הנכון.
+   */
+  const startEmpty = (): void => {
+    if (starting) return
+    if (workout && !confirmDiscard) {
+      setConfirmDiscard(true)
+      return
+    }
+    /*
+      שחרור האודיו חייב להיות המשפט הראשון. אחרי await המחווה של הלחיצה כבר
+      נצרכה, וספארי מסרב לפתוח קול — כלומר טיימר המנוחה היה שותק לאורך כל
+      האימון. אותו לקח בדיוק כמו בפס הסל.
+    */
+    unlock()
+    setStarting(true)
+    void useWorkout
+      .getState()
+      .startWithItems([])
+      .then(() => {
+        setConfirmDiscard(false)
+        navigate('/workout')
+      })
+      .catch(() => toast('לא הצלחתי להתחיל את האימון', { tone: 'warn' }))
+      .finally(() => setStarting(false))
+  }
+
+  const openSetCount = workout
+    ? Object.values(workout.setsByKey).reduce((n, sets) => n + sets.length, 0)
+    : 0
 
   return (
     <Screen dock={false}>
@@ -135,13 +185,55 @@ export function BuilderScreen(): JSX.Element {
           <button
             type="button"
             onClick={buildForMe}
-            className="mb-5 flex min-h-14 w-full items-center gap-3 rounded-card border border-flame-500/40 bg-flame-500/12 px-4 text-start active:bg-flame-500/20"
+            className="mb-2 flex min-h-14 w-full items-center gap-3 rounded-card border border-flame-500/40 bg-flame-500/12 px-4 text-start active:bg-flame-500/20"
           >
             <Wand2 size={20} className="shrink-0 text-flame-300" aria-hidden="true" />
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-extrabold text-flame-300">בנה לי אימון</span>
               <span className="meta block">
                 {countMasculine(SUGGESTION_SIZE)} תרגילים מהשרירים והתרגילים המוזנחים ביותר
+              </span>
+            </span>
+          </button>
+
+          {/*
+            שקט מ"בנה לי אימון" ובכוונה: זו לא ההצעה, זו הוויתור עליה. מי
+            שיודע מה הוא רוצה בונה בסל, מי שלא יודע לוחץ על השרביט, ומי שרוצה
+            להחליט מול המכונה מתחיל ריק.
+          */}
+          <button
+            type="button"
+            onClick={startEmpty}
+            disabled={starting}
+            className={[
+              'mb-5 flex min-h-14 w-full items-center gap-3 rounded-card border px-4 text-start disabled:opacity-50',
+              confirmDiscard
+                ? 'border-hard-400/50 bg-hard-400/12 active:bg-hard-400/20'
+                : 'border-ink-700 bg-ink-900/60 active:bg-ink-800',
+            ].join(' ')}
+          >
+            <Play
+              size={20}
+              className={['shrink-0', confirmDiscard ? 'text-hard-400' : 'text-bone-400'].join(' ')}
+              aria-hidden="true"
+            />
+            <span className="min-w-0 flex-1">
+              <span
+                className={[
+                  'block text-sm font-extrabold',
+                  confirmDiscard ? 'text-hard-400' : 'text-bone-100',
+                ].join(' ')}
+              >
+                {confirmDiscard
+                  ? openSetCount > 0
+                    ? `כן — ${countMasculine(openSetCount)} סטים יימחקו`
+                    : 'כן, התחל אימון ריק חדש'
+                  : 'אימון ריק — אבנה תוך כדי'}
+              </span>
+              <span className="meta block">
+                {confirmDiscard
+                  ? 'האימון שרץ עכשיו נמחק'
+                  : 'מתחילים בלי כלום, ומוסיפים תרגילים מהכפתור שבכותרת האימון'}
               </span>
             </span>
           </button>
@@ -183,8 +275,14 @@ export function BuilderScreen(): JSX.Element {
  * הצבע הוא הרמזור: מה שלא קיבל כלום בחלון נצבע, והשאר שקט. עבודה עקיפה
  * מוצגת קטן ובנפרד — היא משנה החלטה ("היד כבר קיבלה מהחתירה") אבל היא לא
  * "אימנתי את זה", ומספר אחד שמאחד את השניים היה מוחק בדיוק את ההבדל הזה.
+ *
+ * הכרטיס האנטומי הוא תמונה ולא כפתור, וזו החלטה ולא קיצור: כל השורה כבר
+ * נלחצת ומובילה לרשימת התרגילים של אותו שריר, וכפתור מקונן בתוכה היה מפעיל
+ * שני מטפלים בלחיצה אחת. הכרטיס בגדול נמצא צעד אחד פנימה, בכותרת של אותו מסך.
  */
 function MuscleRow({ row, onOpen }: { row: MuscleCoverage; onOpen: () => void }): JSX.Element {
+  const card = groupCardFor(row.group)
+
   return (
     <button
       type="button"
@@ -198,6 +296,15 @@ function MuscleRow({ row, onOpen }: { row: MuscleCoverage; onOpen: () => void })
           row.uncovered ? 'bg-flame-400' : 'bg-ink-600',
         ].join(' ')}
       />
+
+      {card ? (
+        <img
+          src={assetUrl(card.thumb)}
+          alt=""
+          className="size-11 shrink-0 rounded-lg border border-ink-700 bg-bone-50 object-contain"
+          loading="lazy"
+        />
+      ) : null}
 
       <span className="min-w-0 flex-1">
         <span className="block text-[0.9375rem] font-extrabold text-bone-50">

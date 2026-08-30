@@ -3,7 +3,7 @@ import type { JSX } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Check, EyeOff, MoreVertical, Plus, Search, X } from 'lucide-react'
-import { getCatalogEntries } from '@/db/catalog'
+import { getCatalogEntries, isMine } from '@/db/catalog'
 import type { CatalogEntry } from '@/db/catalog'
 import { getLastPerformedMap } from '@/db/queries'
 import type { Exercise, MuscleGroup } from '@/db/types'
@@ -18,8 +18,9 @@ import { useBasket } from '@/state/builderBasket'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { EmptyState, IconButton, toast } from '@/components/ui'
 import { ExerciseThumb } from '@/components/media/ExerciseThumb'
+import { GroupCardButton } from '@/components/exercises/GroupCardButton'
 import { SubTargetHeading } from '@/components/exercises/SubTargetHeading'
-import { subTargetFor } from '@/db/subTargets'
+import { groupOf, subOf, useMuscleFixes } from '@/db/muscleFixes'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { BasketBar } from '@/components/builder/BasketBar'
 import { QuickEditSheet } from '@/components/exercises/QuickEditSheet'
@@ -52,6 +53,15 @@ export function BuilderMuscleScreen(): JSX.Element {
   const now = useNow()
   const [query, setQuery] = useState('')
   /*
+    "שלי" הוא ברירת המחדל, ולא "הכל" כפי שהיה כאן עד עכשיו.
+
+    הרשימה הזו הייתה מערבבת 28 תרגילים שיש להם היסטוריה ומשקלים עם 48 רשומות
+    לימוד, בלי שום דרך להפריד — ובחדר כושר, מול מכונה, השאלה כמעט תמיד היא
+    "מה אני עושה על השריר הזה" ולא "מה קיים בעולם". המתג הוא אותו מתג של מסך
+    התרגילים, באותה סמנטיקה: `isActive` הוא "בתרגילים שלי".
+  */
+  const [mode, setMode] = useState<'mine' | 'all'>('mine')
+  /*
     נגן אחד לכל המסך, לא אחד לשורה: VideoPlayer מריץ שני מנויים גם כשהוא
     סגור, ורשימת שריר יכולה להגיע לתריסר שורות. אותו דפוס כמו מסך התרגילים.
   */
@@ -60,6 +70,9 @@ export function BuilderMuscleScreen(): JSX.Element {
   const [showHidden, setShowHidden] = useState(false)
   // null = עוד לא נטען; מתייחסים כטעינה כדי ששורה מוסתרת לא תבליח
   const hidden = useHiddenExerciseIds()
+  // תיקוני שיוך השריר — אותה שכבה שמזיזה שורות במסך התרגילים, וכאן היא
+  // חייבת לחול באותה מידה: אחרת אותו תרגיל יושב תחת שתי כותרות שונות
+  const fixes = useMuscleFixes()
 
   const entries = useLiveQuery(() => getCatalogEntries(), [], [] as CatalogEntry[])
   // פעם אחת לרשימה — הפונקציה סורקת את כל טבלת הסטים
@@ -76,12 +89,12 @@ export function BuilderMuscleScreen(): JSX.Element {
   )
   const duplicates = useMemo(() => duplicateNames(catalogExercises), [catalogExercises])
 
-  const { list, hiddenList } = useMemo(() => {
-    if (!group) return { list: [], hiddenList: [] }
+  const { list, hiddenList, otherModeHits } = useMemo(() => {
+    if (!group) return { list: [], hiddenList: [], otherModeHits: 0 }
     const q = normalize(query)
     const lastAt = new Map([...lastPerformed].map(([id, l]) => [id, l.at]))
-    const matches = entries
-      .filter((e) => e.muscleGroup === group)
+    const inGroup = entries
+      .filter((e) => groupOf(e, fixes) === group)
       .filter(
         (e) =>
           !q ||
@@ -93,17 +106,31 @@ export function BuilderMuscleScreen(): JSX.Element {
         (a, b) =>
           stalenessOf(a, lastAt) - stalenessOf(b, lastAt) || a.name.localeCompare(b.name, 'he')
       )
+    const matches = mode === 'mine' ? inGroup.filter(isMine) : inGroup
     /*
       עד שרשימת ההסתרות נטענת הכל נחשב מוסתר-פוטנציאלית ולכן לא מוצג —
       ההפך היה מבליח שורות מוסתרות ומעלים אותן פריים אחר-כך, בדיוק הקפיצה
       ש-useScrollMemory נלחם בה. בפועל App.tsx מחמם את הרשימה ב-boot.
     */
-    if (hidden === null) return { list: [], hiddenList: [] }
+    if (hidden === null) return { list: [], hiddenList: [], otherModeHits: 0 }
+    /*
+      מקטע "מוסתרים" נגזר מ-`inGroup` ולא מ-`matches` — כלומר הוא **לא** מסונן
+      לפי המתג.
+
+      זה המקום היחיד בכל האפליקציה שמחזיר תרגיל שהוסתר. אילו הוא היה יורש את
+      מצב "שלי", שורת מאגר שהוסתרה הייתה נעלמת משם לחלוטין: היא אינה ב"שלי"
+      מעצם הגדרתה, ולכן לא הייתה לה שום דרך לחזור. ההסתרה תמיד הפיכה, בלי קשר
+      לאיזה צד של המתג עומדים.
+    */
+    const shownIn = (m: 'mine' | 'all'): CatalogEntry[] =>
+      (m === 'mine' ? inGroup.filter(isMine) : inGroup).filter((e) => !isEntryHidden(e, hidden))
     return {
       list: matches.filter((e) => !isEntryHidden(e, hidden)),
-      hiddenList: matches.filter((e) => isEntryHidden(e, hidden)),
+      hiddenList: inGroup.filter((e) => isEntryHidden(e, hidden)),
+      // מה שבאמת יופיע בצד השני — אחרי ההסתרה, אחרת ההצעה מבטיחה שורות שאין
+      otherModeHits: shownIn(mode === 'mine' ? 'all' : 'mine').length,
     }
-  }, [entries, group, lastPerformed, query, hidden])
+  }, [entries, group, lastPerformed, query, hidden, mode, fixes])
 
   /*
     חלוקה לתת-קטגוריות. הסדר נשמר: `list` כבר ממוין לפי "הכי מזמן שלא עשית",
@@ -114,8 +141,7 @@ export function BuilderMuscleScreen(): JSX.Element {
     if (!group) return []
     const bySub = new Map<string, typeof list>()
     for (const entry of list) {
-      const sub =
-        subTargetFor(entry.exercise?.id ?? entry.id, group, entry.exercise?.libraryId) ?? 'אחר'
+      const sub = subOf(entry, group, fixes) ?? 'אחר'
       const bucket = bySub.get(sub)
       if (bucket) bucket.push(entry)
       else bySub.set(sub, [entry])
@@ -123,7 +149,7 @@ export function BuilderMuscleScreen(): JSX.Element {
     return [...bySub.entries()]
       .sort((a, b) => (a[0] === 'אחר' ? 1 : b[0] === 'אחר' ? -1 : b[1].length - a[1].length))
       .map(([sub, items]) => ({ sub, items }))
-  }, [list, group])
+  }, [list, group, fixes])
 
   if (!group) return <Navigate to="/builder" replace />
 
@@ -136,7 +162,38 @@ export function BuilderMuscleScreen(): JSX.Element {
         title={MUSCLE_GROUPS[group].label}
         subtitle="הכי מזמן שלא עשית — למעלה"
         fallback="/builder"
+        action={<GroupCardButton group={group} />}
       />
+
+      {/*
+        אותו מתג, אותה סמנטיקה ואותה צורה כמו במסך התרגילים — ובכוונה. שני
+        פקדים שנראים אותו דבר ומתנהגים אותו דבר הם פקד אחד שהמשתמש לומד פעם.
+      */}
+      <div
+        role="group"
+        aria-label="אילו תרגילים להציג"
+        className="mb-4 flex gap-1 rounded-pill border border-ink-700 bg-ink-900 p-1"
+      >
+        {([
+          { key: 'mine' as const, label: 'שלי' },
+          { key: 'all' as const, label: 'הכל' },
+        ]).map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            aria-pressed={mode === tab.key}
+            onClick={() => setMode(tab.key)}
+            className={[
+              'min-h-12 flex-1 rounded-pill text-sm font-bold transition-colors',
+              mode === tab.key
+                ? 'border border-flame-500/40 bg-flame-500/12 text-flame-300'
+                : 'text-bone-400 active:bg-ink-800',
+            ].join(' ')}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       <div className="relative mb-5">
         <Search
@@ -167,11 +224,26 @@ export function BuilderMuscleScreen(): JSX.Element {
 
       {list.length === 0 ? (
         <EmptyState
-          title="לא נמצא תרגיל"
+          title={mode === 'mine' ? 'לא נמצא בתרגילים שלך' : 'לא נמצא תרגיל'}
           hint={
-            query
-              ? `אין תרגיל ל${MUSCLE_GROUPS[group].label} שמתאים ל"${query}".`
-              : `אין עדיין תרגילים ל${MUSCLE_GROUPS[group].label}. אפשר להוסיף במסך התרגילים.`
+            mode === 'mine' && otherModeHits > 0
+              ? `יש ${otherModeHits} תרגילים ל${MUSCLE_GROUPS[group].label}${
+                  query ? ` שמתאימים ל"${query}"` : ''
+                } — הם פשוט לא בתרגילים שלך.`
+              : query
+                ? `אין תרגיל ל${MUSCLE_GROUPS[group].label} שמתאים ל"${query}".`
+                : `אין עדיין תרגילים ל${MUSCLE_GROUPS[group].label}. אפשר להוסיף במסך התרגילים.`
+          }
+          action={
+            mode === 'mine' && otherModeHits > 0 ? (
+              <button
+                type="button"
+                onClick={() => setMode('all')}
+                className="min-h-12 rounded-pill border border-flame-500/40 bg-flame-500/12 px-5 text-sm font-bold text-flame-300"
+              >
+                חפש בהכל
+              </button>
+            ) : undefined
           }
         />
       ) : (

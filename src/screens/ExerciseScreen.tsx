@@ -64,7 +64,7 @@ import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { EmptyState } from '@/components/ui'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { imagesFor } from '@/db/exerciseImages'
-import { subTargetFor } from '@/db/subTargets'
+import { subOfExercise, useMuscleFixes } from '@/db/muscleFixes'
 import { muscleCardFor } from '@/db/muscleCards'
 import { MuscleCardSheet } from '@/components/exercises/MuscleCardSheet'
 import { assetUrl } from '@/db/mediaDb'
@@ -315,6 +315,9 @@ export function ExerciseScreen(): JSX.Element {
   const navigate = useNavigate()
   const [playerOpen, setPlayerOpen] = useState(false)
   const [subCardOpen, setSubCardOpen] = useState(false)
+  // תיקוני שיוך השריר — כדי שהכרטיס האנטומי כאן יראה את אותו ראש שריר
+  // שהשורה יושבת תחתיו ברשימה, ולא את מה שנגזר מהכרטיס לפני התיקון
+  const fixes = useMuscleFixes()
   /** נפתח על כרטיס השרירים ולא על ההדגמה */
   const [galleryOnImage, setGalleryOnImage] = useState(false)
   /*
@@ -447,7 +450,7 @@ export function ExerciseScreen(): JSX.Element {
     והכרטיס האנטומי על "איפה זה בגוף ואיפה אמורים להרגיש". השני נגזר מהראשון
     ולכן הוא מתחתיו ולא לצידו.
   */
-  const subTarget = subTargetFor(exercise.id, exercise.muscleGroup, exercise.libraryId)
+  const subTarget = subOfExercise(exercise, fixes)
   const subCard = subTarget ? muscleCardFor(subTarget) : null
   const apart = distinguisher(exercise, duplicates)
   const isBodyweight = exercise.weightMode === 'bodyweight'

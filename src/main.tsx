@@ -2,6 +2,20 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles/theme.css'
 import { App } from './App'
+import { startSW } from './hooks/useSWUpdate'
+
+/**
+ * רישום ה-Service Worker, מוקדם ככל האפשר.
+ *
+ * הצרכן היחיד של `useSWUpdate` הוא `UpdateBanner`, שיושב בתוך Shell — כלומר
+ * הרישום היה מחכה ל-`ensureReady` + `hydrate` + שלושה חימומי מטמון. בביקור
+ * ראשון זה בדיוק הזמן שבו כדאי שהפריקאש כבר ירד: הוא מותקן עכשיו במקביל
+ * לפתיחת המסד במקום אחריה.
+ *
+ * `registerType` נשאר 'prompt' — מוקדם יותר, לא אגרסיבי יותר. עדכון עדיין לא
+ * טוען מחדש את הדף מעצמו, כי זה אסור באמצע סט.
+ */
+startSW()
 
 /**
  * חסימת זום ב-iOS.

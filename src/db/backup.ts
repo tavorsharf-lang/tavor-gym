@@ -22,6 +22,7 @@ import { PLANK_RANGE } from '@/db/seed'
 import { invalidateHiddenVideos } from '@/db/hiddenVideos'
 import { invalidateHiddenExercises } from '@/db/hiddenExercises'
 import { invalidateVideoPrefs } from '@/db/videoPrefs'
+import { invalidateMuscleFixes } from '@/db/muscleFixes'
 import { rebuildPrs } from '@/domain/prs'
 import { toISODate } from '@/lib/dates'
 
@@ -302,6 +303,7 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
   invalidateHiddenVideos()
   invalidateHiddenExercises()
   invalidateVideoPrefs()
+  invalidateMuscleFixes()
 
   /*
     הסיכום מדווח על מה שנכתב למסד, לא על מה שהיה בקובץ. שני החלקים נחתכו בדרך:

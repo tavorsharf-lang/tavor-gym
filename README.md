@@ -55,7 +55,7 @@ src/
 │   └── videoManifest.ts  נוצר אוטומטית על ידי scripts/import-videos.mjs
 ├── domain/      לוגיקה טהורה. בלי Dexie, בלי React. כולה מכוסה בבדיקות
 │   ├── recommendation.ts  מנוע המלצת המשקל (RIR, ריסון אחרי הפסקה)
-│   ├── warmup.ts          סט חימום בתחילת כל קבוצת שריר
+│   ├── warmup.ts          סט חימום — רמפה, סט יחיד או סט הכרות למכונה
 │   ├── plates.ts          מחשבון פלטות
 │   ├── prs.ts             זיהוי שיאים אישיים
 │   ├── volume.ts          חישוב נפח — הנקודה היחידה בקוד

@@ -19,11 +19,15 @@ import {
   DEFAULT_SETTINGS,
   DEFAULT_TARGET_SETS,
   PLANK_RANGE,
-  SEED_BLOCKS,
-  SEED_EXERCISES,
+  // ‏SEED_ROUTINES נשאר מיובא בשביל מיגרציה 2 בלבד — היא כותבת את F1/F2 עם
+  // משקלי ההתחלה של תבור, והיא לא יכולה לרוץ על מסד בגרסה 12.
   SEED_ROUTINES,
+  freshSeedBlocks,
+  freshSeedExercises,
+  freshSeedRoutines,
 } from './seed'
 import { CATALOG_FIXES_V5, CATALOG_FIXES_V10, CATALOG_FIXES_V11, applyCatalogFix } from './catalogFix'
+import { markFirstRun, markFirstRunSeen } from './firstRun'
 import { withLibraryLink } from './libraryLinks'
 import { withSecondaryMuscles } from './muscleTags'
 import { mergeCalfShelves, withoutCalves } from './calfMerge'
@@ -444,11 +448,36 @@ class GymDatabase extends Dexie {
         }
       })
 
-    // רץ פעם אחת בלבד, בפתיחה הראשונה של המסד
+    /**
+     * גרסה 13 — חותמת "משתמש קיים" לפני שמסך הפתיחה נכנס לאוויר.
+     *
+     * ‏Dexie מריץ `upgrade` אם ורק אם המסד כבר היה קיים בגרסה נמוכה יותר —
+     * כלומר בדיוק על מכשיר ותיק. מסד חדש נוצר ישר בגרסה האחרונה ועובר דרך
+     * `populate` בלי לראות את השורה הזו.
+     *
+     * זה מה שמבטיח שתבור לא יפגוש את מסך "ברוך הבא", וגם שהחתימה קורית לפני
+     * שכל מסלול איפוס יכול לרוץ. הגוף הוא שורה אחת שלא נוגעת בשום טבלה
+     * בכוונה: זריקה בתוך `upgrade` חוסמת את `db.open()`, והאפליקציה הייתה
+     * נוחתת על מסך השגיאה במקום להיפתח. אין להוסיף לכאן עבודת קטלוג.
+     */
+    this.version(13)
+      .stores({})
+      .upgrade(() => {
+        markFirstRunSeen()
+      })
+
+    /*
+      רץ פעם אחת בלבד, בפתיחה הראשונה של המסד.
+
+      ‏`freshSeed*` ולא הקבועים: המשקלים ב-SEED_* הם המשקלים של תבור, והם לא
+      נקודת פתיחה בטוחה לאף אחד אחר. ההסבר המלא יושב מעל `freshSeedExercises`
+      ב-seed.ts. הקבועים עצמם נשארים במאגר כתיעוד וכפיקסטורה לבדיקות.
+    */
     this.on('populate', async () => {
-      await this.exercises.bulkAdd(SEED_EXERCISES)
-      await this.routines.bulkAdd(SEED_ROUTINES)
-      await this.blocks.bulkAdd(SEED_BLOCKS)
+      markFirstRun()
+      await this.exercises.bulkAdd(freshSeedExercises())
+      await this.routines.bulkAdd(freshSeedRoutines())
+      await this.blocks.bulkAdd(freshSeedBlocks())
       await this.settings.add({ key: 'app', value: DEFAULT_SETTINGS })
     })
   }
@@ -514,12 +543,20 @@ export async function mutateSettings(
 /** מבטיח שהמסד נפתח והזריעה הושלמה */
 export async function ensureReady(): Promise<void> {
   if (!db.isOpen()) await db.open()
-  // ביטוח: אם הזריעה נכשלה באמצע בעבר, משלימים כאן
+  /*
+    ביטוח: אם הזריעה נכשלה באמצע בעבר, משלימים כאן.
+
+    גם כאן `freshSeed*`, ומאותה סיבה — הענף הזה **אינו** מוגבל להתקנה חדשה.
+    התנאי היחיד שלו הוא "אין תרגילים", והוא מתקיים גם אחרי ייבוא גיבוי שמכיל
+    `exercises: []` ואחרי מחיקת הקטלוג. השארת הקבועים כאן הייתה מחזירה את
+    המשקלים של תבור למכשיר של מישהו אחר דרך הדלת האחורית. אצל תבור הענף לא
+    יכול לרוץ בכלל — יש לו 29.
+  */
   if ((await db.exercises.count()) === 0) {
     await db.transaction('rw', db.exercises, db.routines, db.blocks, db.settings, async () => {
-      await db.exercises.bulkPut(SEED_EXERCISES)
-      await db.routines.bulkPut(SEED_ROUTINES)
-      await db.blocks.bulkPut(SEED_BLOCKS)
+      await db.exercises.bulkPut(freshSeedExercises())
+      await db.routines.bulkPut(freshSeedRoutines())
+      await db.blocks.bulkPut(freshSeedBlocks())
       if (!(await db.settings.get('app'))) {
         await db.settings.put({ key: 'app', value: DEFAULT_SETTINGS })
       }

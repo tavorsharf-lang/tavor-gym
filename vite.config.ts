@@ -4,12 +4,21 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
+import pkg from './package.json' with { type: 'json' }
 
 /** נתיב הבסיס ב-GitHub Pages. שינוי כאן דורש שינוי גם ב-manifest למטה. */
 const BASE = '/tavor-gym/'
 
 export default defineConfig({
   base: BASE,
+  /*
+    גרסת האפליקציה מגיעה מ-package.json ולא ממחרוזת קשיחה במסך ההגדרות.
+
+    שתי המחרוזות היו מנותקות זו מזו, ואת המספר שבתחתית ההגדרות הולכים לצטט
+    בדיווח על באג — כלומר גרסה שלא מתעדכנת היא בדיוק המספר שיטעה. `__APP_VERSION__`
+    מוגדר גם ב-test למטה כדי שהמסך ירונדר בבדיקות בלי `is not defined`.
+  */
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
@@ -71,6 +80,12 @@ export default defineConfig({
           'ניהול אימוני כוח — תיעוד סטים, טיימר מנוחה, היסטוריה והתקדמות. עובד אופליין.',
         lang: 'he',
         dir: 'rtl',
+        // ‏id מפורש ולא הסתמכות על start_url: בלעדיו הזהות נגזרת מהכתובת, וכל
+        // שינוי עתידי של BASE היה מזהה את האפליקציה כהתקנה חדשה ומייתם את
+        // הקיימת. חייב להיות בדיוק BASE — כרום פותר אותו מול המקור, ולכן
+        // 'tavor-gym' היה נותן '/tavor-gym' ≠ '/tavor-gym/'. בערך הזה הוא
+        // מחושב זהה לזהות המשתמעת של היום, כלומר אפס השפעה על התקנה קיימת.
+        id: BASE,
         start_url: BASE,
         scope: BASE,
         display: 'standalone',
@@ -79,8 +94,8 @@ export default defineConfig({
         theme_color: '#0C0A09',
         categories: ['health', 'fitness'],
         icons: [
-          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
           {
             src: 'icons/maskable-512.png',
             sizes: '512x512',

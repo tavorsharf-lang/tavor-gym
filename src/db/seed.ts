@@ -908,6 +908,74 @@ export const SEED_BLOCKS: Block[] = [
   },
 ]
 
+// ─── זריעה להתקנה חדשה ──────────────────────────────────────────────────────
+
+/**
+ * מה שהתקנה חדשה מקבלת: אותו קטלוג בדיוק — 29 תרגילים, אותם דגשים, סרטונים
+ * ותוכניות — בלי המשקלים, ועם שם ייחודי לכל אחד משני זוגות התאומים.
+ *
+ * המשקלים ב-RAW הם המשקלים האמיתיים של תבור (ראה הכותרת בראש הקובץ), והם לא
+ * נקודת פתיחה בטוחה לאף אחד אחר: מנוע ההמלצה היה מפתיח מישהו על 160 ק״ג
+ * בלחיצת רגליים בסט הראשון שלו בחיים. עם `null` הוא מחזיר במקום זה את המשפט
+ * "אין עדיין היסטוריה בתרגיל הזה — בחר משקל שנוח להתחיל בו", והסט הראשון
+ * שיתועד הוא שיקבע את המספר. זה מסלול קיים ומכוסה, לא חדש: שישה מ-29
+ * התרגילים כבר נזרעים כך היום, וכך גם כל תרגיל שנוצר בזמן ריצה.
+ *
+ * **הריקון כאן ולא ב-RAW, בכוונה.** הקבועים נשארים שלושה דברים בבת אחת:
+ * תיעוד של מקור המספרים, פיקסטורה שבדיקות `naming` ו-`catalogFix` נשענות
+ * עליה, והעותק האחרון של המשקלים של תבור בתוך המאגר — כלומר הם שורדים בקוד
+ * גם אם קובץ הגיבוי ילך לאיבוד. המסד של תבור לא מושפע ממילא: `populate` יורה
+ * פעם אחת בחיי מסד, ואצלו הוא כבר ירה.
+ */
+export function freshSeedExercises(): Exercise[] {
+  return SEED_EXERCISES.map((e) => {
+    const patch: Partial<Exercise> = {}
+    if (e.seedWeightKg !== null) patch.seedWeightKg = null
+    /*
+      בלי משקל אין מה שיבדיל בין שני תרגילים בעלי שם זהה, ו-`distinguisher`
+      נקרא בשישה מסכים ישירות. שינוי שם לשני מכל זוג פותר את כולם בבת אחת בלי
+      לגעת ב-domain/naming, ובלי להמציא מבדיל חדש.
+
+      למה לא תגית מבוססת טווח חזרות: לזוג החתירות הקטלוג אומר 8–12 לכבדה,
+      אבל F2 מריצה אותה ב-10–12 בזמן שהקלה היא 10–12 בקטלוג — כלומר תגית כזו
+      הייתה מצביעה בגיליון ההחלפה על השורה ההפוכה.
+
+      כל הקישורים (LIBRARY_LINKS, VIDEO_MANIFEST, mediaDb) הם לפי `id` ולא
+      לפי שם, ולכן השינוי הזה לא מנתק סרטון או תמונה.
+    */
+    if (e.id === 'seated-row-light') {
+      patch.name = 'חתירה במכונה (וריאציה שנייה)'
+      patch.nameEn = 'Machine Row (Variation 2)'
+    }
+    if (e.id === 'bench-machine-press') {
+      patch.name = 'לחיצת חזה במכונה (מכונה שנייה)'
+      patch.nameEn = 'Machine Chest Press (Machine 2)'
+    }
+    return Object.keys(patch).length === 0 ? e : { ...e, ...patch }
+  })
+}
+
+/**
+ * אותו דבר לפריטי תוכנית.
+ *
+ * חובה בנפרד מהקטלוג, ולא ניקוי כפול: `PlanItem.startWeightKg` **גובר** על
+ * `Exercise.seedWeightKg` בזמן ריצה, בשני הצרכנים (ExerciseCard ו-
+ * ExerciseScreen). F1 ו-F2 נושאות 14 מהמשקלים של תבור ב-60% דרך
+ * `comebackItem`, ולכן ריקון הקטלוג לבדו היה משאיר מישהו מתאמן על 95 ק״ג
+ * בלחיצת רגליים ו-45 בפולי עליון מהסט הראשון.
+ *
+ * על הבלוקים זה no-op היום — `item()` כותב `startWeightKg: null` קשיח — והוא
+ * כאן כדי שבלוק עתידי עם משקל התחלה לא ידלוף בשקט.
+ */
+function withoutStartWeights<T extends { items: PlanItem[] }>(plan: T): T {
+  return plan.items.every((i) => i.startWeightKg === null)
+    ? plan
+    : { ...plan, items: plan.items.map((i) => ({ ...i, startWeightKg: null })) }
+}
+
+export const freshSeedRoutines = (): Routine[] => SEED_ROUTINES.map(withoutStartWeights)
+export const freshSeedBlocks = (): Block[] => SEED_BLOCKS.map(withoutStartWeights)
+
 export const DEFAULT_SETTINGS: AppSettings = {
   defaultRestSeconds: DEFAULT_REST_SECONDS,
   defaultReps: DEFAULT_REPS,
@@ -931,6 +999,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   hiddenExerciseIds: [],
   videoMoves: {},
   videoOrder: {},
+  muscleFixes: {},
   lastBackupAt: null,
   videosInstalledAt: null,
   storagePromptSeenAt: null,

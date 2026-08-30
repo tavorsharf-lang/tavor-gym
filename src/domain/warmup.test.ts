@@ -41,10 +41,6 @@ describe('suggestWarmup — מתי לא מציעים', () => {
   const EMPTY_CASES: { name: string; ctx: WarmupContext }[] = [
     { name: 'ההגדרה כבויה', ctx: makeContext({ enabled: false }) },
     {
-      name: 'כבר עבדנו על קבוצת השריר הזו באימון',
-      ctx: makeContext({ touchedGroups: new Set<MuscleGroup>(['chest']) }),
-    },
-    {
       name: 'תרגיל משקל גוף',
       ctx: makeContext({
         exercise: makeExercise({ weightMode: 'bodyweight', weightIncrementKg: 0 }),
@@ -63,6 +59,77 @@ describe('suggestWarmup — מתי לא מציעים', () => {
   it('קבוצת שריר אחרת שכבר נגענו בה לא חוסמת', () => {
     const ctx = makeContext({ touchedGroups: new Set<MuscleGroup>(['back', 'biceps']) })
     expect(suggestWarmup(ctx).length).toBeGreaterThan(0)
+  })
+})
+
+/**
+ * התרגיל השני באותה קבוצת שריר. השריר כבר חם — מה שלא מוכר הוא המכונה, ולכן
+ * ההצעה לא נעלמת אלא מתכווצת לסט הכרות אחד וקל.
+ */
+describe('suggestWarmup — סט הכרות כשהשריר כבר חומם', () => {
+  const warm = makeContext({ touchedGroups: new Set<MuscleGroup>(['chest']) })
+
+  it('סט אחד, לא רמפה ולא ריק', () => {
+    expect(suggestWarmup(warm).length).toBe(1)
+  })
+
+  it('40% מ-60 מתעגל למטה לקפיצה של 2.5', () => {
+    const [s] = suggestWarmup(warm)
+    expect(s.weightKg).toBe(22.5) // 24 → 22.5
+  })
+
+  it('קל מהחימום המלא של אותו תרגיל', () => {
+    // מול תרגיל שאינו מקבל רמפה, כדי שההשוואה תהיה סט מול סט
+    const [primer] = suggestWarmup(lightContext({ touchedGroups: new Set<MuscleGroup>(['shoulders']) }))
+    const [full] = suggestWarmup(lightContext())
+    expect(primer.weightKg).toBeLessThan(full.weightKg)
+    expect(primer.reps).toBeLessThan(full.reps)
+  })
+
+  it('אחוז חימום נמוך מ-40 בהגדרות גובר — ההכרות לא כבדה מהחימום', () => {
+    const [primer] = suggestWarmup(makeContext({ ...warm, percent: 40, plannedWeightKg: 100 }))
+    const [full] = suggestWarmup(makeContext({ percent: 40, plannedWeightKg: 100 }))
+    expect(primer.weightKg).toBeLessThanOrEqual(full.weightKg)
+  })
+
+  it('הנימוק אומר שזו המכונה ולא השריר', () => {
+    const [s] = suggestWarmup(warm)
+    expect(s.reason).toContain('מכונה')
+    expect(s.reason).toContain('חזה')
+  })
+
+  it('חזרות מוגבלות לתקרה של 10 ולרצפה של 6', () => {
+    const many = suggestWarmup(
+      makeContext({ ...warm, exercise: makeExercise({ targetReps: { min: 12, max: 20 } }) })
+    )
+    expect(many[0].reps).toBe(10)
+    const few = suggestWarmup(
+      makeContext({ ...warm, exercise: makeExercise({ targetReps: { min: 3, max: 5 } }) })
+    )
+    expect(few[0].reps).toBe(6)
+  })
+
+  it('תרגיל כבד שהיה מקבל רמפה מקבל סט הכרות אחד', () => {
+    const plan = suggestWarmup(
+      makeContext({
+        exercise: makeExercise({ muscleGroup: 'legs', weightIncrementKg: 5 }),
+        touchedGroups: new Set<MuscleGroup>(['legs']),
+        plannedWeightKg: 160,
+      })
+    )
+    expect(plan.length).toBe(1)
+    expect(plan[0].weightKg).toBe(60) // 40% מ-160
+  })
+
+  it('משקל גוף עדיין בלי הצעה, גם כשהשריר חם', () => {
+    expect(
+      suggestWarmup(
+        makeContext({
+          exercise: makeExercise({ weightMode: 'bodyweight', weightIncrementKg: 0 }),
+          touchedGroups: new Set<MuscleGroup>(['chest']),
+        })
+      )
+    ).toEqual([])
   })
 })
 

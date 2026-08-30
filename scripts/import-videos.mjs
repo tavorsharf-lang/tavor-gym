@@ -374,6 +374,26 @@ const MAP = {
 const MAX_EDGE = 720
 const CRF = 30
 
+/**
+ * דריסת השנייה שממנה נלקחת התמונה הממוזערת, לפי שם קובץ הפלט.
+ *
+ * ברירת המחדל — שנייה 1 — טובה כמעט תמיד, כי רוב הקליפים נפתחים על התרגיל
+ * עצמו. היא נשברת בקליפ שנפתח בתקריב: `behind-body-cable-curl-01` מתחיל על
+ * כף היד האוחזת במוט, ומה שיוצא הוא תמונה ממוזערת שאי אפשר לזהות ממנה שום
+ * תרגיל. ברשימת התרגילים זה ההבדל בין "אני יודע מה זה" ל"מה אני מסתכל עליו".
+ *
+ * המפתח הוא שם הפלט ולא כתובת המקור, בשונה מ-`LIB_TOPIC` ו-`LIB_REASSIGN`:
+ * הוא היחיד שקיים בשני המקורות: להדגמות התוכנית אין כתובת בסקריפט הזה בכלל.
+ *
+ * כל ערך כאן נבחר בעין מול פריסת פריימים של הקליפ המומר, כמו שאר הדריסות
+ * בקובץ. שנייה שחורגת ממשך הקליפ נופלת בחזרה לברירת המחדל עם אזהרה, כדי
+ * שערך שגוי לא ייצר poster ריק בשקט.
+ */
+const POSTER_AT = {
+  // נפתח בתקריב אחיזה. בשנייה 10 — מבט צד מלא, המרפק מסומן מאחורי קו הגוף
+  'behind-body-cable-curl-01': 10,
+}
+
 function probe(file) {
   let out = ''
   try {
@@ -428,8 +448,15 @@ function transcode(src, outDir, base, relDir) {
       outMp4,
     ])
 
-    // poster מהשנייה הראשונה (או מההתחלה אם הסרטון קצר)
-    const posterAt = info.duration > 1.5 ? '1' : '0'
+    // poster מהשנייה הראשונה (או מההתחלה אם הסרטון קצר), אלא אם נבחרה אחרת
+    const fallbackAt = info.duration > 1.5 ? 1 : 0
+    const override = POSTER_AT[base]
+    if (override !== undefined && !(override < info.duration)) {
+      console.warn(
+        `  ⚠ ${base}: POSTER_AT=${override} חורג ממשך הקליפ (${info.duration.toFixed(1)}s) — ברירת המחדל`
+      )
+    }
+    const posterAt = String(override !== undefined && override < info.duration ? override : fallbackAt)
     execFileSync('ffmpeg', [
       '-y', '-loglevel', 'error', '-ss', posterAt, '-i', outMp4,
       '-frames:v', '1', '-q:v', '5',
