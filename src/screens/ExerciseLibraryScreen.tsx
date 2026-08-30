@@ -26,6 +26,8 @@ import { EmptyState, IconButton, toast } from '@/components/ui'
 import { ExerciseThumb } from '@/components/media/ExerciseThumb'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { RemoveExerciseSheet } from '@/components/exercises/RemoveExerciseSheet'
+import { SubTargetHeading } from '@/components/exercises/SubTargetHeading'
+import { GroupCardButton } from '@/components/exercises/GroupCardButton'
 import { clipById } from '@/db/mediaDb'
 import { useHiddenVideoIds } from '@/db/hiddenVideos'
 import { groupContextId, useVideoPrefs } from '@/db/videoPrefs'
@@ -425,10 +427,14 @@ export function ExerciseLibraryScreen({
         <div className="space-y-7">
           {visible.map(({ group, subs }) => (
             <section key={group} className="animate-rise">
-              <div className="mb-2 flex items-baseline justify-between px-1">
-                <h2 className="text-sm font-extrabold text-bone-200">
-                  {MUSCLE_GROUPS[group].label}
-                </h2>
+              <div className="mb-2 flex items-center justify-between px-1">
+                <div className="flex items-center gap-1">
+                  <h2 className="text-sm font-extrabold text-bone-200">
+                    {MUSCLE_GROUPS[group].label}
+                  </h2>
+                  {/* כרטיס הסקירה של הקבוצה — כל תת-השרירים שלה בתמונה אחת */}
+                  <GroupCardButton group={group} />
+                </div>
                 <span className="meta">{subs.reduce((n, x) => n + x.items.length, 0)}</span>
               </div>
 
@@ -455,14 +461,7 @@ export function ExerciseLibraryScreen({
               <div className="space-y-3">
                 {subs.map(({ sub, items }) => (
                   <div key={sub}>
-                    {subs.length > 1 ? (
-                      <p className="mb-1.5 flex items-baseline gap-2 px-1">
-                        <span className="text-[0.6875rem] font-bold tracking-wide text-flame-400">
-                          {sub}
-                        </span>
-                        <span className="meta tnum">{items.length}</span>
-                      </p>
-                    ) : null}
+                    {subs.length > 1 ? <SubTargetHeading sub={sub} count={items.length} /> : null}
                     <div className="card divide-y divide-ink-800/70 overflow-hidden">
                 {items.map((entry) => (
                   <Row

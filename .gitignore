@@ -34,3 +34,8 @@ dist-ssr
 # שהאפליקציה מגישה (public/images/ex), שנוצר עם npm run import:images.
 # הדוחות והפרומפטים שיושבים באותה תיקייה כן מנוטרים.
 תרגילי כושר 1/**/*.png
+
+# הכרטיסים האנטומיים של תת-השרירים במקור — 73MB של PNG. אותו כלל בדיוק:
+# מה שנכנס ל-git הוא רק הפלט שהאפליקציה מגישה (public/images/muscles),
+# שנוצר עם npm run import:muscle-cards.
+muscle-cards-45/**/*.png

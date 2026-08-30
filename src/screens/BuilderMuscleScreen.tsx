@@ -18,6 +18,7 @@ import { useBasket } from '@/state/builderBasket'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { EmptyState, IconButton, toast } from '@/components/ui'
 import { ExerciseThumb } from '@/components/media/ExerciseThumb'
+import { SubTargetHeading } from '@/components/exercises/SubTargetHeading'
 import { subTargetFor } from '@/db/subTargets'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { BasketBar } from '@/components/builder/BasketBar'
@@ -182,14 +183,7 @@ export function BuilderMuscleScreen(): JSX.Element {
                 בעל האחוז הגבוה בכרטיס, מתוך הקבוצה של התרגיל. מוצגת רק כשיש
                 יותר מאחת — כותרת יחידה הייתה חוזרת על שם הקבוצה שבראש המסך.
               */}
-              {sections.length > 1 ? (
-                <p className="mb-1.5 flex items-baseline gap-2 px-1">
-                  <span className="text-[0.6875rem] font-bold tracking-wide text-flame-400">
-                    {sub}
-                  </span>
-                  <span className="meta tnum">{items.length}</span>
-                </p>
-              ) : null}
+              {sections.length > 1 ? <SubTargetHeading sub={sub} count={items.length} /> : null}
               <ul className="card divide-y divide-ink-800/70 overflow-hidden">
           {items.map((entry) => (
             <li key={entry.id}>

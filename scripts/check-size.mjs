@@ -42,6 +42,10 @@ const EXPECTED_OUT = [
     match: /^images\/ex\/[^/]+\.jpg$/,
     why: 'כרטיסי השרירים בגודל מלא — 22MB. הממוזערות ב-images/ex/t כן נכנסות',
   },
+  {
+    match: /^images\/muscles\/[^/]+\.jpg$/,
+    why: 'הכרטיסים האנטומיים בגודל מלא — 11MB. הממוזערות ב-images/muscles/t כן נכנסות',
+  },
 ]
 
 const dist = join(process.cwd(), 'dist')

@@ -64,6 +64,9 @@ import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { EmptyState } from '@/components/ui'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { imagesFor } from '@/db/exerciseImages'
+import { subTargetFor } from '@/db/subTargets'
+import { muscleCardFor } from '@/db/muscleCards'
+import { MuscleCardSheet } from '@/components/exercises/MuscleCardSheet'
 import { assetUrl } from '@/db/mediaDb'
 import { TrendChart } from '@/components/charts/lazy'
 
@@ -311,6 +314,7 @@ export function ExerciseScreen(): JSX.Element {
   const { exerciseId = '' } = useParams<{ exerciseId: string }>()
   const navigate = useNavigate()
   const [playerOpen, setPlayerOpen] = useState(false)
+  const [subCardOpen, setSubCardOpen] = useState(false)
   /** נפתח על כרטיס השרירים ולא על ההדגמה */
   const [galleryOnImage, setGalleryOnImage] = useState(false)
   /*
@@ -436,6 +440,15 @@ export function ExerciseScreen(): JSX.Element {
   */
   const libraryMatch = exercise.libraryId ? libraryExercise(exercise.libraryId) : null
   const muscleCard = imagesFor(exercise.id, exercise.libraryId)[0] ?? null
+  /*
+    התת-שריר של התרגיל, והכרטיס שמראה איפה הוא יושב.
+
+    שתי שאלות שונות באותו סקשן: כרטיס התרגיל עונה על "מה עובד כאן ובכמה",
+    והכרטיס האנטומי על "איפה זה בגוף ואיפה אמורים להרגיש". השני נגזר מהראשון
+    ולכן הוא מתחתיו ולא לצידו.
+  */
+  const subTarget = subTargetFor(exercise.id, exercise.muscleGroup, exercise.libraryId)
+  const subCard = subTarget ? muscleCardFor(subTarget) : null
   const apart = distinguisher(exercise, duplicates)
   const isBodyweight = exercise.weightMode === 'bodyweight'
   const isTimed = exercise.metric === 'seconds'
@@ -525,6 +538,25 @@ export function ExerciseScreen(): JSX.Element {
                 loading="lazy"
               />
             </button>
+            {subCard ? (
+              <button
+                type="button"
+                onClick={() => setSubCardOpen(true)}
+                className="mt-2 flex min-h-13 w-full items-center gap-3 rounded-card border border-ink-800 bg-ink-900/60 px-3 text-start active:bg-ink-800"
+              >
+                <img
+                  src={assetUrl(subCard.thumb)}
+                  alt=""
+                  className="size-10 shrink-0 rounded-lg border border-ink-700 bg-bone-50 object-contain"
+                  loading="lazy"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold text-bone-50">{subTarget}</span>
+                  <span className="meta mt-0.5 block">איפה השריר הזה יושב</span>
+                </span>
+                <ChevronLeft size={16} className="shrink-0 text-bone-600" />
+              </button>
+            ) : null}
           </Section>
         ) : null}
 
@@ -753,6 +785,8 @@ export function ExerciseScreen(): JSX.Element {
         startOnImage={galleryOnImage}
         onClose={() => setPlayerOpen(false)}
       />
+
+      <MuscleCardSheet card={subCardOpen ? subCard : null} onClose={() => setSubCardOpen(false)} />
     </Screen>
   )
 }

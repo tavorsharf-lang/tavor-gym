@@ -16,6 +16,7 @@
     "gen:icons": "node scripts/gen-icons.mjs",
     "import:videos": "node scripts/import-videos.mjs",
     "import:images": "node scripts/import-images.mjs",
+    "import:muscle-cards": "node scripts/import-muscle-cards.mjs",
     "gen:hashes": "node scripts/gen-video-hashes.mjs",
     "deploy": "bash scripts/deploy.sh"
   },
