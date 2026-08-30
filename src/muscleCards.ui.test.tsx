@@ -20,6 +20,12 @@ import { useBasket } from './state/builderBasket'
  * האפליקציה כולה ומאתחלת את המסד.
  */
 
+/*
+  ‏`SLOW` הוא תקרת ההמתנה, ו-40000 היא תקרת הבדיקה עצמה. שתיהן נחוצות: המתנה
+  של חמש-עשרה שניות בתוך `it` שברירת המחדל שלו היא חמש היא הבטחה ריקה — תחת
+  עומס הבדיקה מתה לפני שההמתנה נגמרה, והכשל נראה כמו רגרסיה במקום מה שהוא,
+  מכונה תפוסה. שאר בדיקות ה-UI כבר מעבירות 40000 מאותה סיבה.
+*/
 const SLOW = 15_000
 
 async function resetAll(): Promise<void> {
@@ -56,7 +62,7 @@ describe('כרטיסים אנטומיים במסך התרגילים', () => {
 
     const dialog = await screen.findByRole('dialog')
     expect(dialog.querySelector(`img[alt="כרטיס אנטומי — ${card!.nameHe}"]`)).not.toBeNull()
-  })
+  }, 40000)
 
   it('כותרת הקבוצה פותחת את כרטיס הסקירה שלה', async () => {
     const user = userEvent.setup()
@@ -75,5 +81,5 @@ describe('כרטיסים אנטומיים במסך התרגילים', () => {
 
     const dialog = await screen.findByRole('dialog')
     expect(dialog.querySelector(`img[alt="כרטיס אנטומי — ${overview!.nameHe}"]`)).not.toBeNull()
-  })
+  }, 40000)
 })
