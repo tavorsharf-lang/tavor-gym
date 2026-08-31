@@ -17,7 +17,7 @@ import type { PlanUsage } from '@/db/catalog'
 import { shouldSuggestRemoval } from '@/domain/skipStreak'
 import { SkipStreakSheet } from '@/components/workout/SkipStreakSheet'
 import { prHeadline } from '@/domain/prs'
-import { formatRepRange, formatSetShort, formatWeight } from '@/domain/units'
+import { formatRepRange, formatSetShort } from '@/domain/units'
 import { distinguisher, duplicateNames } from '@/domain/naming'
 import type { ExerciseSessionSummary } from '@/domain/recommendation'
 import { useAudioCue } from '@/hooks/useAudioCue'
@@ -317,7 +317,6 @@ export function WorkoutScreen(): JSX.Element | null {
   let restFocus: RestFocus | null = null
   if (restItem && restExercise) {
     const restSets = workout.setsByKey[restItem.key] ?? []
-    const lastSet = restSets[restSets.length - 1] ?? null
     const image = primaryImageFor(restExercise.id, restExercise.libraryId)
     /*
       התרגיל הבא בתור — הראשון אחרי זה שנחים ממנו שעוד לא נסגר. פריט שדולג
@@ -337,15 +336,11 @@ export function WorkoutScreen(): JSX.Element | null {
       targetSets: restItem.targetSets,
       doneWorkSets: restSets.filter((s) => s.type === 'work').length,
       /*
-        המשקל הוא מה שהורם *בפועל* לפני רגע, ולא המלצה — המסך הזה מדווח ולא
-        מציע. אחרי סט חימום אין ממה לגזור את משקל העבודה, ולכן נשארת רק שורת
-        החזרות: חצי מהמשקל של הרמפה אינו תחזית לסט הבא.
+        טווח החזרות בלבד. משקל ירד מכאן במכוון: המסך הזה נקרא בהצצה של שנייה,
+        המספר שקובע לסט הבא כבר יושב גדול על הכרטיס שמאחור, והשורה שנחסכה היא
+        מה שמכניס את מפת השרירים לתוך המסך בלי גלילה.
       */
       nextSet: {
-        weight:
-          lastSet && lastSet.type === 'work'
-            ? formatWeight(lastSet.weightKg, restExercise.weightMode)
-            : null,
         count: formatRepRange(restItem.targetReps, restExercise.metric),
         countLabel: restExercise.metric === 'seconds' ? 'להחזיק' : 'חזרות',
       },
