@@ -20,6 +20,12 @@ import { EmptyState, IconButton, toast } from '@/components/ui'
 import { ExerciseThumb } from '@/components/media/ExerciseThumb'
 import { GroupCardButton } from '@/components/exercises/GroupCardButton'
 import { SubTargetHeading } from '@/components/exercises/SubTargetHeading'
+import {
+  MuscleFilterChips,
+  NO_MUSCLE_FILTER,
+  resolveMuscleFilter,
+} from '@/components/exercises/MuscleFilterChips'
+import type { MuscleFilter } from '@/components/exercises/MuscleFilterChips'
 import { groupOf, subOf, useMuscleFixes } from '@/db/muscleFixes'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { BasketBar } from '@/components/builder/BasketBar'
@@ -61,6 +67,11 @@ export function BuilderMuscleScreen(): JSX.Element {
     התרגילים, באותה סמנטיקה: `isActive` הוא "בתרגילים שלי".
   */
   const [mode, setMode] = useState<'mine' | 'all'>('mine')
+  /*
+    סינון לפי תת-שריר. אין כאן רמת קבוצות — הקבוצה נבחרה בניווט לתוך המסך —
+    ולכן זו הרמה השנייה של אותה שורה בדיוק שבמסך התרגילים ובבורר.
+  */
+  const [filter, setFilter] = useState<MuscleFilter>(NO_MUSCLE_FILTER)
   /*
     נגן אחד לכל המסך, לא אחד לשורה: VideoPlayer מריץ שני מנויים גם כשהוא
     סגור, ורשימת שריר יכולה להגיע לתריסר שורות. אותו דפוס כמו מסך התרגילים.
@@ -151,6 +162,37 @@ export function BuilderMuscleScreen(): JSX.Element {
       .map(([sub, items]) => ({ sub, items }))
   }, [list, group, fixes])
 
+  const filterOptions = useMemo(
+    () =>
+      group
+        ? [
+            {
+              group,
+              count: list.length,
+              subs: sections
+                .filter(({ sub }) => sub !== 'אחר')
+                .map(({ sub, items }) => ({ sub, count: items.length })),
+            },
+          ]
+        : [],
+    [group, list, sections]
+  )
+
+  /*
+    הצ׳יפ נשאר לחוץ רק כל עוד הוא קיים: החיפוש והמתג מזיזים את הרשימה מתחתיו,
+    ובחירה שנשארה תלויה על תת-שריר שהתרוקן הייתה מרוקנת את המסך בלי להסביר.
+    הקבוצה עצמה תמיד ברשימה — היא הניווט — ולכן רק התת-שריר יכול ליפול.
+  */
+  const active = useMemo(
+    () => resolveMuscleFilter(filterOptions, { group, sub: filter.sub }),
+    [filterOptions, group, filter.sub]
+  )
+
+  const visible = useMemo(
+    () => (active.sub ? sections.filter((x) => x.sub === active.sub) : sections),
+    [sections, active.sub]
+  )
+
   if (!group) return <Navigate to="/builder" replace />
 
 
@@ -222,6 +264,11 @@ export function BuilderMuscleScreen(): JSX.Element {
         ) : null}
       </div>
 
+      {/* סינון לפי תת-שריר בתוך הקבוצה */}
+      {list.length > 0 ? (
+        <MuscleFilterChips options={filterOptions} value={active} onChange={setFilter} fixed />
+      ) : null}
+
       {list.length === 0 ? (
         <EmptyState
           title={mode === 'mine' ? 'לא נמצא בתרגילים שלך' : 'לא נמצא תרגיל'}
@@ -248,14 +295,14 @@ export function BuilderMuscleScreen(): JSX.Element {
         />
       ) : (
         <div className="space-y-3">
-          {sections.map(({ sub, items }) => (
+          {visible.map(({ sub, items }) => (
             <div key={sub}>
               {/*
                 כותרת תת-קטגוריה, מאותו מקור בדיוק כמו במסך התרגילים: השריר
                 בעל האחוז הגבוה בכרטיס, מתוך הקבוצה של התרגיל. מוצגת רק כשיש
                 יותר מאחת — כותרת יחידה הייתה חוזרת על שם הקבוצה שבראש המסך.
               */}
-              {sections.length > 1 ? <SubTargetHeading sub={sub} count={items.length} /> : null}
+              {visible.length > 1 ? <SubTargetHeading sub={sub} count={items.length} /> : null}
               <ul className="card divide-y divide-ink-800/70 overflow-hidden">
           {items.map((entry) => (
             <li key={entry.id}>

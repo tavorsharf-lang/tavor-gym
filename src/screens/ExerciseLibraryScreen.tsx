@@ -28,6 +28,12 @@ import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { RemoveExerciseSheet } from '@/components/exercises/RemoveExerciseSheet'
 import { SubTargetHeading } from '@/components/exercises/SubTargetHeading'
 import { GroupCardButton } from '@/components/exercises/GroupCardButton'
+import {
+  MuscleFilterChips,
+  NO_MUSCLE_FILTER,
+  resolveMuscleFilter,
+} from '@/components/exercises/MuscleFilterChips'
+import type { MuscleFilter } from '@/components/exercises/MuscleFilterChips'
 import { clipById } from '@/db/mediaDb'
 import { useHiddenVideoIds } from '@/db/hiddenVideos'
 import { groupContextId, useVideoPrefs } from '@/db/videoPrefs'
@@ -75,8 +81,8 @@ export function ExerciseLibraryScreen({
   const [playingGroup, setPlayingGroup] = useState<MuscleGroup | null>(null)
   /** השורה שהריבוע שלה נלחץ — הגלריה נפתחת על כרטיס השרירים שלה */
   const [gallery, setGallery] = useState<CatalogEntry | null>(null)
-  /** תת-קטגוריה שנבחרה בשורת הצ׳יפים; null = הכל */
-  const [subFilter, setSubFilter] = useState<string | null>(null)
+  /** הסינון בשורת הצ׳יפים: קבוצת שריר, ובתוכה תת-שריר. שניהם null = הכל. */
+  const [filter, setFilter] = useState<MuscleFilter>(NO_MUSCLE_FILTER)
   /** השורה שנלחצה לחיצה ארוכה — גיליון התיקון נפתח עליה */
   const [fixing, setFixing] = useState<CatalogEntry | null>(null)
 
@@ -190,26 +196,36 @@ export function ExerciseLibraryScreen({
     [groups, fixes]
   )
 
-  /** כל תת-הקטגוריות שיש להן תרגילים כרגע — הן ממלאות את שורת הצ׳יפים */
-  const subOptions = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const { subs } of sectioned)
-      for (const { sub, items } of subs) counts.set(sub, (counts.get(sub) ?? 0) + items.length)
-    return [...counts.entries()]
-      .filter(([sub]) => sub !== OTHER)
-      .sort((a, b) => b[1] - a[1])
-  }, [sectioned])
+  /*
+    מה שממלא את שורת הצ׳יפים: הקבוצות שיש להן תרגילים כרגע, וכל אחת נושאת את
+    תת-השרירים שלה. הסדר יורש מ-`sectioned`, כלומר מהגדול לקטן — אותו סדר שבו
+    הרשימה עצמה מסודרת, כדי שהצ׳יפ והמקטע שהוא מוביל אליו יהיו באותו מקום.
+  */
+  const filterOptions = useMemo(
+    () =>
+      sectioned.map(({ group, list, subs }) => ({
+        group,
+        count: list.length,
+        subs: subs
+          .filter(({ sub }) => sub !== OTHER)
+          .map(({ sub, items }) => ({ sub, count: items.length })),
+      })),
+    [sectioned]
+  )
 
-  // מסנן שהתרוקן אחרי חיפוש או החלפת מצב היה משאיר מסך ריק בלי הסבר
+  // סינון שהתרוקן אחרי חיפוש או החלפת מצב היה משאיר מסך ריק בלי הסבר
+  const active = useMemo(() => resolveMuscleFilter(filterOptions, filter), [filterOptions, filter])
+
   const visible = useMemo(
     () =>
       sectioned
+        .filter(({ group }) => !active.group || group === active.group)
         .map(({ group, subs }) => ({
           group,
-          subs: subFilter ? subs.filter((x) => x.sub === subFilter) : subs,
+          subs: active.sub ? subs.filter((x) => x.sub === active.sub) : subs,
         }))
         .filter((x) => x.subs.length > 0),
-    [sectioned, subFilter]
+    [sectioned, active]
   )
 
   const total = groups.reduce((n, g) => n + g.list.length, 0)
@@ -390,48 +406,8 @@ export function ExerciseLibraryScreen({
         )}
       </div>
 
-      {/*
-        סינון לפי תת-קטגוריה. שורה גוללת ולא רשת: מספר התת-קטגוריות משתנה עם
-        החיפוש ועם המצב, ורשת שמשנה מספר שורות מזיזה את הרשימה מתחת לאצבע.
-      */}
-      {subOptions.length > 1 ? (
-        <div className="-mx-4 mb-4 overflow-x-auto px-4">
-          <div className="flex w-max gap-1.5">
-            <button
-              type="button"
-              onClick={() => setSubFilter(null)}
-              aria-pressed={subFilter === null}
-              className={[
-                'min-h-9 shrink-0 rounded-pill border px-3 text-xs font-bold transition-colors',
-                subFilter === null
-                  ? 'border-flame-500 bg-flame-500 text-ink-950'
-                  : 'border-ink-700 bg-ink-900/70 text-bone-300 active:bg-ink-800',
-              ].join(' ')}
-            >
-              {/* לא "הכל" — כך נקרא כבר מתג שלי/הכל, ושני פקדים באותו שם
-                  באותו מסך הם עמימות גם לקורא-מסך וגם למשתמש */}
-              כל השרירים
-            </button>
-            {subOptions.map(([sub, n]) => (
-              <button
-                key={sub}
-                type="button"
-                onClick={() => setSubFilter(subFilter === sub ? null : sub)}
-                aria-pressed={subFilter === sub}
-                className={[
-                  'min-h-9 shrink-0 rounded-pill border px-3 text-xs font-bold transition-colors',
-                  subFilter === sub
-                    ? 'border-flame-500 bg-flame-500 text-ink-950'
-                    : 'border-ink-700 bg-ink-900/70 text-bone-300 active:bg-ink-800',
-                ].join(' ')}
-              >
-                {sub}
-                <span className="tnum ms-1.5 font-semibold opacity-60">{n}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      {/* סינון לפי שריר — קבוצות, ובתוך קבוצה תת-השרירים שלה */}
+      <MuscleFilterChips options={filterOptions} value={active} onChange={setFilter} />
 
       {total === 0 ? (
         <EmptyStateFor

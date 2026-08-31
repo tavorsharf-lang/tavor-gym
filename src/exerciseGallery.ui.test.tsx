@@ -106,7 +106,7 @@ describe('כרטיס השרירים ברשימת התרגילים', () => {
     expect(useBasket.getState().items).toHaveLength(0)
   }, 40000)
 
-  it('הרשימה מחולקת לתת-קטגוריות, והצ׳יפ מסנן לפיהן', async () => {
+  it('שורת הצ׳יפים דו-שלבית: קבוצה קודם, ובתוכה תת-השרירים שלה', async () => {
     const user = userEvent.setup()
     window.location.hash = '#/exercises'
     render(<App />)
@@ -119,16 +119,29 @@ describe('כרטיס השרירים ברשימת התרגילים', () => {
     expect(screen.getAllByText('ארבע-ראשי').length).toBeGreaterThan(0)
 
     /*
-      הצ׳יפ מסנן את השורות, לא את עצמו: שורת הצ׳יפים נשארת מלאה גם אחרי
-      בחירה, אחרת אי אפשר היה לעבור לתת-קטגוריה אחרת בלי לאפס. לכן הטענה
-      היא על תרגיל שאמור להיעלם, ולא על היעלמות הטקסט מהמסך.
+      ברמה הראשונה יש קבוצות שריר בלבד — זו כל מטרת השורה הדו-שלבית. הטענה
+      היא על צ׳יפ ולא על היעדר הטקסט "חזה עליון" מהמסך, כי הוא מופיע שם גם
+      ככותרת תת-קטגוריה; מה שמפריד ביניהם הוא `aria-pressed`, שיש רק לצ׳יפ.
     */
-    const chip = screen.getAllByRole('button', { name: /^חזה עליון/ })[0]
-    await user.click(chip)
-    await waitFor(() => expect(screen.queryByText('לחיצת רגליים')).toBeNull())
-    expect(chip.getAttribute('aria-pressed')).toBe('true')
+    expect(screen.queryAllByRole('button', { name: /^חזה עליון/, pressed: false })).toHaveLength(0)
 
-    // "כל השרירים" מחזיר הכל — ולא מתנגש בשם עם מתג שלי/הכל
+    // הצ׳יפ של הקבוצה נושא את מספר התרגילים שבה, ולכן שמו "חזה 6"
+    await user.click(screen.getByRole('button', { name: /^חזה \d+$/ }))
+    await waitFor(() => expect(screen.queryByText('לחיצת רגליים')).toBeNull())
+
+    /*
+      הרמה השנייה. הצ׳יפ מסנן את השורות ולא את עצמו: כל אחיותיו נשארות על
+      המסך גם אחרי הבחירה, אחרת מעבר ל"חזה אמצעי" היה דורש איפוס קודם.
+    */
+    const upper = await screen.findByRole('button', { name: /^חזה עליון \d+$/ })
+    await user.click(upper)
+    expect(upper.getAttribute('aria-pressed')).toBe('true')
+    await waitFor(() =>
+      expect(screen.queryByText('לחיצת חזה במוט — ספסל שטוח')).toBeNull()
+    )
+    expect(screen.getByText('לחיצת חזה במוט בשיפוע חיובי')).not.toBeNull()
+
+    // "כל השרירים" מחזיר את כל הגוף — ולא מתנגש בשם עם מתג שלי/הכל
     await user.click(screen.getByRole('button', { name: 'כל השרירים' }))
     await screen.findByText('לחיצת רגליים', {}, { timeout: SLOW })
   }, 40000)

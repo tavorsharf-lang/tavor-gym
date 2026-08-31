@@ -66,6 +66,15 @@ describe('הוספת תרגיל תוך כדי אימון', () => {
     await waitFor(() => expect(screen.getByText('מכרעים')).toBeTruthy(), { timeout: SLOW })
 
     /*
+      שורת הצ׳יפים עובדת גם כאן, ובאותן שתי רמות: הרמה הראשונה היא קבוצות
+      שריר, ולחיצה על אחת מהן מצמצמת את הגיליון אליה בלבד. זה מה שהופך
+      "עוד משהו לרגליים" באמצע אימון לשתי לחיצות במקום לגלילה.
+    */
+    await user.click(screen.getByRole('button', { name: /^רגליים \d+$/ }))
+    await waitFor(() => expect(screen.queryByText('שכיבות סמיכה')).toBeNull())
+    expect(screen.getByText('מכרעים')).toBeTruthy()
+
+    /*
       הלחיצה היא על גוף השורה ולא על הריבוע. השם מופיע בשניהם — הריבוע פותח
       את כרטיס השרירים — ולכן `closest('button')` מהטקסט הוא מה שמבדיל.
     */
@@ -106,6 +115,19 @@ describe('הוספת תרגיל תוך כדי אימון', () => {
     await waitFor(() => expect(screen.getByText('מכרעים')).toBeTruthy(), { timeout: SLOW })
     // והקטלוג לא נעלם — "הכל" הוא הרחבה ולא החלפה
     expect(screen.getByText('לחיצת רגליים')).toBeTruthy()
+
+    /*
+      שורת הצ׳יפים כאן היא הרמה השנייה בלבד: הקבוצה נבחרה בניווט לתוך המסך,
+      ולכן אין "כל השרירים" — הוא היה מבטיח מעבר לקבוצה אחרת שהמסך לא עושה.
+    */
+    expect(screen.queryByRole('button', { name: 'כל השרירים' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: /^ארבע-ראשי \d+$/ }))
+    await waitFor(() => expect(screen.queryByText('כפיפת ברכיים בישיבה')).toBeNull())
+    expect(screen.getByText('לחיצת רגליים')).toBeTruthy()
+
+    // הצ׳יפ של הקבוצה מחזיר את כל הרגליים, בלי לצאת מהמסך
+    await user.click(screen.getByRole('button', { name: /^רגליים \d+$/ }))
+    await waitFor(() => expect(screen.getByText('כפיפת ברכיים בישיבה')).toBeTruthy())
   }, 40000)
 
   it('אימון ריק מהבונה, ואז בונים אותו מתוך מסך האימון', async () => {

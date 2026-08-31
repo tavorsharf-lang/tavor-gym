@@ -17,6 +17,8 @@ import { ExerciseThumb } from '@/components/media/ExerciseThumb'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { GroupCardButton } from './GroupCardButton'
 import { SubTargetHeading } from './SubTargetHeading'
+import { MuscleFilterChips, NO_MUSCLE_FILTER, resolveMuscleFilter } from './MuscleFilterChips'
+import type { MuscleFilter } from './MuscleFilterChips'
 
 /**
  * בורר התרגילים — הרשימה המאוחדת בתוך גיליון.
@@ -70,6 +72,8 @@ export function ExercisePickerSheet({
 }: ExercisePickerSheetProps): JSX.Element {
   const [mode, setMode] = useState<'mine' | 'all'>('mine')
   const [query, setQuery] = useState('')
+  /** הסינון בשורת הצ׳יפים: קבוצת שריר, ובתוכה תת-שריר. שניהם null = הכל. */
+  const [filter, setFilter] = useState<MuscleFilter>(NO_MUSCLE_FILTER)
   /** השורה שהריבוע שלה נלחץ — הגלריה נפתחת על כרטיס השרירים שלה */
   const [gallery, setGallery] = useState<CatalogEntry | null>(null)
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set())
@@ -90,6 +94,12 @@ export function ExercisePickerSheet({
     if (open) return
     setQuery('')
     setGallery(null)
+    /*
+      הסינון מתאפס עם החיפוש ולא נשמר כמו המתג: "עוד תרגיל לגב" הוא הקשר של
+      הרגע הזה באימון, ופתיחה שנייה בעוד עשרים דקות היא כבר שאלה אחרת. גיליון
+      שנפתח מסונן לקבוצה שנשכחה נראה בדיוק כמו גיליון שחסרים בו תרגילים.
+    */
+    setFilter(NO_MUSCLE_FILTER)
   }, [open])
 
   /*
@@ -158,6 +168,36 @@ export function ExercisePickerSheet({
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pool, mode, q, fixes])
+
+  /*
+    שורת הצ׳יפים — אותה שורה בדיוק כמו במסך התרגילים, ובכוונה: הבורר הזה הוא
+    אותה רשימה, ומי שלמד לנווט בה שם לא צריך ללמוד אותה שוב באמצע אימון.
+  */
+  const filterOptions = useMemo(
+    () =>
+      sections.map(({ group, count, subs }) => ({
+        group,
+        count,
+        subs: subs
+          .filter(({ sub }) => sub !== OTHER)
+          .map(({ sub, items }) => ({ sub, count: items.length })),
+      })),
+    [sections]
+  )
+
+  const active = useMemo(() => resolveMuscleFilter(filterOptions, filter), [filterOptions, filter])
+
+  const visible = useMemo(
+    () =>
+      sections
+        .filter(({ group }) => !active.group || group === active.group)
+        .map(({ group, subs }) => {
+          const kept = active.sub ? subs.filter((x) => x.sub === active.sub) : subs
+          return { group, subs: kept, count: kept.reduce((n, x) => n + x.items.length, 0) }
+        })
+        .filter((s) => s.subs.length > 0),
+    [sections, active]
+  )
 
   /** יש כבר במה לצייר: הקטלוג חזר, ובמצב "שלי" גם רשימת ההסתרות */
   const ready = entries.length > 0 && (mode === 'all' || hidden !== null)
@@ -239,6 +279,11 @@ export function ExercisePickerSheet({
         ) : null}
       </div>
 
+      {/* סינון לפי שריר — קבוצות, ובתוך קבוצה תת-השרירים שלה */}
+      {ready ? (
+        <MuscleFilterChips options={filterOptions} value={active} onChange={setFilter} />
+      ) : null}
+
       {!ready ? (
         /*
           שלד ולא "לא נמצא תרגיל".
@@ -276,7 +321,7 @@ export function ExercisePickerSheet({
         />
       ) : (
         <div className="space-y-6">
-          {sections.map(({ group, count, subs }) => (
+          {visible.map(({ group, count, subs }) => (
             <section key={group}>
               <div className="mb-2 flex items-center justify-between gap-2 px-1">
                 <div className="flex min-w-0 items-center gap-1">
