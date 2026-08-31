@@ -5,19 +5,28 @@ import { Check, Plus, Search, X } from 'lucide-react'
 import { compareByName, compareEntries, getCatalogEntries } from '@/db/catalog'
 import type { CatalogEntry } from '@/db/catalog'
 import { getLastPerformedMap } from '@/db/queries'
-import type { MuscleGroup } from '@/db/types'
+import type { Equipment, MuscleGroup } from '@/db/types'
 import { EQUIPMENT_LABELS, MUSCLE_GROUPS, MUSCLE_GROUP_BY_SIZE } from '@/db/types'
 import { isEntryHidden, useHiddenExerciseIds } from '@/db/hiddenExercises'
 import { groupOf, subOf, useMuscleFixes } from '@/db/muscleFixes'
 import { formatRelativeDay } from '@/lib/dates'
 import { normalize } from '@/lib/text'
 import { formatSetShort } from '@/domain/units'
+import {
+  equipmentHidden,
+  matchesEquipment,
+  pctOfSub,
+  sortedBy,
+  touchesSub,
+} from '@/domain/exerciseSort'
+import type { SortState } from '@/domain/exerciseSort'
 import { BottomSheet, EmptyState } from '@/components/ui'
 import { ExerciseThumb } from '@/components/media/ExerciseThumb'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { GroupCardButton } from './GroupCardButton'
 import { SubTargetHeading } from './SubTargetHeading'
 import { MuscleFilterChips, NO_MUSCLE_FILTER, resolveMuscleFilter } from './MuscleFilterChips'
+import { ListSortBar, SubScopeToggle } from './ListSortBar'
 import type { MuscleFilter } from './MuscleFilterChips'
 
 /**
@@ -78,6 +87,14 @@ export function ExercisePickerSheet({
   const [query, setQuery] = useState('')
   /** הסינון בשורת הצ׳יפים: קבוצת שריר, ובתוכה תת-שריר. שניהם null = הכל. */
   const [filter, setFilter] = useState<MuscleFilter>(NO_MUSCLE_FILTER)
+  /*
+    מיון וסינון, אותם פקדים בדיוק כמו בשני המסכים. כאן הם עונים על שאלה חדה
+    יותר: באמצע אימון "מה עוד לגב" הוא לרוב "מה עוד לגב שהמכשיר שלו פנוי",
+    ולפעמים "מה עובד הכי חזק על מה שבא לי להעמיס עכשיו".
+  */
+  const [sort, setSort] = useState<SortState>({ key: 'default', desc: true })
+  const [equipment, setEquipment] = useState<ReadonlySet<Equipment>>(new Set())
+  const [scope, setScope] = useState<'primary' | 'touching'>('primary')
   /** השורה שהריבוע שלה נלחץ — הגלריה נפתחת על כרטיס השרירים שלה */
   const [gallery, setGallery] = useState<CatalogEntry | null>(null)
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set())
@@ -104,6 +121,14 @@ export function ExercisePickerSheet({
       שנפתח מסונן לקבוצה שנשכחה נראה בדיוק כמו גיליון שחסרים בו תרגילים.
     */
     setFilter(NO_MUSCLE_FILTER)
+    /*
+      גם המיון והסינון מתאפסים, מאותו נימוק: הם ההקשר של הרגע הזה. גיליון
+      שנפתח באמצע אימון אחר וממוין לפי אחוז על שריר שכבר לא רלוונטי נראה
+      כמו רשימה שחסרים בה תרגילים.
+    */
+    setSort({ key: 'default', desc: true })
+    setEquipment(new Set())
+    setScope('primary')
   }, [open])
 
   /*
@@ -144,10 +169,18 @@ export function ExercisePickerSheet({
     return entries.filter((e) => e.state === 'mine' && !isEntryHidden(e, hidden))
   }, [entries, mode, hidden])
 
+  /** מתי בוצע לאחרונה, לפי מזהה — מה שהמיון "לאחרונה" קורא */
+  const lastAt = useMemo(
+    () => new Map([...lastPerformed].map(([id, l]) => [id, l.at as number])),
+    [lastPerformed]
+  )
+
   const sections = useMemo(() => {
     const byGroup = new Map<MuscleGroup, CatalogEntry[]>()
     for (const entry of pool) {
       if (!matches(entry)) continue
+      // הציוד מצמצם לפני הקיבוץ, אחרת הצ׳יפ סופר יותר ממה שהמקטע מראה
+      if (!matchesEquipment(entry, equipment)) continue
       const group = groupOf(entry, fixes)
       const list = byGroup.get(group)
       if (list) list.push(entry)
@@ -158,6 +191,9 @@ export function ExercisePickerSheet({
         mode === 'mine' ? compareEntries : compareByName
       )
       // תת-קטגוריות באותו סדר בדיוק שבו הרשימה כבר ממוינת, בלי מיון מחדש בתוכן
+      const order = new Map(list.map((entry, i) => [entry.id, i]))
+      const byListOrder = (a: CatalogEntry, b: CatalogEntry): number =>
+        (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)
       const bySub = new Map<string, CatalogEntry[]>()
       for (const entry of list) {
         const sub = subOf(entry, group, fixes) ?? OTHER
@@ -167,11 +203,19 @@ export function ExercisePickerSheet({
       }
       const subs = [...bySub.entries()]
         .sort((a, b) => (a[0] === OTHER ? 1 : b[0] === OTHER ? -1 : b[1].length - a[1].length))
-        .map(([sub, items]) => ({ sub, items }))
+        .map(([sub, items]) => ({
+          sub,
+          // כל מקטע מול השריר שלו, בדיוק כמו בשני המסכים
+          items: sortedBy(items, sort, {
+            sub: sub === OTHER ? null : sub,
+            lastAt,
+            fallback: byListOrder,
+          }),
+        }))
       return { group, count: list.length, subs }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pool, mode, q, fixes])
+  }, [pool, mode, q, fixes, equipment, sort, lastAt])
 
   /*
     שורת הצ׳יפים — אותה שורה בדיוק כמו במסך התרגילים, ובכוונה: הבורר הזה הוא
@@ -201,6 +245,30 @@ export function ExercisePickerSheet({
         })
         .filter((s) => s.subs.length > 0),
     [sections, active]
+  )
+
+  /* "כל מי שנוגע" — אותה רשימה שטוחה, חוצת קבוצות, כמו בשני המסכים */
+  const touching = useMemo(() => {
+    if (!active.sub) return []
+    const list = pool.filter(
+      (entry) =>
+        matches(entry) &&
+        matchesEquipment(entry, equipment) &&
+        touchesSub(entry, active.sub as string)
+    )
+    const effective = sort.key === 'default' ? ({ key: 'pct', desc: true } as const) : sort
+    return sortedBy(list, effective, { sub: active.sub, lastAt })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pool, q, fixes, equipment, active.sub, sort, lastAt])
+
+  const wide = scope === 'touching' && active.sub !== null
+
+  /** שורות מאגר שנפלו רק מפני שאין להן סיווג ציוד */
+  const noEquipment = useMemo(
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () => equipmentHidden(pool.filter(matches), equipment),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pool, q, fixes, equipment]
   )
 
   /** יש כבר במה לצייר: הקטלוג חזר, ובמצב "שלי" גם רשימת ההסתרות */
@@ -285,7 +353,30 @@ export function ExercisePickerSheet({
 
       {/* סינון לפי שריר — קבוצות, ובתוך קבוצה תת-השרירים שלה */}
       {ready ? (
-        <MuscleFilterChips options={filterOptions} value={active} onChange={setFilter} />
+        <>
+          <MuscleFilterChips options={filterOptions} value={active} onChange={setFilter} />
+          {/*
+            שורת המיון אינה מותנית ב-`total`, בניגוד לצ׳יפים: סינון ציוד
+            שמרוקן את הרשימה היה מעלים את הכפתור היחיד שמבטל אותו, והגיליון
+            היה נתקע ריק עד שסוגרים ופותחים אותו מחדש.
+          */}
+          <ListSortBar
+            sort={sort}
+            onSort={setSort}
+            equipment={equipment}
+            onEquipment={setEquipment}
+            hiddenNoEquipment={noEquipment}
+          />
+          {active.sub ? (
+            <SubScopeToggle
+              sub={active.sub}
+              scope={scope}
+              onScope={setScope}
+              primaryCount={visible.reduce((n, g) => n + g.count, 0)}
+              touchingCount={touching.length}
+            />
+          ) : null}
+        </>
       ) : null}
 
       {!ready ? (
@@ -323,6 +414,33 @@ export function ExercisePickerSheet({
             ) : undefined
           }
         />
+      ) : wide ? (
+        <div>
+          <p className="meta mb-2 px-1">
+            כל התרגילים שהכרטיס שלהם מזכיר {active.sub} — לפי כמה
+          </p>
+          {touching.length === 0 ? (
+            <p className="card px-4 py-5 text-center text-sm font-semibold text-bone-400">
+              אין תרגיל שנוגע ב{active.sub} במה שמוצג כרגע.
+            </p>
+          ) : (
+            <ul className="card divide-y divide-ink-800/70 overflow-hidden">
+              {touching.map((entry) => (
+                <li key={entry.id}>
+                  <PickerRow
+                    entry={entry}
+                    already={entry.exercise ? inTarget.has(entry.exercise.id) : false}
+                    busy={busy.has(entry.id)}
+                    last={entry.exercise ? lastPerformed.get(entry.exercise.id) : undefined}
+                    pct={pctOfSub(entry, active.sub as string)}
+                    onPick={() => pick(entry)}
+                    onGallery={() => setGallery(entry)}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       ) : (
         <div className="space-y-6">
           {visible.map(({ group, count, subs }) => (
@@ -350,6 +468,10 @@ export function ExercisePickerSheet({
                             already={entry.exercise ? inTarget.has(entry.exercise.id) : false}
                             busy={busy.has(entry.id)}
                             last={entry.exercise ? lastPerformed.get(entry.exercise.id) : undefined}
+                            /* המספר רק כשהוא זה שקובע את הסדר */
+                            pct={
+                              sort.key === 'pct' && sub !== OTHER ? pctOfSub(entry, sub) : undefined
+                            }
                             onPick={() => pick(entry)}
                             onGallery={() => setGallery(entry)}
                           />
@@ -406,6 +528,7 @@ function PickerRow({
   already,
   busy,
   last,
+  pct,
   onPick,
   onGallery,
 }: {
@@ -413,6 +536,11 @@ function PickerRow({
   already: boolean
   busy: boolean
   last: { weightKg: number; reps: number; at: number; sets: number } | undefined
+  /**
+   * האחוז על השריר שהרשימה ממוינת לפיו — שלושה מצבים, כמו בשני המסכים:
+   * ‏`undefined` = אין עמודה, `null` = אין נתון על הכרטיס, מספר = האחוז.
+   */
+  pct?: number | null
   onPick: () => void
   onGallery: () => void
 }): JSX.Element {
@@ -466,8 +594,18 @@ function PickerRow({
         </span>
 
         <span className="shrink-0 text-end">
+          {/*
+            "כבר באימון" גובר על הכל — זו התשובה לשאלה שבגללה השורה נלחצת.
+            אחריו האחוז, כשהוא מה שקובע את הסדר.
+          */}
           {already ? (
             <span className="meta">כבר באימון</span>
+          ) : pct !== undefined ? (
+            pct === null ? (
+              <span className="meta">אין נתון</span>
+            ) : (
+              <span className="tnum block text-sm font-extrabold text-flame-400">{pct}%</span>
+            )
           ) : ex && last ? (
             <>
               <span dir="ltr" className="tnum block text-sm font-extrabold text-bone-200">

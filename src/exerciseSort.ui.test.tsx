@@ -140,6 +140,29 @@ describe('מיון רשימת התרגילים', () => {
     )
   }, 40000)
 
+  it('אותה שורת מיון גם בבורר שבאמצע אימון', async () => {
+    const user = userEvent.setup()
+    await useWorkout.getState().start('F1', [])
+    window.location.hash = '#/workout'
+    render(<App />)
+
+    await screen.findByRole('button', { name: 'תור התרגילים' }, { timeout: SLOW })
+    await user.click(screen.getByRole('button', { name: 'הוסף תרגיל לאימון' }))
+
+    /*
+      הבורר הוא גיליון מעל מסך האימון, ולכן הטענות נשאלות בתוכו: מסך האימון
+      חי מתחתיו ונושא שמות משלו.
+    */
+    const sheet = await screen.findByRole('dialog', {}, { timeout: SLOW })
+    await user.click(within(sheet).getByRole('button', { name: /^אחוז/ }))
+
+    await waitFor(() => expect(within(sheet).getAllByText(/%$/).length).toBeGreaterThan(0), {
+      timeout: SLOW,
+    })
+    // והסינון קיים גם כאן — "מה פנוי עכשיו" היא שאלה של אמצע אימון
+    expect(within(sheet).getByRole('button', { name: 'סינון לפי ציוד' })).toBeTruthy()
+  }, 40000)
+
   it('"כל מי שנוגע" חושף תרגילים שיושבים תחת כותרת של שריר אחר', async () => {
     const user = userEvent.setup()
     window.location.hash = '#/builder/legs'
