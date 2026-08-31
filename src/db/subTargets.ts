@@ -1,6 +1,6 @@
 import type { MuscleGroup } from './types'
 import { MUSCLE_BREAKDOWN } from './muscleBreakdown'
-import { imagesFor } from './exerciseImages'
+import { imageIdOf, imagesFor } from './exerciseImages'
 
 /**
  * הטקסונומיה: שם השריר שמודפס על הכרטיס ← תת-קטגוריה, ולאיזו קבוצת שריר היא
@@ -144,11 +144,6 @@ export const SUBS_BY_GROUP: Readonly<Record<MuscleGroup, readonly string[]>> = (
  * אימון — הוא מופיע על הכרטיס כשארית ולא כמטרה.
  */
 export const NOT_A_SUBTARGET: ReadonlySet<string> = new Set(['Stabilizers', 'Trunk Stabilizers'])
-
-/** מזהה התמונה מתוך הנתיב שלה — "images/ex/<id>.jpg" */
-function imageIdOf(src: string): string {
-  return src.slice(src.lastIndexOf('/') + 1, -4)
-}
 
 /**
  * פירוט השרירים של תרגיל, מהכרטיס הראשון שלו שיש עליו אחוזים.

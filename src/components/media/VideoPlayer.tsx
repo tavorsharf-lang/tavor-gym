@@ -18,11 +18,13 @@ import { assetUrl, cacheStreamedVideo, deleteVideo, loadVideosFor, releaseVideos
 import { useHiddenVideosVersion } from '@/db/hiddenVideos'
 import { groupContextId, saveVideoMove, saveVideoOrder, useVideoPrefsVersion } from '@/db/videoPrefs'
 import { imagesFor } from '@/db/exerciseImages'
+import { loadMapForImage } from '@/db/loadMap'
 import { videoMismatchNote } from '@/db/videoIssues'
 import { db } from '@/db/db'
 import { MUSCLE_GROUPS, MUSCLE_GROUP_BY_SIZE } from '@/db/types'
 import type { Exercise, PlayableVideo } from '@/db/types'
 import { Button, toast } from '@/components/ui'
+import { MuscleLoadMap } from './MuscleLoadMap'
 import { lockBodyScroll } from '@/lib/scrollLock'
 
 /**
@@ -286,6 +288,12 @@ export function VideoPlayer({
   const onImage = index < 0
   const current = onImage ? undefined : videos[index]
   const image = onImage ? images[pos] : undefined
+  /*
+    מפת העומס של הכרטיס שמוצג. היא הופכת את השקופית מתמונה למסך: התמונה
+    למעלה, ומתחתיה אותם אחוזים כשורות שאפשר לקרוא ולפתוח מהן את האנטומיה.
+    השקופית הבאה היא סרטוני ההסבר, כמו קודם.
+  */
+  const loadMap = image ? loadMapForImage(image) : []
   const many = total > 1
   const mismatch = videoMismatchNote(exerciseId)
 
@@ -448,8 +456,20 @@ export function VideoPlayer({
         </p>
       ) : null}
 
+      {/*
+        עם מפת עומס השקופית נגללת, ובלעדיה היא ממורכזת כמו תמיד.
+
+        הגלילה חלה על כל האזור ולא רק על המפה: תמונה בגובה קבוע שמעליה מפה
+        גוללת הייתה מקצצת את הכרטיס לרצועה בדיוק במסכים הקטנים, ושם הוא
+        הכי צריך את המקום. כך התמונה מקבלת את הגובה שלה, והמפה ממשיכה מתחתיה.
+      */}
       <div
-        className="relative flex flex-1 items-center justify-center px-3 touch-pan-y"
+        className={[
+          'relative flex flex-1 px-3 touch-pan-y',
+          loadMap.length > 0
+            ? 'min-h-0 flex-col gap-4 overflow-y-auto pt-1 pb-4'
+            : 'items-center justify-center',
+        ].join(' ')}
         onPointerDown={onSwipeStart}
         onPointerUp={onSwipeEnd}
       >
@@ -464,9 +484,16 @@ export function VideoPlayer({
             key={image.src}
             src={assetUrl(image.src)}
             alt={`אילו שרירים עובדים ב${image.nameHe}`}
-            className="max-h-full w-auto max-w-full rounded-card bg-bone-50"
+            className={[
+              'mx-auto w-auto max-w-full rounded-card bg-bone-50',
+              // עם מפה מתחתיה התמונה מוותרת על מלוא הגובה — אחרת המפה
+              // מתחילה מתחת לקפל ואי אפשר לדעת שהיא שם
+              loadMap.length > 0 ? 'max-h-[58svh] shrink-0' : 'max-h-full',
+            ].join(' ')}
           />
         )}
+
+        {loadMap.length > 0 ? <MuscleLoadMap shares={loadMap} /> : null}
 
         {!loading && !current && !image && (
           <p className="px-8 text-center text-sm text-bone-500">
@@ -513,7 +540,16 @@ export function VideoPlayer({
             <button
               onClick={() => go(-1)}
               aria-label="הסרטון הקודם"
-              className="absolute inset-y-0 end-0 flex w-14 items-center justify-center text-bone-300 active:text-flame-400"
+              className={[
+                'absolute end-0 flex w-14 items-center justify-center text-bone-300 active:text-flame-400',
+                /*
+                  עם מפת עומס רצועת החץ נעצרת בגובה התמונה. אחרת היא הייתה
+                  שוכבת על 56 פיקסלים מכל צד של שורות המפה — וב-RTL זה בדיוק
+                  העמודה של הכרטיסים האנטומיים, כלומר החץ היה בולע את הלחיצה
+                  עליהם.
+                */
+                loadMap.length > 0 ? 'top-0 h-[58svh]' : 'inset-y-0',
+              ].join(' ')}
             >
               <span className="flex size-11 items-center justify-center rounded-full bg-ink-900/70 backdrop-blur-sm">
                 <ChevronRight size={24} />
@@ -522,7 +558,10 @@ export function VideoPlayer({
             <button
               onClick={() => go(1)}
               aria-label="הסרטון הבא"
-              className="absolute inset-y-0 start-0 flex w-14 items-center justify-center text-bone-300 active:text-flame-400"
+              className={[
+                'absolute start-0 flex w-14 items-center justify-center text-bone-300 active:text-flame-400',
+                loadMap.length > 0 ? 'top-0 h-[58svh]' : 'inset-y-0',
+              ].join(' ')}
             >
               <span className="flex size-11 items-center justify-center rounded-full bg-ink-900/70 backdrop-blur-sm">
                 <ChevronLeft size={24} />

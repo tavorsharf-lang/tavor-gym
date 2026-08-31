@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { App } from './App'
@@ -144,6 +144,47 @@ describe('כרטיס השרירים ברשימת התרגילים', () => {
     // "כל השרירים" מחזיר את כל הגוף — ולא מתנגש בשם עם מתג שלי/הכל
     await user.click(screen.getByRole('button', { name: 'כל השרירים' }))
     await screen.findByText('לחיצת רגליים', {}, { timeout: SLOW })
+  }, 40000)
+
+  it('מתחת לכרטיס יושבת מפת העומס, והשורה פותחת את הכרטיס האנטומי', async () => {
+    const user = userEvent.setup()
+    window.location.hash = '#/exercises'
+    render(<App />)
+
+    /*
+      חתירה במכונה. שני תרגילים בקטלוג חולקים את הכרטיס הזה — כבד וקל —
+      ולכן getAllBy; שניהם פותחים את אותה תמונה ואת אותה מפה.
+    */
+    const card = primaryImageFor('seated-row-heavy')
+    expect(card).not.toBeNull()
+    const thumbs = await screen.findAllByRole(
+      'button',
+      { name: `אילו שרירים עובדים ב${card!.nameHe}` },
+      { timeout: SLOW }
+    )
+    await user.click(thumbs[0])
+
+    /*
+      האחוזים שעל הכרטיס, כשורות שאפשר לקרוא בלי לסרוק את התמונה בעיניים.
+      ‏`within` על הגלריה ולא `screen`: הרשימה שמתחתיה מציגה בעצמה תגיות
+      אחוזים על השורות, ובלי ההיקוף הטענה הייתה נפתרת עליהן.
+    */
+    const gallery = await screen.findByRole(
+      'dialog',
+      { name: /הדגמות והסברים/ },
+      { timeout: SLOW }
+    )
+    await within(gallery).findByText('מפת עומס', {}, { timeout: SLOW })
+    expect(within(gallery).getByText('50%')).toBeTruthy()
+    expect(within(gallery).getByText('10%')).toBeTruthy()
+    expect(within(gallery).getByText('רחב גבי')).toBeTruthy()
+
+    /*
+      והשורה פותחת את האנטומיה. זו השאלה שעולה מיד אחרי "מעוינים 25%" —
+      איפה זה בכלל — והתשובה היא אחד מ-45 הכרטיסים שכבר יש לנו.
+    */
+    await user.click(within(gallery).getByRole('button', { name: /^רחב גבי 50 אחוז/ }))
+    await screen.findByAltText('כרטיס אנטומי — רחב גבי', {}, { timeout: SLOW })
   }, 40000)
 
   /*

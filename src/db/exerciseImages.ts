@@ -179,6 +179,17 @@ export function imagesFor(exerciseId: string, libraryId?: string): readonly Exer
   return ids.map((id) => IMAGE_MANIFEST[id]).filter((img): img is ExerciseImage => Boolean(img))
 }
 
+/**
+ * מזהה התמונה מתוך הנתיב שלה — "images/ex/<id>.jpg".
+ *
+ * ‏`ExerciseImage` לא נושא את המפתח שלו במניפסט המג׳ונרט, והמפתח הזה הוא מה
+ * שמחבר תמונה לפירוט האחוזים שלה (`MUSCLE_BREAKDOWN`). הגזירה מהנתיב היא
+ * החיבור, והיא יושבת כאן — ליד המניפסט — כדי שלא יהיו לה שני עותקים.
+ */
+export function imageIdOf(src: string): string {
+  return src.slice(src.lastIndexOf('/') + 1, -4)
+}
+
 /** הכרטיס הראשי — מה שמופיע בשורה ברשימה */
 export function primaryImageFor(exerciseId: string, libraryId?: string): ExerciseImage | null {
   return imagesFor(exerciseId, libraryId)[0] ?? null
