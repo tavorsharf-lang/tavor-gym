@@ -23,6 +23,7 @@ import { db } from '@/db/db'
 import { MUSCLE_GROUPS, MUSCLE_GROUP_BY_SIZE } from '@/db/types'
 import type { Exercise, PlayableVideo } from '@/db/types'
 import { Button, toast } from '@/components/ui'
+import { lockBodyScroll } from '@/lib/scrollLock'
 
 /**
  * נגן ההדגמות.
@@ -193,14 +194,16 @@ export function VideoPlayer({
     }
   }, [open])
 
-  // נעילת גלילת הרקע כל עוד הנגן פתוח
+  /*
+    נעילת גלילת הרקע כל עוד הנגן פתוח.
+
+    דרך המונה המשותף, כי הנגן כמעט תמיד נפתח *מעל* גיליון שכבר נעל. שמירת
+    `previous` מקומית כאן קראה את הנעילה של הגיליון כמצב הבסיס, והחזירה
+    'hidden' אחרי שהגיליון כבר שוחרר — כלומר דף נעול בלי שום מודל פתוח.
+  */
   useEffect(() => {
     if (!open) return
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previous
-    }
+    return lockBodyScroll()
   }, [open])
 
   /**

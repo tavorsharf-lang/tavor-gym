@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef } from 'react'
 import type { JSX, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { lockBodyScroll } from '@/lib/scrollLock'
 
 /**
  * גיליון תחתון — בורר תרגיל, מחשבון פלטות, עריכת סט.
@@ -39,9 +40,10 @@ export function BottomSheet({
 
   useEffect(() => {
     if (!open) return
-    const previous = document.body.style.overflow
+    // ספירת עומק ולא שמירת previous מקומית — הנגן נפתח כ-portal אח מעל
+    // הגיליון, ושני נועלים שכל אחד שומר לעצמו נועלים את הדף לצמיתות
+    const unlockScroll = lockBodyScroll()
     const returnTo = document.activeElement as HTMLElement | null
-    document.body.style.overflow = 'hidden'
 
     /*
       כליאת פוקוס.
@@ -111,7 +113,7 @@ export function BottomSheet({
 
     return () => {
       window.clearTimeout(enter)
-      document.body.style.overflow = previous
+      unlockScroll()
       document.removeEventListener('keydown', onKey)
       returnTo?.focus?.()
     }
