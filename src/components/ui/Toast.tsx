@@ -29,8 +29,23 @@ interface ToastItem {
 }
 
 const DEFAULT_DURATION_MS = 4000
-/** מעבר לשלושה הערימה כבר מטפסת על המסך */
-const MAX_VISIBLE = 3
+/**
+ * טוסט עם פעולה חי יותר, אבל לא לנצח.
+ *
+ * הכלל הקודם היה "עם פעולה — נשאר עד שנוגעים בו", בנימוק ש"בטל" שנעלם אחרי
+ * ארבע שניות הוא בדיחה. בפועל זה ייצר את ההפך: מסך האימון נשאר עם כרטיס
+ * שמכסה את המשקל ואת החזרות עד שהמשתמש חיפש אותו וסגר אותו ידנית. שבע שניות
+ * הן חלון אמיתי ללחוץ "בטל" או "התחל עכשיו", וגם סוף מובטח.
+ */
+const ACTION_DURATION_MS = 7000
+/**
+ * אחד. לא שלושה.
+ *
+ * הערימה נבנתה כדי לא לאבד הודעות, ומה שקרה בפועל הוא שלוש הודעות זהות
+ * ("X נוסף לאימון") שמכסות שליש מהמסך אחרי שלוש הוספות ברצף — בדיוק התרחיש
+ * הנפוץ. החדש דורס את הקודם: זה מה שהמשתמש הסתכל עליו ממילא.
+ */
+const MAX_VISIBLE = 1
 
 let items: readonly ToastItem[] = []
 const listeners = new Set<() => void>()
@@ -79,11 +94,10 @@ export function toast(message: string, opts: ToastOptions = {}): void {
   for (const dropped of all.slice(0, all.length - visible.length)) clearTimer(dropped.id)
   publish(visible)
 
-  // טוסט עם פעולה נשאר עד שנוגעים בו — "בטל" שנעלם אחרי ארבע שניות הוא בדיחה
-  if (item.actionLabel === undefined) {
-    const ms = opts.durationMs ?? DEFAULT_DURATION_MS
-    timers.set(item.id, window.setTimeout(() => dismiss(item.id), ms))
-  }
+  const ms =
+    opts.durationMs ??
+    (item.actionLabel === undefined ? DEFAULT_DURATION_MS : ACTION_DURATION_MS)
+  timers.set(item.id, window.setTimeout(() => dismiss(item.id), ms))
 }
 
 const TONES: Record<ToastTone, string> = {
