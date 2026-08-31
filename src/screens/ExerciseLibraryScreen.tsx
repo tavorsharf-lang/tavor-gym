@@ -16,9 +16,17 @@ import {
 } from '@/db/catalog'
 import type { CatalogEntry, PlanUsage } from '@/db/catalog'
 import { getLastPerformedMap } from '@/db/queries'
-import type { Exercise, MuscleGroup } from '@/db/types'
+import type { Equipment, Exercise, MuscleGroup } from '@/db/types'
 import { EQUIPMENT_LABELS, MUSCLE_GROUPS, MUSCLE_GROUP_BY_SIZE } from '@/db/types'
 import { formatSetShort } from '@/domain/units'
+import {
+  equipmentHidden,
+  matchesEquipment,
+  pctOfSub,
+  sortedBy,
+  touchesSub,
+} from '@/domain/exerciseSort'
+import type { SortState } from '@/domain/exerciseSort'
 import { distinguisher, duplicateNames } from '@/domain/naming'
 import { formatRelativeDay } from '@/lib/dates'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
@@ -27,6 +35,7 @@ import { ExerciseThumb } from '@/components/media/ExerciseThumb'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { RemoveExerciseSheet } from '@/components/exercises/RemoveExerciseSheet'
 import { SubTargetHeading } from '@/components/exercises/SubTargetHeading'
+import { ListSortBar, SubScopeToggle } from '@/components/exercises/ListSortBar'
 import { GroupCardButton } from '@/components/exercises/GroupCardButton'
 import {
   MuscleFilterChips,
@@ -83,6 +92,13 @@ export function ExerciseLibraryScreen({
   const [gallery, setGallery] = useState<CatalogEntry | null>(null)
   /** הסינון בשורת הצ׳יפים: קבוצת שריר, ובתוכה תת-שריר. שניהם null = הכל. */
   const [filter, setFilter] = useState<MuscleFilter>(NO_MUSCLE_FILTER)
+  /*
+    מיון וסינון. ‏`default` הוא הסדר שהמסך הזה תמיד היה בו — סדר התוכנית
+    ב"שלי", אלפביתי ב"הכל" — ולכן הפתיחה זהה למה שהייתה, והמיונים הם תוספת.
+  */
+  const [sort, setSort] = useState<SortState>({ key: 'default', desc: true })
+  const [equipment, setEquipment] = useState<ReadonlySet<Equipment>>(new Set())
+  const [scope, setScope] = useState<'primary' | 'touching'>('primary')
   /** השורה שנלחצה לחיצה ארוכה — גיליון התיקון נפתח עליה */
   const [fixing, setFixing] = useState<CatalogEntry | null>(null)
 
@@ -132,6 +148,12 @@ export function ExerciseLibraryScreen({
   // מחושב על כל הקטלוג ולא על תוצאות החיפוש — תרגיל לא משנה זהות לפי מה שהוקלד
   const duplicates = useMemo(() => duplicateNames(catalogExercises), [catalogExercises])
 
+  /** מתי בוצע לאחרונה, לפי מזהה — מה שהמיון "לאחרונה" קורא */
+  const lastAt = useMemo(
+    () => new Map([...lastPerformed].map(([id, l]) => [id, l.at as number])),
+    [lastPerformed]
+  )
+
   const matches = (entry: CatalogEntry, q: string, group: MuscleGroup): boolean =>
     !q ||
     normalize(entry.name).includes(q) ||
@@ -150,6 +172,12 @@ export function ExerciseLibraryScreen({
     for (const entry of source) {
       const group = groupOf(entry, fixes)
       if (!matches(entry, q, group)) continue
+      /*
+        סינון הציוד כאן ולא בשלב הציור: `filterOptions` נספר מהתוצאה, ו-
+        `resolveMuscleFilter` מכריע לפיה. סינון מאוחר יותר היה משאיר צ׳יפ
+        שמבטיח שבעה תרגילים ומוביל למקטע עם שניים.
+      */
+      if (!matchesEquipment(entry, equipment)) continue
       const list = byGroup.get(group)
       if (list) list.push(entry)
       else byGroup.set(group, [entry])
@@ -165,7 +193,7 @@ export function ExerciseLibraryScreen({
       list: (byGroup.get(group) ?? []).sort(mode === 'mine' ? compareEntries : compareByName),
     }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, mine, mode, q, fixes])
+  }, [entries, mine, mode, q, fixes, equipment])
 
   /*
     חלוקה לתת-קטגוריות לפי כרטיס השרירים.
@@ -188,12 +216,27 @@ export function ExerciseLibraryScreen({
           else bySub.set(sub, [entry])
         }
         // הגדולה קודם, ו"אחר" תמיד אחרונה — היא שארית ולא קטגוריה
+        const order = new Map(list.map((entry, i) => [entry.id, i]))
+        const byListOrder = (a: CatalogEntry, b: CatalogEntry): number =>
+          (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)
         const subs = [...bySub.entries()]
           .sort((a, b) => (a[0] === OTHER ? 1 : b[0] === OTHER ? -1 : b[1].length - a[1].length))
-          .map(([sub, items]) => ({ sub, items }))
+          .map(([sub, items]) => ({
+            sub,
+            /*
+              כל מקטע ממוין מול השריר שלו: תחת "חזה עליון" האחוז נמדד על חזה
+              עליון, ושורה למטה תחת "חזה אמצעי" הוא נמדד על חזה אמצעי. מיון
+              גלובלי אחד היה נותן מספר שאין לו מקום בכותרת שמעליו.
+            */
+            items: sortedBy(items, sort, {
+              sub: sub === OTHER ? null : sub,
+              lastAt,
+              fallback: byListOrder,
+            }),
+          }))
         return { group, list, subs }
       }),
-    [groups, fixes]
+    [groups, fixes, sort, lastAt]
   )
 
   /*
@@ -226,6 +269,49 @@ export function ExerciseLibraryScreen({
         }))
         .filter((x) => x.subs.length > 0),
     [sectioned, active]
+  )
+
+  /*
+    האפשרות השנייה — "כל מי שנוגע".
+
+    הרשימה למעלה מקבצת תרגיל תחת השריר החזק שלו בלבד, ולכן סקוואט חי תחת
+    "עכוז גדול" וה-45% שלו על ארבע-ראשי אינם מופיעים בשום מקום שמישהו יחפש
+    בו. כאן נופלים גם הקיבוץ וגם גבול קבוצת השריר: מה שנשאר הוא כל מי
+    שהכרטיס שלו מזכיר את השריר, מסודר לפי כמה.
+
+    נבנה גם כשהמתג כבוי, כי המספר עליו הוא מה שמזמין ללחוץ.
+  */
+  const touching = useMemo(() => {
+    if (!active.sub) return []
+    const source = mode === 'mine' ? mine : entries
+    const pool = source.filter(
+      (entry) =>
+        matches(entry, q, groupOf(entry, fixes)) &&
+        matchesEquipment(entry, equipment) &&
+        touchesSub(entry, active.sub as string)
+    )
+    // ‏"רגיל" הוא סדר של רשימה מקובצת; לרשימה הזו הוא לא אומר כלום
+    const effective = sort.key === 'default' ? ({ key: 'pct', desc: true } as const) : sort
+    return sortedBy(pool, effective, { sub: active.sub, lastAt })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, mine, mode, q, fixes, equipment, active.sub, sort, lastAt])
+
+  const wide = scope === 'touching' && active.sub !== null
+
+  /*
+    כמה שורות מאגר נפלו רק מפני שאין להן סיווג ציוד.
+
+    נספר על התוצאה שאחרי החיפוש ולא על הרשימה המלאה: אחרת חיפוש שמצא שתי
+    שורות היה נושא הודעה על שבע-עשרה שנפלו במקום אחר במסך.
+  */
+  const noEquipment = useMemo(
+    () =>
+      equipmentHidden(
+        (mode === 'mine' ? mine : entries).filter((e) => matches(e, q, groupOf(e, fixes))),
+        equipment
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [entries, mine, mode, q, fixes, equipment]
   )
 
   const total = groups.reduce((n, g) => n + g.list.length, 0)
@@ -409,6 +495,27 @@ export function ExerciseLibraryScreen({
       {/* סינון לפי שריר — קבוצות, ובתוך קבוצה תת-השרירים שלה */}
       <MuscleFilterChips options={filterOptions} value={active} onChange={setFilter} />
 
+      <ListSortBar
+        sort={sort}
+        onSort={setSort}
+        equipment={equipment}
+        onEquipment={setEquipment}
+        hiddenNoEquipment={noEquipment}
+      />
+
+      {active.sub ? (
+        <SubScopeToggle
+          sub={active.sub}
+          scope={scope}
+          onScope={setScope}
+          primaryCount={visible.reduce(
+            (n, g) => n + g.subs.reduce((m, x) => m + x.items.length, 0),
+            0
+          )}
+          touchingCount={touching.length}
+        />
+      ) : null}
+
       {total === 0 ? (
         <EmptyStateFor
           mode={mode}
@@ -417,6 +524,46 @@ export function ExerciseLibraryScreen({
           onGoAll={() => switchMode('all')}
           onCreate={() => void handleCreate()}
         />
+      ) : wide ? (
+        /*
+          התצוגה הרחבה: רשימה אחת, בלי קבוצות ובלי כותרות. כל שורה כאן עונה
+          על אותה שאלה, וההבדל ביניהן הוא המספר בקצה.
+        */
+        <div className="animate-rise">
+          <p className="meta mb-2 px-1">
+            כל התרגילים שהכרטיס שלהם מזכיר {active.sub} — לפי כמה
+          </p>
+          {touching.length === 0 ? (
+            <p className="card px-4 py-5 text-center text-sm font-semibold text-bone-400">
+              אין תרגיל שנוגע ב{active.sub} במה שמוצג כרגע.
+            </p>
+          ) : (
+            <div className="card divide-y divide-ink-800/70 overflow-hidden">
+              {touching.map((entry) => (
+                <Row
+                  key={entry.id}
+                  entry={entry}
+                  group={groupOf(entry, fixes)}
+                  sub={active.sub}
+                  pct={pctOfSub(entry, active.sub as string)}
+                  mode={mode}
+                  duplicates={duplicates}
+                  lastPerformed={lastPerformed}
+                  busy={busy.has(entry.id)}
+                  onOpen={() =>
+                    entry.exercise
+                      ? navigate(`/exercise/${entry.exercise.id}`)
+                      : navigate(`/library/${entry.id}`)
+                  }
+                  onPlay={() => setGallery(entry)}
+                  onAdd={() => handleAdd(entry)}
+                  onRemove={() => handleRemoveTap(entry)}
+                  onFix={() => setFixing(entry)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       ) : (
         <div className="space-y-7">
           {visible.map(({ group, subs }) => (
@@ -463,6 +610,8 @@ export function ExerciseLibraryScreen({
                     entry={entry}
                     group={group}
                     sub={sub === OTHER ? null : sub}
+                    /* המספר מופיע רק כשהוא זה שקובע את הסדר */
+                    pct={sort.key === 'pct' && sub !== OTHER ? pctOfSub(entry, sub) : undefined}
                     mode={mode}
                     duplicates={duplicates}
                     lastPerformed={lastPerformed}
@@ -558,6 +707,7 @@ function Row({
   entry,
   group,
   sub,
+  pct,
   mode,
   duplicates,
   lastPerformed,
@@ -572,6 +722,14 @@ function Row({
   group: MuscleGroup
   /** ראש השריר שהשורה יושבת תחתיו כרגע. null = "אחר", בלי כרטיס. */
   sub: string | null
+  /**
+   * האחוז על השריר שהרשימה ממוינת לפיו — שלושה מצבים.
+   *
+   * ‏`undefined` = הרשימה לא ממוינת לפי אחוז ואין עמודה; `null` = ממוינת,
+   * ולשורה הזו אין נתון על הכרטיס; מספר = האחוז. ההפרדה בין השניים האחרונים
+   * היא מה שמונע ממנה להיקרא כמו אפס.
+   */
+  pct?: number | null
   mode: ExercisesMode
   duplicates: ReadonlySet<string>
   lastPerformed: Map<string, { weightKg: number; reps: number; at: number; sets: number }>
@@ -658,7 +816,17 @@ function Row({
         </span>
 
         <span className="shrink-0 text-end">
-          {ex ? (
+          {/*
+            כשהרשימה ממוינת לפי אחוז, המספר שקובע את הסדר הוא זה שצריך להיות
+            בקצה השורה — משקל אחרון מתחתיו, קטן, כי הוא כבר לא השאלה.
+          */}
+          {pct !== undefined ? (
+            pct === null ? (
+              <span className="meta">אין נתון</span>
+            ) : (
+              <span className="tnum block text-sm font-extrabold text-flame-400">{pct}%</span>
+            )
+          ) : ex ? (
             last ? (
               <>
                 <span dir="ltr" className="tnum block text-sm font-extrabold text-bone-200">
@@ -669,6 +837,9 @@ function Row({
             ) : (
               <span className="meta">עוד לא בוצע</span>
             )
+          ) : null}
+          {pct !== undefined && ex && last ? (
+            <span className="meta mt-0.5 block">{formatRelativeDay(last.at)}</span>
           ) : null}
         </span>
 

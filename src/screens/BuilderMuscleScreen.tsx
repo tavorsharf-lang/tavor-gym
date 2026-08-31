@@ -6,9 +6,17 @@ import { Check, EyeOff, MoreVertical, Plus, Search, X } from 'lucide-react'
 import { getCatalogEntries, isMine } from '@/db/catalog'
 import type { CatalogEntry } from '@/db/catalog'
 import { getLastPerformedMap } from '@/db/queries'
-import type { Exercise, MuscleGroup } from '@/db/types'
+import type { Equipment, Exercise, MuscleGroup } from '@/db/types'
 import { EQUIPMENT_LABELS, MUSCLE_GROUPS, MUSCLE_GROUP_BY_SIZE } from '@/db/types'
 import { distinguisher, duplicateNames } from '@/domain/naming'
+import {
+  equipmentHidden,
+  matchesEquipment,
+  pctOfSub,
+  sortedBy,
+  touchesSub,
+} from '@/domain/exerciseSort'
+import type { SortState } from '@/domain/exerciseSort'
 import { LAYOFF_DAYS } from '@/domain/recommendation'
 import { formatSetShort } from '@/domain/units'
 import { daysSince, formatRelativeDay } from '@/lib/dates'
@@ -20,6 +28,7 @@ import { EmptyState, IconButton, toast } from '@/components/ui'
 import { ExerciseThumb } from '@/components/media/ExerciseThumb'
 import { GroupCardButton } from '@/components/exercises/GroupCardButton'
 import { SubTargetHeading } from '@/components/exercises/SubTargetHeading'
+import { ListSortBar, SubScopeToggle } from '@/components/exercises/ListSortBar'
 import {
   MuscleFilterChips,
   NO_MUSCLE_FILTER,
@@ -73,6 +82,19 @@ export function BuilderMuscleScreen(): JSX.Element {
   */
   const [filter, setFilter] = useState<MuscleFilter>(NO_MUSCLE_FILTER)
   /*
+    מיון וסינון. ברירת המחדל היא `default`, כלומר בדיוק הסדר שהמסך הזה נבנה
+    עליו — "הכי מזמן שלא עשית" — ולכן פתיחת המסך נראית כמו שהיא נראתה תמיד.
+    שאר המיונים הם מה שנוסף, לא מה שהחליף.
+  */
+  const [sort, setSort] = useState<SortState>({ key: 'default', desc: true })
+  const [equipment, setEquipment] = useState<ReadonlySet<Equipment>>(new Set())
+  /*
+    ‏`touching` פורש את הרשימה לכל מי שהכרטיס שלו מזכיר את תת-השריר, גם מחוץ
+    לקבוצה שנכנסנו אליה: "כתף אחורית" מקבלת גם חתירות שיושבות תחת גב. זו
+    היציאה היחידה מהקבוצה במסך הזה, והיא תמיד מפורשת ובלחיצה.
+  */
+  const [scope, setScope] = useState<'primary' | 'touching'>('primary')
+  /*
     נגן אחד לכל המסך, לא אחד לשורה: VideoPlayer מריץ שני מנויים גם כשהוא
     סגור, ורשימת שריר יכולה להגיע לתריסר שורות. אותו דפוס כמו מסך התרגילים.
   */
@@ -100,11 +122,16 @@ export function BuilderMuscleScreen(): JSX.Element {
   )
   const duplicates = useMemo(() => duplicateNames(catalogExercises), [catalogExercises])
 
-  const { list, hiddenList, otherModeHits } = useMemo(() => {
-    if (!group) return { list: [], hiddenList: [], otherModeHits: 0 }
+  const { list, hiddenList, otherModeHits, noEquipment } = useMemo(() => {
+    if (!group) return { list: [], hiddenList: [], otherModeHits: 0, noEquipment: 0 }
     const q = normalize(query)
     const lastAt = new Map([...lastPerformed].map(([id, l]) => [id, l.at]))
-    const inGroup = entries
+    /*
+      סינון הציוד חל **לפני** החלוקה לתת-שרירים ולפני `filterOptions`, ולא
+      אחריהם: הוא מצמצם את הרשימה בדיוק כמו החיפוש, וצ׳יפ שנספר על רשימה
+      רחבה יותר ממה שבאמת מוצג היה מבטיח מספר שאין לו כיסוי.
+    */
+    const found = entries
       .filter((e) => groupOf(e, fixes) === group)
       .filter(
         (e) =>
@@ -113,6 +140,8 @@ export function BuilderMuscleScreen(): JSX.Element {
           normalize(e.nameEn ?? '').includes(q) ||
           normalize(e.exercise?.subTarget ?? '').includes(q)
       )
+    const inGroup = found
+      .filter((e) => matchesEquipment(e, equipment))
       .sort(
         (a, b) =>
           stalenessOf(a, lastAt) - stalenessOf(b, lastAt) || a.name.localeCompare(b.name, 'he')
@@ -123,7 +152,7 @@ export function BuilderMuscleScreen(): JSX.Element {
       ההפך היה מבליח שורות מוסתרות ומעלים אותן פריים אחר-כך, בדיוק הקפיצה
       ש-useScrollMemory נלחם בה. בפועל App.tsx מחמם את הרשימה ב-boot.
     */
-    if (hidden === null) return { list: [], hiddenList: [], otherModeHits: 0 }
+    if (hidden === null) return { list: [], hiddenList: [], otherModeHits: 0, noEquipment: 0 }
     /*
       מקטע "מוסתרים" נגזר מ-`inGroup` ולא מ-`matches` — כלומר הוא **לא** מסונן
       לפי המתג.
@@ -140,16 +169,34 @@ export function BuilderMuscleScreen(): JSX.Element {
       hiddenList: inGroup.filter((e) => isEntryHidden(e, hidden)),
       // מה שבאמת יופיע בצד השני — אחרי ההסתרה, אחרת ההצעה מבטיחה שורות שאין
       otherModeHits: shownIn(mode === 'mine' ? 'all' : 'mine').length,
+      // שורות שנפלו רק מפני שאין להן סיווג ציוד — נאמרות ולא נעלמות
+      noEquipment: equipmentHidden(found, equipment),
     }
-  }, [entries, group, lastPerformed, query, hidden, mode, fixes])
+  }, [entries, group, lastPerformed, query, hidden, mode, fixes, equipment])
+
+  /** מיפוי הזמן האחרון לפי מזהה — המיון לפי "לאחרונה" קורא אותו, לא את המשקל */
+  const lastAt = useMemo(
+    () => new Map([...lastPerformed].map(([id, l]) => [id, l.at as number])),
+    [lastPerformed]
+  )
 
   /*
-    חלוקה לתת-קטגוריות. הסדר נשמר: `list` כבר ממוין לפי "הכי מזמן שלא עשית",
-    והחלוקה רק אוספת אותו לדליים בלי למיין מחדש בתוכם — אחרת התרגיל שהכי
-    צריך תשומת לב היה יורד באמצע הרשימה.
+    חלוקה לתת-קטגוריות, וכל מקטע ממוין בפני עצמו.
+
+    זו האפשרות הראשונה מהשתיים: הכותרות נשארות, ובתוך "ארבע-ראשי" הסדר הוא
+    לפי האחוז על ארבע-ראשי דווקא. לכן העוגן של המיון הוא ה-sub של המקטע ולא
+    בחירה גלובלית — אותה רשימה עונה על ארבע שאלות שונות בו-זמנית, כל אחת
+    בכותרת שלה.
+
+    ‏`default` שומר על סדר `list`, שכבר ממוין לפי "הכי מזמן שלא עשית": העברה
+    של הסדר הזה כמשווה אינדקסים היא מה שמונע ממנו להתפרק בחלוקה לדליים.
   */
   const sections = useMemo(() => {
     if (!group) return []
+    const order = new Map(list.map((entry, i) => [entry.id, i]))
+    const byListOrder = (a: CatalogEntry, b: CatalogEntry): number =>
+      (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)
+
     const bySub = new Map<string, typeof list>()
     for (const entry of list) {
       const sub = subOf(entry, group, fixes) ?? 'אחר'
@@ -159,8 +206,15 @@ export function BuilderMuscleScreen(): JSX.Element {
     }
     return [...bySub.entries()]
       .sort((a, b) => (a[0] === 'אחר' ? 1 : b[0] === 'אחר' ? -1 : b[1].length - a[1].length))
-      .map(([sub, items]) => ({ sub, items }))
-  }, [list, group, fixes])
+      .map(([sub, items]) => ({
+        sub,
+        items: sortedBy(items, sort, {
+          sub: sub === 'אחר' ? null : sub,
+          lastAt,
+          fallback: byListOrder,
+        }),
+      }))
+  }, [list, group, fixes, sort, lastAt])
 
   const filterOptions = useMemo(
     () =>
@@ -192,6 +246,41 @@ export function BuilderMuscleScreen(): JSX.Element {
     () => (active.sub ? sections.filter((x) => x.sub === active.sub) : sections),
     [sections, active.sub]
   )
+
+  /*
+    האפשרות השנייה: כל מי שנוגע בתת-השריר, גם אם הוא לא הראש שלו וגם אם הוא
+    יושב בקבוצה אחרת. "כתף אחורית" מחזירה כאן גם את החתירות שמסווגות תחת גב,
+    ו-45% ארבע-ראשי של הסקוואט מפסיקים להיות מוסתרים תחת הכותרת "עכוז גדול".
+
+    נבנה תמיד ולא רק כשהמתג דלוק, כי המספר על המתג הוא חלק מהשאלה — "יש עוד
+    שבעה שנוגעים" הוא מה שמזמין ללחוץ. החישוב הוא סריקה של תשעים שורות מול
+    מפה בזיכרון.
+  */
+  const touching = useMemo(() => {
+    if (!active.sub || hidden === null) return []
+    const q = normalize(query)
+    const pool = entries
+      .filter(
+        (e) =>
+          !q ||
+          normalize(e.name).includes(q) ||
+          normalize(e.nameEn ?? '').includes(q) ||
+          normalize(e.exercise?.subTarget ?? '').includes(q)
+      )
+      .filter((e) => matchesEquipment(e, equipment))
+      .filter((e) => (mode === 'mine' ? isMine(e) : true))
+      .filter((e) => !isEntryHidden(e, hidden))
+      .filter((e) => touchesSub(e, active.sub as string))
+    /*
+      ‏`default` הוא סדר של מסך קבוצה, ולרשימה חוצת-קבוצות אין אותו. הכניסה
+      למתג היא בדיוק השאלה "מי הכי מעמיס", ולכן היא נופלת לאחוז.
+    */
+    const effective = sort.key === 'default' ? ({ key: 'pct', desc: true } as const) : sort
+    return sortedBy(pool, effective, { sub: active.sub, lastAt })
+  }, [entries, active.sub, hidden, query, equipment, mode, sort, lastAt])
+
+  /* מתג שנשאר דלוק אחרי שהסינון התרוקן היה מציג רשימה ריקה בלי הסבר */
+  const wide = scope === 'touching' && active.sub !== null
 
   if (!group) return <Navigate to="/builder" replace />
 
@@ -269,6 +358,31 @@ export function BuilderMuscleScreen(): JSX.Element {
         <MuscleFilterChips options={filterOptions} value={active} onChange={setFilter} fixed />
       ) : null}
 
+      {/*
+        שורת המיון **לא** מותנית ברשימה, בניגוד לצ׳יפים.
+
+        הצ׳יפים מרפאים את עצמם — `resolveMuscleFilter` מוותר על בחירה שהתרוקנה
+        — אבל סינון ציוד לא. סינון שמרוקן את הרשימה לגמרי היה מעלים יחד איתה
+        את הכפתור היחיד שמבטל אותו, והמסך היה נתקע ריק עד שיוצאים ממנו.
+      */}
+      <ListSortBar
+        sort={sort}
+        onSort={setSort}
+        equipment={equipment}
+        onEquipment={setEquipment}
+        hiddenNoEquipment={noEquipment}
+      />
+
+      {active.sub ? (
+        <SubScopeToggle
+          sub={active.sub}
+          scope={scope}
+          onScope={setScope}
+          primaryCount={visible.reduce((n, x) => n + x.items.length, 0)}
+          touchingCount={touching.length}
+        />
+      ) : null}
+
       {list.length === 0 ? (
         <EmptyState
           title={mode === 'mine' ? 'לא נמצא בתרגילים שלך' : 'לא נמצא תרגיל'}
@@ -293,6 +407,47 @@ export function BuilderMuscleScreen(): JSX.Element {
             ) : undefined
           }
         />
+      ) : wide ? (
+        /*
+          התצוגה הרחבה: רשימה שטוחה, בלי כותרות תת-שריר. הקיבוץ הוא בדיוק מה
+          שהמתג ביטל — כל השורות כאן עונות על אותה שאלה אחת, וההבדל ביניהן הוא
+          המספר.
+        */
+        <div>
+          <p className="meta mb-2 px-1">
+            כל התרגילים שהכרטיס שלהם מזכיר {active.sub} — כולל מקבוצות אחרות
+          </p>
+          {touching.length === 0 ? (
+            <p className="card px-4 py-5 text-center text-sm font-semibold text-bone-400">
+              אין תרגיל שנוגע ב{active.sub} במה שמוצג כרגע.
+            </p>
+          ) : (
+            <ul className="card divide-y divide-ink-800/70 overflow-hidden">
+              {touching.map((entry) => (
+                <li key={entry.id}>
+                  <ExerciseRow
+                    entry={entry}
+                    duplicates={duplicates}
+                    last={entry.exercise ? lastPerformed.get(entry.exercise.id) : undefined}
+                    now={now}
+                    pct={pctOfSub(entry, active.sub as string)}
+                    picked={selected.has(entry.id)}
+                    onToggle={() =>
+                      toggle({
+                        id: entry.id,
+                        name: entry.name,
+                        muscleGroup: entry.muscleGroup,
+                        needsCatalogEntry: entry.exercise === null,
+                      })
+                    }
+                    onPlay={() => setPlaying(entry)}
+                    onEdit={() => setEditing(entry)}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       ) : (
         <div className="space-y-3">
           {visible.map(({ sub, items }) => (
@@ -311,6 +466,8 @@ export function BuilderMuscleScreen(): JSX.Element {
                 duplicates={duplicates}
                 last={entry.exercise ? lastPerformed.get(entry.exercise.id) : undefined}
                 now={now}
+                /* המספר מופיע רק כשהוא מה שקובע את הסדר — אחרת הוא רעש */
+                pct={sort.key === 'pct' && sub !== 'אחר' ? pctOfSub(entry, sub) : undefined}
                 picked={selected.has(entry.id)}
                 onToggle={() =>
                   toggle({
@@ -414,6 +571,7 @@ function ExerciseRow({
   duplicates,
   last,
   now,
+  pct,
   picked,
   onToggle,
   onPlay,
@@ -423,6 +581,15 @@ function ExerciseRow({
   duplicates: ReadonlySet<string>
   last: { weightKg: number; reps: number; at: number; sets: number } | undefined
   now: number
+  /**
+   * כמה השורה עובדת על השריר שהרשימה ממוינת לפיו.
+   *
+   * שלושה מצבים ולא שניים, וזו ההבחנה שהמסך חי ממנה: `undefined` = הרשימה לא
+   * ממוינת לפי אחוז ואין עמודה בכלל; `null` = ממוינת, ולשורה הזו אין נתון על
+   * הכרטיס; מספר = האחוז עצמו. שורה בלי מספר בתוך רשימה של אחוזים נקראת כמו
+   * אפס, ולכן היא אומרת "אין נתון" במפורש.
+   */
+  pct?: number | null
   picked: boolean
   onToggle: () => void
   onPlay: () => void
@@ -431,6 +598,7 @@ function ExerciseRow({
   const ex = entry.exercise
   const apart = ex ? distinguisher(ex, duplicates) : null
   const layoff = last !== undefined && daysSince(last.at, now) >= LAYOFF_DAYS
+  const showPct = pct !== undefined
 
   return (
     <div className={['flex items-center', picked ? 'bg-flame-500/10' : ''].join(' ')}>
@@ -475,6 +643,16 @@ function ExerciseRow({
           </span>
         </span>
       </span>
+
+      {showPct ? (
+        <span className="shrink-0 text-end">
+          {pct === null ? (
+            <span className="meta">אין נתון</span>
+          ) : (
+            <span className="tnum text-sm font-extrabold text-flame-400">{pct}%</span>
+          )}
+        </span>
+      ) : null}
 
       <span className="shrink-0 text-end">
         {ex ? (
