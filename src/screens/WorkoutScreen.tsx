@@ -11,11 +11,13 @@ import { Screen } from '@/components/shell/ScreenHeader'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { openItems, skippedItems, useWorkout } from '@/state/activeWorkoutStore'
 import { detachFromPlans, findPlanUsage } from '@/db/catalog'
+import { imageIdOf, primaryImageFor } from '@/db/exerciseImages'
+import { loadMapFor } from '@/db/loadMap'
 import type { PlanUsage } from '@/db/catalog'
 import { shouldSuggestRemoval } from '@/domain/skipStreak'
 import { SkipStreakSheet } from '@/components/workout/SkipStreakSheet'
 import { prHeadline } from '@/domain/prs'
-import { formatSetShort } from '@/domain/units'
+import { formatRepRange, formatSetShort, formatWeight } from '@/domain/units'
 import { distinguisher, duplicateNames } from '@/domain/naming'
 import type { ExerciseSessionSummary } from '@/domain/recommendation'
 import { useAudioCue } from '@/hooks/useAudioCue'
@@ -24,6 +26,7 @@ import { ElapsedClock } from '@/components/workout/ElapsedClock'
 import { ExerciseCard } from '@/components/workout/ExerciseCard'
 import { QueueRow } from '@/components/workout/QueueRow'
 import { RestOverlay } from '@/components/workout/RestOverlay'
+import type { RestFocus } from '@/components/workout/RestOverlay'
 import { RatingSheet } from '@/components/workout/RatingSheet'
 import { SubstituteSheet } from '@/components/workout/SubstituteSheet'
 import { QueueSheet } from '@/components/workout/QueueSheet'
@@ -304,15 +307,64 @@ export function WorkoutScreen(): JSX.Element | null {
   const done = workout.queue.filter((q) => q.status === 'done' || q.status === 'skipped').length
   const progress = total > 0 ? (done / total) * 100 : 0
 
+  /*
+    מה שמסך המנוחה מציג. הכל נגזר כאן ולא בתוך השכבה: התור, הסטים והתרגילים
+    כבר יושבים במסך הזה, וחישוב שני שלהם בשכבה היה מקור שני לאותה אמת בדיוק
+    בזמן שהמספרים על שני המסכים חייבים להסכים.
+  */
   const restItem = workout.queue.find((q) => q.key === workout.restForKey) ?? null
   const restExercise = restItem ? exercisesById[restItem.exerciseId] : undefined
-  let restLabel: string | undefined
+  let restFocus: RestFocus | null = null
   if (restItem && restExercise) {
-    const workDone = (workout.setsByKey[restItem.key] ?? []).filter((s) => s.type === 'work').length
-    restLabel =
-      workDone < restItem.targetSets
-        ? `הסט הבא: ${workDone + 1} מתוך ${restItem.targetSets} · ${restExercise.name}`
-        : `סיימת את ${restExercise.name}`
+    const restSets = workout.setsByKey[restItem.key] ?? []
+    const lastSet = restSets[restSets.length - 1] ?? null
+    const image = primaryImageFor(restExercise.id, restExercise.libraryId)
+    /*
+      התרגיל הבא בתור — הראשון אחרי זה שנחים ממנו שעוד לא נסגר. פריט שדולג
+      או שהסתיים אינו "הבא", גם כשהוא יושב בשורה שמתחת.
+    */
+    const restIndex = workout.queue.findIndex((q) => q.key === restItem.key)
+    const nextItem =
+      workout.queue
+        .slice(restIndex + 1)
+        .find((q) => q.status !== 'done' && q.status !== 'skipped') ?? null
+    const nextExercise = nextItem ? exercisesById[nextItem.exerciseId] : undefined
+
+    restFocus = {
+      name: restExercise.name,
+      image,
+      segments: restSets.map((s) => (s.type === 'warmup' ? 'warmup' : 'work')),
+      targetSets: restItem.targetSets,
+      doneWorkSets: restSets.filter((s) => s.type === 'work').length,
+      /*
+        המשקל הוא מה שהורם *בפועל* לפני רגע, ולא המלצה — המסך הזה מדווח ולא
+        מציע. אחרי סט חימום אין ממה לגזור את משקל העבודה, ולכן נשארת רק שורת
+        החזרות: חצי מהמשקל של הרמפה אינו תחזית לסט הבא.
+      */
+      nextSet: {
+        weight:
+          lastSet && lastSet.type === 'work'
+            ? formatWeight(lastSet.weightKg, restExercise.weightMode)
+            : null,
+        count: formatRepRange(restItem.targetReps, restExercise.metric),
+        countLabel: restExercise.metric === 'seconds' ? 'להחזיק' : 'חזרות',
+      },
+      /*
+        האחוזים מגיעים ישירות מ-`loadMapFor` ולא דרך `loadMapForImage`: השער
+        שם מחזיק את *שורות* מפת העומס בגלריה עד לאישור הצורה, וזו תצוגה אחרת
+        לגמרי — ארבע תמונות בשורה, לא רשימה — שתבור ביקש במפורש עם האחוזים.
+      */
+      shares: image ? loadMapFor(imageIdOf(image.src)) : [],
+      next:
+        nextItem && nextExercise
+          ? {
+              exerciseId: nextExercise.id,
+              libraryId: nextExercise.libraryId,
+              name: nextExercise.name,
+              targetSets: nextItem.targetSets,
+            }
+          : null,
+    }
   }
 
   return (
@@ -498,15 +550,16 @@ export function WorkoutScreen(): JSX.Element | null {
         totalSeconds={workout.restTotalSeconds}
         audio={audio}
         onAdjust={(delta) => void adjustRest(delta)}
-        onSkip={() => void stopRest()}
+        onStartSet={() => void stopRest()}
         onDisable={() => {
           void saveSettings({ restTimerEnabled: false })
           void stopRest()
           toast('טיימר המנוחה כבוי — מדליקים חזרה במתג שבראש מסך האימון')
         }}
-        nextLabel={restLabel}
+        focus={restFocus}
         startedAt={workout.startedAt}
         onAddExercise={() => setSheet('add')}
+        onFinishWorkout={() => setSheet('finish')}
       />
 
       {activeExercise && (

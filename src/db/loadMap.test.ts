@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadMapFor } from './loadMap'
+import { loadMapFor, shareLabels } from './loadMap'
 import { MUSCLE_BREAKDOWN } from './muscleBreakdown'
 import { NOT_A_SUBTARGET } from './subTargets'
 
@@ -47,6 +47,44 @@ describe('מפת העומס', () => {
       const pcts = loadMapFor(id).map((s) => s.pct)
       expect([...pcts].sort((a, b) => b - a), id).toEqual(pcts)
     }
+  })
+
+  /*
+    התוויות של שורת התמונות במסך המנוחה. שם הטקסונומיה הוא ברירת המחדל, ומה
+    שמודפס על הכרטיס נכנס רק כדי לשבור כפילות — אחרת הארכת ברך היא ארבעה
+    אריחים זהים שכתוב עליהם "ארבע-ראשי".
+  */
+  it('תווית חוזרת נופלת לשם שמודפס על הכרטיס, והשאר נשארים בשם שלנו', () => {
+    const quads = loadMapFor('seated_leg_extension').slice(0, 4)
+    expect(quads.map((s) => s.name)).toEqual([
+      'ארבע-ראשי',
+      'ארבע-ראשי',
+      'ארבע-ראשי',
+      'ארבע-ראשי',
+    ])
+    expect(shareLabels(quads)).toEqual([
+      'רקטוס פמוריס',
+      'וסטוס לאטרליס',
+      'וסטוס מדיאליס',
+      'וסטוס אינטרמדיאוס',
+    ])
+
+    // ובכרטיס בלי כפילות שום שם לא משתנה
+    const row = loadMapFor('seated_plate_loaded_machine_row').slice(0, 4)
+    expect(shareLabels(row)).toEqual(row.map((s) => s.name))
+  })
+
+  it('כפילות נשברת רק בין מה שמוצג בפועל', () => {
+    /*
+      מכונת הרגליים מפרקת את הארבע-ראשי לשלושה ראשים, והרביעי הוא העכוז.
+      חיתוך לשניים משאיר על המסך שתי שורות שעדיין חוזרות — ולכן שתיהן
+      מקבלות את השם שעל הכרטיס, והעכוז שנחתך אינו משפיע על אף אחת.
+    */
+    const two = loadMapFor('45_plate_loaded_leg_press').slice(0, 2)
+    expect(shareLabels(two)).toEqual(['ונדוס לטרליס', 'רקטוס פמוריס'])
+
+    const one = loadMapFor('45_plate_loaded_leg_press').slice(0, 1)
+    expect(shareLabels(one)).toEqual(['ארבע-ראשי'])
   })
 
   it('כרטיס שאינו במפה מחזיר רשימה ריקה ולא נופל', () => {
