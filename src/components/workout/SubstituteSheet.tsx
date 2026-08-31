@@ -24,6 +24,15 @@ interface SubstituteSheetProps {
   onClose: () => void
   exercise: Exercise
   onPick: (exerciseId: string, reason: 'occupied' | 'choice') => void
+  /**
+   * מזהי התרגילים שכבר בתור האימון. הם יוצאים מרשימת המועמדים.
+   *
+   * ההחלפה היא הדלת השלישית לאותה כפילות שהבורר כבר חוסם: החלפת התרגיל
+   * הנוכחי בתרגיל שממתין בתור הייתה נותנת שתי שורות לאותו תרגיל, והסטים
+   * היו מתפצלים ביניהן. כאן זה נסגר בכך שהאפשרות לא מוצעת מלכתחילה —
+   * ולא בהודעת שגיאה אחרי שכבר בחרו.
+   */
+  inWorkout?: ReadonlySet<string>
 }
 
 /** משווה טקסט עברי בלי רגישות לגרשיים טיפוגרפיים */
@@ -86,6 +95,7 @@ export function SubstituteSheet({
   onClose,
   exercise,
   onPick,
+  inWorkout,
 }: SubstituteSheetProps): JSX.Element {
   const [reason, setReason] = useState<'occupied' | 'choice'>('occupied')
   const [query, setQuery] = useState('')
@@ -117,16 +127,15 @@ export function SubstituteSheet({
 
   const { same, others } = useMemo(() => {
     const q = normalize(query)
+    const pool = inWorkout ? candidates.filter((e) => !inWorkout.has(e.id)) : candidates
     const filtered = q
-      ? candidates.filter(
-          (e) => normalize(e.name).includes(q) || normalize(e.nameEn ?? '').includes(q)
-        )
-      : candidates
+      ? pool.filter((e) => normalize(e.name).includes(q) || normalize(e.nameEn ?? '').includes(q))
+      : pool
     return {
       same: filtered.filter((e) => e.subTarget === exercise.subTarget),
       others: filtered.filter((e) => e.subTarget !== exercise.subTarget),
     }
-  }, [candidates, query, exercise.subTarget])
+  }, [candidates, query, exercise.subTarget, inWorkout])
 
   function choose(id: string): void {
     onPick(id, reason)

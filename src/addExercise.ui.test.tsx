@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { App } from './App'
@@ -100,6 +100,24 @@ describe('הוספת תרגיל תוך כדי אימון', () => {
 
     // והגיליון נשאר פתוח: חמש הוספות ברצף הן התרחיש, לא החריג
     expect(screen.getByRole('button', { name: 'הכל' })).toBeTruthy()
+
+    /*
+      והשורה שנוספה כבר לא לחיצה. אותו תרגיל פעמיים באותו אימון היה מפצל את
+      הסטים בין שתי שורות בתור, ואיתם את ספירת הסטים ואת קריאת השיאים.
+
+      מושבתת ולא מוסתרת: שורה שנעלמת מהרשימה נקראת כ"התרגיל איננו", ואז
+      מחפשים אותה שוב. הסימון "כבר באימון" הוא התשובה שבאו לחפש.
+    */
+    await waitFor(() => {
+      const row = screen
+        .getAllByText('מכרעים')
+        .map((el) => el.closest('li'))
+        .find((li): li is HTMLLIElement => li !== null)
+      expect(row).not.toBeUndefined()
+      expect(within(row!).getByText('כבר באימון')).toBeTruthy()
+      const button = within(row!).getByText('מכרעים').closest('button') as HTMLButtonElement
+      expect(button.disabled).toBe(true)
+    })
   }, 40000)
 
   it('מסך תרגילי השריר נפתח על "שלי", ו"הכל" חושף את המאגר', async () => {

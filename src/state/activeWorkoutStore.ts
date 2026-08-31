@@ -35,6 +35,15 @@ import { todayISO } from '@/lib/dates'
  *     נגיעה, וזה היה מרנדר מחדש את מסך האימון כל הזמן.
  */
 
+/**
+ * תוצאת הוספת תרגיל לתור.
+ *
+ * שלוש מילים ולא בוליאני, כי לקורא יש שלוש הודעות שונות להגיד: "נוסף",
+ * "כבר באימון" ו"לא הצלחתי". בוליאני היה מכריח את שתי האחרונות להיראות
+ * אותו דבר — כלומר סירוב מכוון היה מוצג כתקלה.
+ */
+export type AddExerciseOutcome = 'added' | 'duplicate' | 'failed'
+
 // ─── עזרים ─────────────────────────────────────────────────────────────────
 
 function itemFromPlan(
@@ -116,8 +125,13 @@ interface WorkoutState {
   skipItem: (key: string) => Promise<void>
   substitute: (key: string, newExerciseId: string, reason: Substitution['reason']) => Promise<void>
   reorder: (fromIndex: number, toIndex: number) => Promise<void>
-  /** מוסיף תרגיל לתור. false = התרגיל לא נמצא בקטלוג ושום דבר לא נוסף. */
-  addExercise: (exerciseId: string) => Promise<boolean>
+  /**
+   * מוסיף תרגיל לתור.
+   *
+   * ‏`duplicate` הוא סירוב ולא כישלון: התרגיל כבר באימון, ושום דבר לא נוסף.
+   * ‏`failed` = אין אימון פתוח או שהתרגיל לא בקטלוג.
+   */
+  addExercise: (exerciseId: string) => Promise<AddExerciseOutcome>
 
   // מנוחה
   startRest: (key: string, seconds: number) => Promise<void>
@@ -890,7 +904,21 @@ export const useWorkout = create<WorkoutState>((set, get) => {
 
         השער כאן ולא רק אחרי ה-await, כי הוא זול והוא סוגר גם את המקרה הפשוט.
       */
-      if (!get().workout) return false
+      if (!get().workout) return 'failed'
+
+      /*
+        אותו תרגיל פעמיים באותו אימון — לא.
+
+        עד כאן זו הייתה בקשה לגיטימית שהבורר אפילו סימן ב-✓ והשאיר לחיצה,
+        בנימוק של סופרסט וסבב שני. בפועל זה לא מה שקרה: התור קיבל שתי שורות
+        לאותו תרגיל, כל אחת עם היעדים שלה, והסטים התפצלו בין שתיהן — כלומר
+        גם "כמה סטים עשיתי היום על זה" וגם השיאים נקראו משני מקומות. שני
+        סבבים על אותו תרגיל הם סטים נוספים באותה שורה, וזו כבר יכולת קיימת.
+
+        ‏`startWithItems` מסנן כפילויות מהרשימה שהוא מקבל מאז ומתמיד; זה אותו
+        כלל בדיוק, רק בדלת השנייה.
+      */
+      if (get().workout!.queue.some((q) => q.exerciseId === exerciseId)) return 'duplicate'
 
       /*
         התצלום שבזיכרון קודם, והמסד כרשת מתחתיו.
@@ -902,7 +930,7 @@ export const useWorkout = create<WorkoutState>((set, get) => {
       let ex = get().exercisesById[exerciseId]
       if (!ex) {
         const stored = await db.exercises.get(exerciseId)
-        if (!stored) return false
+        if (!stored) return 'failed'
         ex = stored
         set({ exercisesById: { ...get().exercisesById, [stored.id]: stored } })
       }
@@ -922,8 +950,13 @@ export const useWorkout = create<WorkoutState>((set, get) => {
         warmupOffered: false,
       }
 
-      // והשער שוב, אחרי סבב המסד — זה החלון שבו האימון באמת יכול להיעלם
-      if (!get().workout) return false
+      /*
+        והשערים שוב, אחרי סבב המסד — זה החלון שבו האימון באמת יכול להיעלם,
+        וגם החלון שבו אותו תרגיל יכול להיכנס מדלת אחרת (פס הסל, טלפון שני).
+      */
+      const after = get().workout
+      if (!after) return 'failed'
+      if (after.queue.some((q) => q.exerciseId === exerciseId)) return 'duplicate'
 
       await mutate((w) => {
         const queue = [...w.queue, fresh]
@@ -941,7 +974,7 @@ export const useWorkout = create<WorkoutState>((set, get) => {
           currentKey: fresh.key,
         }
       })
-      return true
+      return 'added'
     },
 
     async startRest(key, seconds) {

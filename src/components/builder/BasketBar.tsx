@@ -145,15 +145,34 @@ export function BasketBar(): JSX.Element | null {
     void guard(async () => {
       const ids = await materialize(items)
       let added = 0
+      /*
+        תרגיל שכבר בתור אינו נוסף פעם שנייה, וגם אינו כישלון. הסל מותר לו
+        להכיל אותו — הוא נבחר במסך שלא יודע מה רץ כרגע — ולכן ההודעה מפרידה
+        בין השניים במקום להכריז "לא הצלחתי" על סירוב מכוון.
+      */
+      let already = 0
       for (const id of ids) {
-        if (await useWorkout.getState().addExercise(id)) added += 1
+        const outcome = await useWorkout.getState().addExercise(id)
+        if (outcome === 'added') added += 1
+        else if (outcome === 'duplicate') already += 1
       }
       if (added === 0) {
-        toast('לא הצלחתי להוסיף את התרגילים', { tone: 'warn' })
+        if (already === 0) {
+          toast('לא הצלחתי להוסיף את התרגילים', { tone: 'warn' })
+          return
+        }
+        finish(already === 1 ? 'התרגיל כבר באימון' : 'כל התרגילים כבר באימון', true)
         return
       }
+      const tail =
+        already === 0
+          ? ''
+          : already === 1
+            ? ' · אחד כבר היה שם'
+            : ` · ${countMasculine(already)} כבר היו שם`
       finish(
-        added === 1 ? 'התרגיל נוסף לאימון' : `${countMasculine(added)} תרגילים נוספו לאימון`,
+        (added === 1 ? 'התרגיל נוסף לאימון' : `${countMasculine(added)} תרגילים נוספו לאימון`) +
+          tail,
         true
       )
     })

@@ -87,8 +87,17 @@ export function AddExerciseSheet({
       return
     }
 
-    const added = await useWorkout.getState().addExercise(exercise.id)
-    if (!added) {
+    const outcome = await useWorkout.getState().addExercise(exercise.id)
+    /*
+      השורה כבר מושבתת בבורר, ולכן זו רשת ולא מסלול: הכפילות יכולה להיכנס
+      בחלון שבין הרינדור להוספה — פס הסל שהוסיף את אותו תרגיל, או שורת מאגר
+      שקיבלה כרטיס בדיוק עכשיו ולכן טרם סומנה ✓.
+    */
+    if (outcome === 'duplicate') {
+      toast(`${exercise.name} כבר באימון — אפשר להוסיף לו עוד סט`)
+      return
+    }
+    if (outcome === 'failed') {
       toast('לא הצלחתי להוסיף את התרגיל', { tone: 'warn' })
       return
     }

@@ -233,13 +233,36 @@ describe('הסל — מתרגיל בקטלוג המאוחד לאימון', () =>
     const { exercise } = await addFromLibrary(lib)
 
     const added = await useWorkout.getState().addExercise(exercise.id)
-    expect(added).toBe(true)
+    expect(added).toBe('added')
     expect(useWorkout.getState().workout?.queue.at(-1)?.exerciseId).toBe(exercise.id)
   })
 
   it('addExercise מדווח על כישלון במקום להוסיף בשקט כלום', async () => {
     await useWorkout.getState().start('F1', [])
-    expect(await useWorkout.getState().addExercise('אין-כזה')).toBe(false)
+    expect(await useWorkout.getState().addExercise('אין-כזה')).toBe('failed')
+  })
+
+  /*
+    אותו כלל ש-`startWithItems` מחיל על הרשימה שהוא מקבל, רק בדלת השנייה:
+    שני סבבים על אותו תרגיל הם עוד סטים באותה שורה, ולא שורה שנייה בתור
+    שמפצלת בין השתיים את הסטים, את הספירה ואת קריאת השיאים.
+  */
+  it('addExercise מסרב לתרגיל שכבר בתור, ומבדיל בין סירוב לכישלון', async () => {
+    await useWorkout.getState().startWithItems(['leg-press'])
+    const before = useWorkout.getState().workout!.queue.length
+
+    expect(await useWorkout.getState().addExercise('leg-press')).toBe('duplicate')
+    expect(useWorkout.getState().workout?.queue.length).toBe(before)
+  })
+
+  // גם תרגיל שכבר נסגר — הוא בתור, וסבב שני עליו הוא סט נוסף בשורה שלו
+  it('הסירוב חל גם על תרגיל שהושלם באימון', async () => {
+    await useWorkout.getState().startWithItems(['leg-press'])
+    const key = useWorkout.getState().workout!.currentKey!
+    await useWorkout.getState().logSet(key, 'work', 100, 10)
+    await useWorkout.getState().completeCurrent()
+
+    expect(await useWorkout.getState().addExercise('leg-press')).toBe('duplicate')
   })
 
   it('addExercise מפעיל את התרגיל כשהתור היה ריק', async () => {

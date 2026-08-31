@@ -107,6 +107,15 @@ export function WorkoutScreen(): JSX.Element | null {
 
   const activeItem = workout?.queue.find((q) => q.key === workout.currentKey) ?? null
   const activeExercise = activeItem ? (exercisesById[activeItem.exerciseId] ?? null) : null
+  /*
+    מה שכבר בתור. גיליון ההחלפה מוציא אותם מרשימת המועמדים — אחרת החלפה
+    בתרגיל שממתין בתור הייתה מייצרת שתי שורות לאותו תרגיל, בדיוק הכפילות
+    שהוספת תרגיל חוסמת.
+  */
+  const inWorkout = useMemo(
+    () => new Set((workout?.queue ?? []).map((q) => q.exerciseId)),
+    [workout?.queue]
+  )
   const activeExerciseId = activeItem?.exerciseId ?? null
 
   // ההיסטוריה נטענת רק לתרגיל הפעיל — היא לא משתנה תוך כדי אימון, ולכן
@@ -525,6 +534,7 @@ export function WorkoutScreen(): JSX.Element | null {
             open={sheet === 'substitute'}
             onClose={() => setSheet(null)}
             exercise={activeExercise}
+            inWorkout={inWorkout}
             onPick={(exerciseId, reason) => {
               if (activeItem) void substitute(activeItem.key, exerciseId, reason)
               setSheet(null)
