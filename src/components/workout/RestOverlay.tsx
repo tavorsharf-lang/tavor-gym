@@ -6,7 +6,6 @@ import type { AudioCue } from '@/hooks/useAudioCue'
 import { formatClock } from '@/domain/units'
 import { assetUrl } from '@/db/mediaDb'
 import type { ExerciseImage } from '@/db/imageManifest'
-import { shareLabels } from '@/db/loadMap'
 import type { LoadShare } from '@/db/loadMap'
 import type { MuscleCardImage } from '@/db/muscleImageManifest'
 import { MuscleCardSheet } from '@/components/exercises/MuscleCardSheet'
@@ -166,8 +165,6 @@ export function RestOverlay({
   // ארבעה שרירים ולא כולם: זו שורה אחת על מסך טלפון, והזנב של 5% ממילא
   // אינו מה שמסתכלים עליו בהפסקה
   const shares = focus ? focus.shares.slice(0, 4) : []
-  // התוויות נגזרות מהארבעה שמוצגים בפועל — ראו `shareLabels`
-  const labels = shareLabels(shares)
 
   const clockText = formatClock(timer.remainingSeconds)
 
@@ -383,17 +380,22 @@ export function RestOverlay({
                     {/* מאיפה המספרים. בלי זה הם נקראים כהערכה שלנו, והם תמלול. */}
                     <span className="meta">כפי שהם על הכרטיס</span>
                   </div>
-                  <ul className="grid grid-cols-4 gap-2">
+                  {/*
+                    שורה במרכז ולא רשת של ארבע עמודות: אחרי שהראשים מתאחדים
+                    לשם אחד יש תרגילים עם שני שרירים בלבד, ורשת קבועה הייתה
+                    דוחפת אותם לצד אחד ומשאירה חצי שורה ריקה.
+                  */}
+                  <ul className="flex flex-wrap justify-center gap-2">
                     {shares.map((share, i) => (
-                      <li key={share.en}>
+                      <li key={share.name} className="w-[calc((100%-1.5rem)/4)] min-w-20">
                         <button
                           type="button"
                           disabled={!share.card}
                           onClick={() => setCard(share.card)}
                           aria-label={
                             share.card
-                              ? `${labels[i]} ${share.pct} אחוז — איפה השריר הזה יושב`
-                              : `${labels[i]} ${share.pct} אחוז`
+                              ? `${share.name} ${share.pct} אחוז — איפה השריר הזה יושב`
+                              : `${share.name} ${share.pct} אחוז`
                           }
                           className="flex w-full flex-col items-center gap-1.5 rounded-card border border-ink-700 bg-ink-900/60 p-1.5 text-center transition-transform active:scale-95 disabled:active:scale-100"
                         >
@@ -411,9 +413,14 @@ export function RestOverlay({
                               aria-hidden="true"
                             />
                           )}
-                          {/* שתי שורות מותרות: "וסטוס אינטרמדיאוס" לא נכנס באחת */}
+                          {/*
+                            השם של האפליקציה בלבד — "ארבע-ראשי", לא "וסטוס
+                            מדיאליס". הכרטיס מדפיס 116 תוויות שונות לאותם
+                            שרירים, והמסך הזה מדבר באותה שפה שבה כתובים
+                            הסינון, כותרות הרשימה וכרטיס התרגיל.
+                          */}
                           <span className="w-full text-[0.6875rem] leading-tight font-bold text-balance text-bone-200">
-                            {labels[i]}
+                            {share.name}
                           </span>
                           <span
                             className={`tnum text-xs font-extrabold ${

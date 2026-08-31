@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadMapFor, shareLabels } from './loadMap'
+import { loadMapFor } from './loadMap'
 import { MUSCLE_BREAKDOWN } from './muscleBreakdown'
 import { NOT_A_SUBTARGET } from './subTargets'
 
@@ -26,7 +26,10 @@ describe('מפת העומס', () => {
       'טרפז אמצעי-תחתון',
       'כתף אחורית',
     ])
-    // ומה שמודפס על הכרטיס נשמר, כי התמונה עצמה נמצאת מעל השורה
+    /*
+      מה שמודפס על הכרטיס נשאר בשדה אבל לא מוצג בשום מקום — הוא קיים כדי
+      שאפשר יהיה לאתר מאיפה שורה הגיעה מול התמונה, וזה כל תפקידו.
+    */
     expect(map[0].printed).toBe('לטיסימוס דורסי')
     expect(map[0].en).toBe('Latissimus Dorsi')
     // השריר האחרון הוא כתף ולא גב — הכרטיס אומר את זה, והמפה לא מסתירה
@@ -50,41 +53,64 @@ describe('מפת העומס', () => {
   })
 
   /*
-    התוויות של שורת התמונות במסך המנוחה. שם הטקסונומיה הוא ברירת המחדל, ומה
-    שמודפס על הכרטיס נכנס רק כדי לשבור כפילות — אחרת הארכת ברך היא ארבעה
-    אריחים זהים שכתוב עליהם "ארבע-ראשי".
+    ארבעה-עשר מ-88 הכרטיסים מפרקים שריר לראשים שלו. מרגע שהשם היחיד שמוצג
+    הוא השם שלנו, ארבע שורות "ארבע-ראשי" עם ארבעה מספרים שונים הן תצוגה
+    שבורה — ולכן הן שורה אחת.
   */
-  it('תווית חוזרת נופלת לשם שמודפס על הכרטיס, והשאר נשארים בשם שלנו', () => {
-    const quads = loadMapFor('seated_leg_extension').slice(0, 4)
-    expect(quads.map((s) => s.name)).toEqual([
-      'ארבע-ראשי',
-      'ארבע-ראשי',
-      'ארבע-ראשי',
-      'ארבע-ראשי',
-    ])
-    expect(shareLabels(quads)).toEqual([
-      'רקטוס פמוריס',
-      'וסטוס לאטרליס',
-      'וסטוס מדיאליס',
-      'וסטוס אינטרמדיאוס',
-    ])
+  it('שורות שאנחנו קוראים להן אותו שם מתמזגות, והאחוזים נסכמים', () => {
+    const map = loadMapFor('seated_leg_extension')
 
-    // ובכרטיס בלי כפילות שום שם לא משתנה
-    const row = loadMapFor('seated_plate_loaded_machine_row').slice(0, 4)
-    expect(shareLabels(row)).toEqual(row.map((s) => s.name))
+    expect(map).toHaveLength(1)
+    expect(map[0].name).toBe('ארבע-ראשי')
+    // 45 + 25 + 20 + 10, כלומר כל העבודה שהכרטיס מחלק
+    expect(map[0].pct).toBe(100)
+    expect(map[0].parts).toBe(4)
+
+    // ובכרטיס בלי כפילות שום דבר לא זז
+    const row = loadMapFor('seated_plate_loaded_machine_row')
+    expect(row.every((s) => s.parts === 1)).toBe(true)
   })
 
-  it('כפילות נשברת רק בין מה שמוצג בפועל', () => {
-    /*
-      מכונת הרגליים מפרקת את הארבע-ראשי לשלושה ראשים, והרביעי הוא העכוז.
-      חיתוך לשניים משאיר על המסך שתי שורות שעדיין חוזרות — ולכן שתיהן
-      מקבלות את השם שעל הכרטיס, והעכוז שנחתך אינו משפיע על אף אחת.
-    */
-    const two = loadMapFor('45_plate_loaded_leg_press').slice(0, 2)
-    expect(shareLabels(two)).toEqual(['ונדוס לטרליס', 'רקטוס פמוריס'])
+  it('אין שני שרירים באותו שם באותה מפה', () => {
+    for (const id of Object.keys(MUSCLE_BREAKDOWN)) {
+      const names = loadMapFor(id).map((s) => s.name)
+      expect(new Set(names).size, id).toBe(names.length)
+    }
+  })
 
-    const one = loadMapFor('45_plate_loaded_leg_press').slice(0, 1)
-    expect(shareLabels(one)).toEqual(['ארבע-ראשי'])
+  /*
+    השער שמצדיק את החיבור. כרטיס שמסתכם ב-100 הוא חלוקה של אותה עוגה, וחיבור
+    פרוסות שלה אינו מספר חדש; שני החורגים אינם חלוקה, ושם כל מספר שהיינו
+    מציגים היה שלנו ולא שלהם.
+  */
+  it('כרטיס שאינו חלוקה של 100% לא מקבל מפה בכלל', () => {
+    expect(loadMapFor('dumbbell_wrist_curl')).toEqual([])
+    expect(loadMapFor('seated_cable_row_2')).toEqual([])
+  })
+
+  it('כל מפה שקיימת מסתכמת ב-100 — גם אחרי המיזוג', () => {
+    for (const id of Object.keys(MUSCLE_BREAKDOWN)) {
+      const map = loadMapFor(id)
+      if (map.length === 0) continue
+      expect(
+        map.reduce((n, s) => n + s.pct, 0),
+        id
+      ).toBe(100)
+    }
+  })
+
+  /*
+    "מייצבים", "שרירי מייצבים" ו"מייצבי גו" הם אותו דבר בשלושה כרטיסים.
+    לטקסונומיה אין להם ערך — הם אינם שריר שבונים סביבו אימון — ולכן המילה
+    שמוצגת נבחרת כאן ולא מועתקת מהתמונה.
+  */
+  it('גם למייצבים יש שם אחד שלנו, ולא שלושה מודפסים', () => {
+    const names = new Set<string>()
+    for (const id of Object.keys(MUSCLE_BREAKDOWN))
+      for (const share of loadMapFor(id))
+        if (NOT_A_SUBTARGET.has(share.en)) names.add(share.name)
+
+    expect([...names]).toEqual(['מייצבים'])
   })
 
   it('כרטיס שאינו במפה מחזיר רשימה ריקה ולא נופל', () => {

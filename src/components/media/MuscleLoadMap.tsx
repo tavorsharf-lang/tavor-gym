@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { JSX } from 'react'
 import { assetUrl } from '@/db/mediaDb'
+import { countMasculine } from '@/lib/text'
 import type { LoadShare } from '@/db/loadMap'
 import type { MuscleCardImage } from '@/db/muscleImageManifest'
 import { MuscleCardSheet } from '@/components/exercises/MuscleCardSheet'
@@ -14,8 +15,13 @@ import { MuscleCardSheet } from '@/components/exercises/MuscleCardSheet'
  * ההבדל בין תרגיל שמרוכז בשריר אחד לתרגיל שמפזר.
  *
  * הלחיצה על שורה פותחת את הכרטיס האנטומי בגדול. זו השאלה שעולה מיד אחרי
- * שקוראים "רומבואידים 25%" — איפה זה בכלל — והתשובה קיימת אצלנו כתמונה,
- * במרחק לחיצה אחת ולא במסך אחר.
+ * שקוראים "מעוינים 25%" — איפה זה בכלל — והתשובה קיימת אצלנו כתמונה, במרחק
+ * לחיצה אחת ולא במסך אחר.
+ *
+ * **כל שם על המסך הוא השם שלנו.** מה שמודפס על התמונה בעברית לא מופיע כאן
+ * אפילו כשורה שנייה, וגם האנגלית מגיעה מהכרטיס האנטומי שלנו ולא מהתמלול —
+ * אותו שריר נכתב על הכרטיסים בשלוש צורות שונות, ושתי גרסאות של אותו שם
+ * במרחק סנטימטר זו מזו נקראות כשני שרירים.
  */
 export function MuscleLoadMap({ shares }: { shares: readonly LoadShare[] }): JSX.Element | null {
   const [card, setCard] = useState<MuscleCardImage | null>(null)
@@ -72,13 +78,19 @@ export function MuscleLoadMap({ shares }: { shares: readonly LoadShare[] }): JSX
                   </span>
                 </span>
 
+{/*
+                  השם האנגלי מהכרטיס האנטומי שלנו, ולצידו — כששורה אחת כאן
+                  מאחדת כמה שורות על התמונה — מכמה היא מורכבת. בלי המשפט הזה
+                  "ארבע-ראשי 100%" מול תמונה שכתוב עליה 45/25/20/10 נראה כמו
+                  מספר שהמצאנו.
+                */}
                 <span className="meta mt-0.5 block truncate">
-                  {/*
-                    מה שמודפס על הכרטיס, כשהוא נקרא אחרת מהשם שלנו. התמונה
-                    נמצאת ממש מעל השורה, ו"לטיסימוס דורסי" עליה מול "רחב גבי"
-                    כאן נראה כמו שני שרירים שונים.
-                  */}
-                  {[share.printed, share.en].filter(Boolean).join(' · ')}
+                  {[
+                    share.card?.nameEn,
+                    share.parts > 1 ? `${countMasculine(share.parts)} אזורים על הכרטיס` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </span>
 
                 <span
