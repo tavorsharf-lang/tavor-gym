@@ -1,17 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
-import {
-  Check,
-  ChevronDown,
-  Clock,
-  Flame,
-  Minus,
-  NotebookPen,
-  Plus,
-  Repeat,
-  SkipForward,
-  Timer,
-} from 'lucide-react'
+import { ChevronDown, Ellipsis, Timer } from 'lucide-react'
 import type {
   AppSettings,
   DraftSet,
@@ -21,40 +10,54 @@ import type {
   Rir,
   SetType,
 } from '@/db/types'
-import { EQUIPMENT_LABELS, MUSCLE_GROUPS, RATING_LABELS } from '@/db/types'
+import { EQUIPMENT_LABELS } from '@/db/types'
 import { BottomSheet, Button, PlateProgress, Stepper } from '@/components/ui'
 import type { PlateSegState } from '@/components/ui'
 import { ExerciseThumb } from '@/components/media/ExerciseThumb'
 import { touchedGroups, useWorkout } from '@/state/activeWorkoutStore'
 import type { ExerciseSessionSummary } from '@/domain/recommendation'
-import { lastSessionSetsText, lastWorkedSession, recommendWeight } from '@/domain/recommendation'
+import { lastWorkedSession, recommendWeight } from '@/domain/recommendation'
 import { suggestWarmup } from '@/domain/warmup'
 import {
   countLabel,
   countStep,
   formatClock,
+  formatKg,
   formatRatingText,
   formatRepRange,
+  formatSetShort,
   formatWeight,
+  repMarks,
   round2,
   weightStep,
 } from '@/domain/units'
 import { workSets } from '@/domain/volume'
-import { formatRelativeDay } from '@/lib/dates'
 import type { AudioCue } from '@/hooks/useAudioCue'
 import { SetRow } from './SetRow'
-import { RecommendationChip } from './RecommendationChip'
 import { PlateHint } from './PlateHint'
-import { PlateChips } from './PlateChips'
-import { RepChips } from './RepChips'
 import { HoldOverlay } from './HoldOverlay'
+import { ValueChips } from './ValueChips'
+import type { ValueChip } from './ValueChips'
+import { SetTuner } from './SetTuner'
+import { InlineRest } from './InlineRest'
+import { RateStage, RirStage } from './RateStage'
+import { ExerciseActionsSheet } from './ExerciseActionsSheet'
 
 /**
  * הכרטיס של התרגיל הפעיל — המסך שבו נמצאים באמת באמצע אימון.
  *
- * הסדר קבוע ולא משתנה בין תרגילים, כי היד לומדת אותו: מה עושים, איך עושים,
- * מה עשיתי פעם קודמת, כמה להרים היום, מה כבר תיעדתי, ומה מתעד עכשיו.
- * הכפתור הכתום היחיד בכרטיס הוא "סיים סט", והוא גדול בכוונה.
+ * הוא בנוי **לפי זמן ולא לפי רשימה**, וזה כל ההבדל מהגרסה שקדמה לו. שם ישבו
+ * אחד־עשר מקטעים בטור אחד, הכרטיס היה שני מסכים וחצי של גלילה, והכפתור הכתום
+ * נפל מתחת לקו הקיפול. כאן:
+ *
+ *   • **בזמן סט** צריך שלושה דברים בלבד: מה אני עושה, מה אני רושם, וכפתור אחד.
+ *   • **קדם־סט** — דגשים, הערה, חימום, כמה סטים — מתקפל לפס אחד או לגיליון.
+ *   • **אחרי־סט** — מנוחה ודירוג מאמץ — נכנס לאותו אזור פיזי בדיוק, בגובה
+ *     קבוע, במקום לפתוח מסך חדש או לדחוף את הכרטיס למטה.
+ *
+ * הלב הוא הבמה: אזור אחד בגובה 196 פיקסלים עם ארבעה מצבים (`work` · `rest` ·
+ * `rate` · `rir`). **כלום סביבו לא זז במעבר ביניהם** — לא הכרטיס, לא התור
+ * שמתחתיו, ולא האצבע שמחכה על הכפתור.
  */
 
 export interface ExerciseCardProps {
@@ -81,16 +84,26 @@ export interface ExerciseCardProps {
   audio: AudioCue
   /** נקרא אחרי כל סט שנשמר, כדי שהמסך ירוקן את תור השיאים ויחגוג */
   onLogged: () => void
+  /** מה שמוצג בבמה כשהמנוחה רצה. null = אין מנוחה כרגע */
+  rest: { endsAt: number; totalSeconds: number } | null
+  /** פותח את מסך המנוחה המלא על אותו טיימר בדיוק */
+  onOpenFullRest: () => void
+  onAdjustRest: (deltaSeconds: number) => void
+  onStopRest: () => void
+  /** התרגיל שמחכה בתור אחרי זה — מה שהמנוחה מכריזה עליו כשהיעד הושלם */
+  nextUp: { name: string; targetSets: number; targetReps: string } | null
 }
 
 /** עורך סט קיים. חי בגיליון נפרד כדי שהמספרים הגדולים לא ידחפו את הכרטיס */
 function SetEditor({
   set,
   exercise,
+  plates,
   onSave,
 }: {
   set: DraftSet
   exercise: Exercise
+  plates: AppSettings['plates']
   onSave: (weightKg: number, reps: number) => void
 }): JSX.Element {
   const [weightKg, setWeightKg] = useState(set.weightKg)
@@ -100,14 +113,23 @@ function SetEditor({
   return (
     <div className="flex flex-col gap-4 pt-1 pb-4">
       {exercise.weightMode !== 'bodyweight' && (
-        <Stepper
-          label="משקל"
-          unit={exercise.weightMode === 'perSide' ? 'ק״ג לכל צד' : 'ק״ג'}
-          value={weightKg}
-          onChange={setWeightKg}
-          step={step}
-          min={0}
-        />
+        <div>
+          <Stepper
+            label="משקל"
+            unit={exercise.weightMode === 'perSide' ? 'ק״ג לכל צד' : 'ק״ג'}
+            value={weightKg}
+            onChange={setWeightKg}
+            step={step}
+            min={0}
+          />
+          {/*
+            "מה להעמיס על כל צד" יושב כאן ולא על הכרטיס: הוא ארבע-חמש מילים
+            צפופות שנקראות פעם אחת ליד המוט, וכל שורה על הבמה נמדדת מול הכפתור
+            הכתום. הגיליון הזה הוא המקום היחיד באפליקציה שבו מקלידים משקל
+            בשקט, וזה בדיוק מתי הפירוק שימושי.
+          */}
+          <PlateHint targetKg={weightKg} exercise={exercise} plates={plates} />
+        </div>
       )}
       <Stepper
         label={countLabel(exercise.metric)}
@@ -120,92 +142,6 @@ function SetEditor({
       <Button variant="flame" size="lg" fullWidth onClick={() => onSave(weightKg, reps)}>
         שמור שינוי
       </Button>
-    </div>
-  )
-}
-
-/**
- * כוונון היעד באמצע אימון — כמה סטים וכמה מנוחה.
- *
- * שני מספרים שהתשובה עליהם משתנה בתוך האימון עצמו ("היום יש לי כוח לעוד סט",
- * "המכונה תפוסה, אני מקצר מנוחה"), ולכן הם צריכים להיות במרחק נגיעה מהכפתור
- * הכתום ולא בעורך התוכניות. השינוי חל על האימון הזה בלבד.
- */
-function TuneRow({
-  targetSets,
-  restSeconds,
-  doneWorkSets,
-  onSets,
-  onRest,
-}: {
-  targetSets: number
-  restSeconds: number
-  /** אי אפשר לרדת מתחת למה שכבר בוצע — זה היה מוחק את הסטים מהמסך */
-  doneWorkSets: number
-  onSets: (next: number) => void
-  onRest: (next: number) => void
-}): JSX.Element {
-  const cell =
-    'flex flex-1 items-center justify-between gap-1 rounded-xl border border-ink-700 bg-ink-900/50 px-1.5 py-1.5'
-  const nudge =
-    'flex size-11 shrink-0 items-center justify-center rounded-lg text-bone-300 active:bg-ink-700 disabled:opacity-30'
-
-  return (
-    <div className="mt-3 flex gap-2">
-      <div className={cell}>
-        {/* dir=ltr על צמד הכפתורים בלבד — מינוס משמאל ופלוס מימין, כמו בכל
-            שאר הפקדים באפליקציה, כדי שהאצבע לא תצטרך ללמוד שני כיוונים */}
-        <button
-          type="button"
-          aria-label="סט אחד פחות"
-          disabled={targetSets <= Math.max(1, doneWorkSets)}
-          onClick={() => onSets(targetSets - 1)}
-          className={nudge}
-        >
-          <Minus size={16} strokeWidth={3} />
-        </button>
-        <span className="flex min-w-0 flex-col items-center leading-tight">
-          <span className="tnum text-sm font-extrabold text-bone-100">{targetSets}</span>
-          <span className="text-[0.625rem] font-medium text-bone-500">סטים</span>
-        </span>
-        <button
-          type="button"
-          aria-label="סט אחד יותר"
-          onClick={() => onSets(targetSets + 1)}
-          className={nudge}
-        >
-          <Plus size={16} strokeWidth={3} />
-        </button>
-      </div>
-
-      <div className={cell}>
-        <button
-          type="button"
-          aria-label="פחות 15 שניות מנוחה"
-          disabled={restSeconds <= 0}
-          onClick={() => onRest(restSeconds - 15)}
-          className={nudge}
-        >
-          <Minus size={16} strokeWidth={3} />
-        </button>
-        <span className="flex min-w-0 flex-col items-center leading-tight">
-          <span dir="ltr" className="tnum text-sm font-extrabold text-bone-100">
-            {restSeconds > 0 ? formatClock(restSeconds) : '—'}
-          </span>
-          <span className="flex items-center gap-0.5 text-[0.625rem] font-medium text-bone-500">
-            <Timer size={9} aria-hidden="true" />
-            מנוחה
-          </span>
-        </span>
-        <button
-          type="button"
-          aria-label="עוד 15 שניות מנוחה"
-          onClick={() => onRest(restSeconds + 15)}
-          className={nudge}
-        >
-          <Plus size={16} strokeWidth={3} />
-        </button>
-      </div>
     </div>
   )
 }
@@ -224,6 +160,11 @@ export function ExerciseCard({
   history,
   audio,
   onLogged,
+  rest,
+  onOpenFullRest,
+  onAdjustRest,
+  onStopRest,
+  nextUp,
 }: ExerciseCardProps): JSX.Element {
   const logSet = useWorkout((s) => s.logSet)
   const updateSet = useWorkout((s) => s.updateSet)
@@ -235,6 +176,8 @@ export function ExerciseCard({
   const setTargetSets = useWorkout((s) => s.setTargetSets)
   const setItemRest = useWorkout((s) => s.setItemRest)
   const saveNote = useWorkout((s) => s.saveNote)
+  const rate = useWorkout((s) => s.rate)
+  const completeCurrent = useWorkout((s) => s.completeCurrent)
   const workout = useWorkout((s) => s.workout)
   const exercisesById = useWorkout((s) => s.exercisesById)
   const prCache = useWorkout((s) => s.prCache)
@@ -245,17 +188,33 @@ export function ExerciseCard({
     בלי שום תמורה. הכרטיס ממילא מקבל key לפי פריט התור.
   */
   const [now] = useState(() => Date.now())
-  const [isWarmup, setIsWarmup] = useState(false)
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState<DraftSet | null>(null)
   const [noteOpen, setNoteOpen] = useState(false)
   const [noteDraft, setNoteDraft] = useState('')
   const [holdOpen, setHoldOpen] = useState(false)
+  const [actionsOpen, setActionsOpen] = useState(false)
+  const [logOpen, setLogOpen] = useState(false)
 
   const bodyweight = exercise.weightMode === 'bodyweight'
   const timed = exercise.metric === 'seconds'
   const workCount = sets.filter((s) => s.type === 'work').length
   const lastWork = [...sets].reverse().find((s) => s.type === 'work') ?? null
+
+  /*
+    ── מצב הבמה ──
+
+    ‏`rest` נגזר מהחנות ולא נשמר כאן: הטיימר שורד רענון, קריסה ומעבר מסך, ומצב
+    מקומי שמנסה לשקף אותו היה יכול להתפצל ממנו. `rate`/`rir` דווקא מקומיים —
+    הם חיים רק בין הסט האחרון לתשובה, ואין להם מה לשרוד.
+  */
+  const [stage, setStage] = useState<'work' | 'rate' | 'rir'>('work')
+  const [pendingRating, setPendingRating] = useState<Rating | null>(null)
+  /** האריח שהשבבים מדברים עליו */
+  const [field, setField] = useState<'weight' | 'reps'>(
+    bodyweight || timed ? 'reps' : 'weight'
+  )
+  const [tuneOpen, setTuneOpen] = useState(false)
 
   // הטווח שבתוכנית הוא הקובע, לא זה שבקטלוג — הוא גם מה שמוצג על הכרטיס.
   // וכשלתוכנית יש משקל התחלה משלה (תוכנית חזרה), הוא גובר על זה שבקטלוג.
@@ -287,7 +246,7 @@ export function ExerciseCard({
   /*
     סדר ההעדפות למשקל שבשדה: מה שהרמתי לפני רגע, אחר כך המשקל שבוצע *בפועל*
     בסט הכבד של הפעם הקודמת, ורק אז ההמלצה. ההמלצה היא הצעה לשינוי ולכן היא
-    לא ממלאת את השדה לבד — היא במרחק לחיצה אחת בשבב שמעל. משקל ההתחלה של
+    לא ממלאת את השדה לבד — היא במרחק לחיצה אחת בשבב שמתחת. משקל ההתחלה של
     התוכנית קודם לזה שבקטלוג, וזה מה שמאפשר לתוכנית חזרה להתחיל קל.
   */
   const seedWeight =
@@ -320,11 +279,9 @@ export function ExerciseCard({
     setEntry({ weightKg: seedWeight, reps: seedReps })
   }
 
-  // דגשי ביצוע סגורים תמיד בהתחלה — מי שרוצה לקרוא פותח, וכל השאר מקבלים
-  // כרטיס קצר. הכרטיס ממילא מקבל key לפי פריט התור, ולכן זה מתאפס בכל תרגיל.
+  // דגשי ביצוע סגורים תמיד בהתחלה — המונה שעל הפס מספר שהם קיימים, ומי
+  // שרוצה לקרוא פותח. הכרטיס ממילא מקבל key לפי פריט התור.
   const [cuesOpen, setCuesOpen] = useState(false)
-
-  const autoRated = useRef(false)
 
   /*
     משקל העבודה שהחימום נגזר ממנו.
@@ -370,6 +327,7 @@ export function ExerciseCard({
   const prStamps = new Set(
     prCache.filter((p) => p.exerciseId === exercise.id).map((p) => p.achievedAt)
   )
+  const hasPr = sets.some((s) => prStamps.has(s.completedAt))
 
   const segments: PlateSegState[] = sets.map((s) => (s.type === 'warmup' ? 'warmup' : 'work'))
 
@@ -379,6 +337,28 @@ export function ExerciseCard({
   */
   const zeroWeight = !bodyweight && !timed && entry.weightKg <= 0
 
+  /** המנוחה שמגיעה אחרי הסט הזה, לפי סוגו */
+  const restFor = (type: SetType): number => {
+    // 0 הוא בחירה מפורשת של "בלי מנוחה" (סופרסט, תרגיל סיום) ולא ערך חסר,
+    // ולכן ההשוואה היא מול undefined ולא מול falsy
+    const base = Number.isFinite(item.restSeconds) ? item.restSeconds : settings.defaultRestSeconds
+    // חימום הוא לא סט כבד — חצי מנוחה מספיקה ושומרת על קצב
+    return type === 'warmup' ? Math.round(base * 0.5) : base
+  }
+
+  /** סוגר את התרגיל ופותח את הבא, עם מנוחה לפניו אם הטיימר דלוק */
+  const advance = async (restSeconds: number): Promise<void> => {
+    /*
+      המנוחה נפתחת על *המפתח שנסגר* ורק אחר כך מתקדמים.
+
+      ‏`restForKey` הוא מה שמסך המנוחה המלא מתאר — התרגיל שממנו נחים, המד שלו
+      והתמונה שלו. פתיחה על המפתח החדש הייתה מציירת שם את התרגיל שעוד לא
+      התחיל, כלומר מד סטים ריק במקום "היעד הושלם".
+    */
+    if (restSeconds > 0 && settings.restTimerEnabled) await startRest(item.key, restSeconds)
+    await completeCurrent()
+  }
+
   const commitSet = async (type: SetType, weightKg: number, reps: number): Promise<void> => {
     if (busy || reps <= 0) return
     // אותו כלל כמו על הכפתור, כדי שגם מסלול שלא עובר דרכו לא ירשום סט ריק
@@ -387,30 +367,62 @@ export function ExerciseCard({
     try {
       await logSet(item.key, type, weightKg, reps)
       audio.keepAlive()
-      // 0 הוא בחירה מפורשת של "בלי מנוחה" (סופרסט, תרגיל סיום) ולא ערך חסר,
-      // ולכן ההשוואה היא מול undefined ולא מול falsy
-      const base = Number.isFinite(item.restSeconds)
-        ? item.restSeconds
-        : settings.defaultRestSeconds
-      // חימום הוא לא סט כבד — חצי מנוחה מספיקה ושומרת על קצב
-      const rest = type === 'warmup' ? Math.round(base * 0.5) : base
-      // מי שמתעד מנוחה בשעון כיבה את הטיימר — הסט נרשם, המסך לא קופץ
-      if (rest > 0 && settings.restTimerEnabled) await startRest(item.key, rest)
-      setIsWarmup(false)
       onLogged()
-      if (
-        settings.askRating &&
-        type === 'work' &&
-        workCount + 1 >= item.targetSets &&
-        !rating &&
-        !autoRated.current
-      ) {
-        autoRated.current = true
-        onOpenRating()
+
+      const restSeconds = restFor(type)
+      /*
+        רק *השלמת היעד* סוגרת את התרגיל, ולא כל סט שמעבר לו.
+
+        ‏`===` ולא `>=`: סט שביעי ביעד של שש הוא בחירה מפורשת להמשיך, והשוואה
+        מרופפת הייתה סוגרת את התרגיל שוב בכל אחד מהם — כלומר מי שמוסיף סט היה
+        נזרק לתרגיל הבא בדיוק כשהוא ביקש להישאר.
+      */
+      const completesTarget = type === 'work' && workCount + 1 === item.targetSets
+      if (!completesTarget) {
+        if (restSeconds > 0 && settings.restTimerEnabled) await startRest(item.key, restSeconds)
+        return
       }
+      if (settings.askRating && !rating) {
+        setStage('rate')
+        return
+      }
+      await advance(restSeconds)
     } finally {
       setBusy(false)
     }
+  }
+
+  /**
+   * שמירת הדירוג ומעבר לתרגיל הבא.
+   *
+   * ‏`busy` הוא לא קישוט: השמירה והמעבר הם שתי כתיבות אסינכרוניות, ולחיצה
+   * שנייה בין לבין הייתה מדרגת את התרגיל *הבא* בטעות — הכרטיס כבר התחלף
+   * אבל הפונקציה עדיין מחזיקה את המפתח הישן.
+   */
+  const saveRating = async (value: Rating, rir: Rir | null): Promise<void> => {
+    if (busy) return
+    setBusy(true)
+    try {
+      await rate(item.key, value, rir)
+      await advance(restFor('work'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** נבחר דירוג בבמה — או שממשיכים ל-RIR, או שסוגרים כאן */
+  const pickRating = (value: Rating): void => {
+    setPendingRating(value)
+    if (settings.askRir) {
+      setStage('rir')
+      return
+    }
+    void saveRating(value, null)
+  }
+
+  const finishRating = (rir: Rir | null): void => {
+    if (pendingRating === null) return
+    void saveRating(pendingRating, rir)
   }
 
   /*
@@ -422,188 +434,379 @@ export function ExerciseCard({
   */
   const heroLabel = zeroWeight
     ? 'קבע משקל כדי לרשום'
-    : isWarmup
-      ? 'סיים סט חימום'
-      : workCount + 1 === item.targetSets
-        ? 'סיים סט אחרון'
-        : 'סיים סט'
+    : workCount + 1 === item.targetSets
+      ? 'סיים סט אחרון'
+      : 'סיים סט'
 
   const setLine =
     workCount < item.targetSets
       ? `סט ${workCount + 1} מתוך ${item.targetSets}`
       : `סט ${workCount + 1} — מעבר ליעד ${item.targetSets}`
 
+  /*
+    ── השבבים ──
+
+    שורה אחת שלא נגללת, ולכן כל בונה מחזיר ערכים מנוכי-כפילויות ובתקרה קשיחה.
+    מה שהיא בלעה: `RecommendationChip`, שבבי הפלטות, שבבי החזרות ומקטע "פעם
+    קודמת" — ארבעה מקטעים שכולם ענו על "איזה מספר לשים בשדה".
+  */
+  const step = weightStep(exercise)
+  const weightChips = (): ValueChip[] => {
+    const out: ValueChip[] = []
+    const seen = new Set<number>()
+    const push = (id: string, label: string, value: number): void => {
+      if (out.length >= 4 || value <= 0 || seen.has(value)) return
+      seen.add(value)
+      out.push({
+        id,
+        label,
+        picked: Math.abs(entry.weightKg - value) < 1e-9,
+        ariaLabel: `${label} — ${formatWeight(value, exercise.weightMode)}`,
+        onPick: () => setEntry((e) => ({ ...e, weightKg: value })),
+      })
+    }
+    if (recommendation.weightKg !== null) {
+      push('rec', `המלצה ${formatKg(recommendation.weightKg)}`, recommendation.weightKg)
+    }
+    // בלי היסטוריה אין שבב "קודם", ובלי שורה שמצהירה על כך: השורה
+    // "אין נתונים קודמים" תיארה היעדר במקום להציע פעולה.
+    if (previousTop) push('prev', `קודם ${formatKg(previousTop.weightKg)}`, previousTop.weightKg)
+    const base = recommendation.weightKg ?? previousTop?.weightKg ?? entry.weightKg
+    if (step > 0 && base > 0) {
+      push('up1', formatKg(round2(base + step)), round2(base + step))
+      push('up2', formatKg(round2(base + step * 2)), round2(base + step * 2))
+    }
+    return out
+  }
+
+  const repChips = (): ValueChip[] =>
+    repMarks(item.targetReps, fallbackCount).map((n) => ({
+      id: `r${n}`,
+      label: String(n),
+      picked: entry.reps === n,
+      ariaLabel: `${n} חזרות`,
+      onPick: () => setEntry((e) => ({ ...e, reps: n })),
+    }))
+
+  const chips = field === 'weight' && !bodyweight ? weightChips() : repChips()
+
+  const resting = rest !== null && stage === 'work'
+  /*
+    מה המנוחה מכריזה עליו. נשאר סט בתרגיל הזה — "הסט הבא", והמספרים הם מה
+    שעומד להירשם. היעד הושלם — "התרגיל הבא", ואז מדובר בשורה שאחריו בתור.
+  */
+  const restRemaining = item.targetSets - workCount
+  const restNextTitle = restRemaining > 0 || !nextUp ? 'הסט הבא' : 'התרגיל הבא'
+  const restNextName = restNextTitle === 'הסט הבא' ? exercise.name : (nextUp?.name ?? '')
+  /*
+    "100 ק״ג × 6" ולא "100×6": כאן יש רוחב, והשורה נקראת בהצצה של שנייה בזמן
+    שהעיניים לא על המספרים הקטנים. בשורת "תועד" הצפופה נשאר הקיצור.
+  */
+  const restNextLine =
+    restNextTitle !== 'הסט הבא'
+      ? nextUp
+        ? `${nextUp.targetSets}×${nextUp.targetReps}`
+        : ''
+      : bodyweight || timed
+        ? formatSetShort(entry.weightKg, entry.reps, exercise.weightMode, exercise.metric)
+        : `${formatKg(entry.weightKg)} ק״ג × ${entry.reps}`
+
   let workNumber = 0
 
   return (
     <article
-      className={`card card-active relative p-4 ${
+      className={`card card-active relative p-3 ${
         item.status === 'deferred' ? 'border-dashed border-flame-500/45' : ''
       }`}
     >
-      {/* 1 — מי אני, מה היעד, וכמה כבר עשיתי */}
-      <div className="flex items-start gap-3">
+      {/* 1 — מי אני. שם, תת־שריר וציוד; הקבוצה הראשית כבר בכותרת המסך */}
+      <div className="flex items-center gap-[11px]">
         <ExerciseThumb
           exerciseId={exercise.id}
           libraryId={exercise.libraryId}
+          size="card"
           onOpen={onOpenVideo}
         />
         <div className="min-w-0 flex-1">
-          <h2 className="text-xl leading-tight font-extrabold text-bone-50">{exercise.name}</h2>
-          <p className="meta mt-1 truncate">
-            {exercise.subTarget} · {MUSCLE_GROUPS[exercise.muscleGroup].label} ·{' '}
-            {EQUIPMENT_LABELS[exercise.equipment]}
-          </p>
-          <p className="mt-1.5 text-sm font-bold text-flame-400">
-            {setLine}
-            <span className="ms-2 text-xs font-medium text-bone-500">
-              {/* אי LTR: בלי זה "8–12" מוצג כ-"12–8" ונקרא כטווח יורד */}
-              <span dir="ltr" className="tnum">
-                {formatRepRange(item.targetReps, exercise.metric)}
-              </span>{' '}
-              {timed ? 'להחזיק' : 'חזרות'}
-            </span>
+          <h2 className="truncate text-[1.0625rem] leading-tight font-extrabold tracking-[-0.02em] text-bone-50">
+            {exercise.name}
+          </h2>
+          <p className="mt-1 truncate text-[0.65625rem] leading-none font-medium tracking-[0.03em] text-bone-500">
+            {[exercise.subTarget, EQUIPMENT_LABELS[exercise.equipment]].filter(Boolean).join(' · ')}
           </p>
         </div>
+        <button
+          type="button"
+          aria-label={`פעולות על ${exercise.name}`}
+          onClick={() => setActionsOpen(true)}
+          className="relative flex size-[34px] shrink-0 items-center justify-center rounded-[11px] border border-ink-700 bg-ink-900 text-bone-500 after:absolute after:-inset-[5px] after:content-[''] active:bg-ink-800"
+        >
+          <Ellipsis size={18} />
+        </button>
       </div>
 
-      <PlateProgress className="mt-3" total={item.targetSets} states={segments} />
+      {/* 2 — כמה סטים, כמה נשארו, ומה היעד */}
+      <div className="mt-[11px] flex items-center gap-2.5">
+        <PlateProgress className="flex-1" total={item.targetSets} states={segments} />
+        <button
+          type="button"
+          aria-expanded={tuneOpen}
+          onClick={() => setTuneOpen((v) => !v)}
+          className="relative flex shrink-0 items-center gap-1.5 after:absolute after:inset-x-0 after:-inset-y-[14px] after:content-['']"
+        >
+          <span className="tnum border-b border-dashed border-flame-400/50 text-xs font-extrabold whitespace-nowrap text-flame-400">
+            {setLine}
+          </span>
+          <ChevronDown
+            size={12}
+            aria-hidden="true"
+            className={`shrink-0 text-bone-500 transition-transform ${tuneOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
+        {/* אי LTR: בלי זה "8–12" מוצג כ-"12–8" ונקרא כטווח יורד */}
+        <span dir="ltr" className="tnum shrink-0 text-xs font-bold text-bone-500">
+          {formatRepRange(item.targetReps, exercise.metric)}
+        </span>
+      </div>
 
-      <TuneRow
-        targetSets={item.targetSets}
-        restSeconds={item.restSeconds}
-        doneWorkSets={workCount}
-        onSets={(next) => void setTargetSets(item.key, next)}
-        onRest={(next) => void setItemRest(item.key, next)}
-      />
+      {/*
+        3 — מה כבר תועד. שורה אחת במקום N שורות של 44 פיקסלים.
 
-      {item.status === 'deferred' && (
-        <p className="mt-3 inline-flex rounded-pill border border-dashed border-flame-500/45 px-3 py-1 text-[0.6875rem] font-bold text-flame-400">
-          ממתין — המתקן היה תפוס
-        </p>
+        ‏`SetRow` לא נמחק — הוא חי בגיליון שהשורה הזו פותחת, שם יש מקום לתקן,
+        להפוך לחימום ולמחוק. על הכרטיס מספיק לדעת *מה יצא*, ובהצצה אחת.
+      */}
+      {sets.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setLogOpen(true)}
+          className="animate-rise relative mt-2.5 flex h-[30px] w-full items-center gap-2.5 overflow-hidden rounded-[10px] border border-ink-800 bg-bone-50/[0.03] px-2.5 text-start after:absolute after:inset-x-0 after:-inset-y-[7px] after:content-[''] active:bg-bone-50/[0.06]"
+        >
+          <span className="shrink-0 text-[0.625rem] leading-none font-bold tracking-[0.1em] text-bone-500">
+            תועד
+          </span>
+          <span dir="ltr" className="tnum min-w-0 flex-1 truncate text-start text-[0.78125rem] font-bold text-bone-200">
+            {sets.map((s, i) => (
+              <span key={s.logId} className={s.type === 'warmup' ? 'text-warmup-400' : ''}>
+                {i > 0 ? '  ·  ' : ''}
+                {formatSetShort(s.weightKg, s.reps, exercise.weightMode, exercise.metric)}
+              </span>
+            ))}
+          </span>
+          {hasPr ? (
+            <span className="shrink-0 text-[0.625rem] leading-none font-extrabold text-pr-400">
+              שיא
+            </span>
+          ) : (
+            <span className="shrink-0 text-[0.65625rem] leading-none font-semibold text-bone-500">
+              ערוך
+            </span>
+          )}
+        </button>
       )}
 
-      {/* 2 — דגשי ביצוע */}
-      {exercise.cues.length > 0 && (
-        <div className="mt-4 rounded-card border border-ink-700 bg-ink-900/50">
+      {/*
+        4 — הבמה. גובה קבוע, ארבעה מצבים, ואפס תזוזה ביניהם.
+
+        זה החוזה של כל המסך הזה: הכפתור הכתום, המנוחה והדירוג יושבים באותם
+        פיקסלים בדיוק, ולכן האצבע לא צריכה לחפש אחרי אף מעבר.
+      */}
+      <div className="relative mt-2.5 h-[196px]">
+        {stage === 'rate' ? (
+          <RateStage exerciseName={exercise.name} selected={pendingRating} onPick={pickRating} />
+        ) : stage === 'rir' ? (
+          <RirStage onPick={(rir) => finishRating(rir)} onSkip={() => finishRating(null)} />
+        ) : resting && rest ? (
+          <InlineRest
+            endsAt={rest.endsAt}
+            totalSeconds={rest.totalSeconds}
+            nextTitle={restNextTitle}
+            nextName={restNextName}
+            nextLine={restNextLine}
+            onOpenFull={onOpenFullRest}
+            onAdd30={() => onAdjustRest(30)}
+            onReady={onStopRest}
+          />
+        ) : (
+          <div className="animate-fade absolute inset-0 flex flex-col gap-2">
+            {/* אריחי ההזנה — מה שאני רושם, גדול מספיק לקרוא בזווית */}
+            <div className="flex h-[78px] gap-2">
+              {bodyweight ? (
+                <div className="flex flex-[1.08] flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-ink-700 bg-ink-900">
+                  <span className="text-[0.8125rem] font-extrabold text-bone-300">משקל גוף</span>
+                  <span className="text-[0.625rem] font-medium text-bone-500">אין מה להעמיס</span>
+                </div>
+              ) : (
+                <div className="flex-[1.08]">
+                  <Stepper
+                    variant="tile"
+                    focused={field === 'weight'}
+                    onActivate={() => setField('weight')}
+                    label="משקל"
+                    unit={exercise.weightMode === 'perSide' ? 'ק״ג לכל צד' : 'ק״ג'}
+                    value={entry.weightKg}
+                    onChange={(weightKg) => setEntry((e) => ({ ...e, weightKg }))}
+                    step={step}
+                    min={0}
+                  />
+                </div>
+              )}
+              <div className="flex-1">
+                <Stepper
+                  variant="tile"
+                  focused={field === 'reps'}
+                  onActivate={() => setField('reps')}
+                  label={countLabel(exercise.metric)}
+                  unit={timed ? 'שניות' : 'חזרות'}
+                  value={entry.reps}
+                  onChange={(reps) => setEntry((e) => ({ ...e, reps }))}
+                  step={countStep(exercise.metric)}
+                  min={0}
+                />
+              </div>
+            </div>
+
+            {/*
+              שורת השבבים — או עורך הסטים במקומה, או הסטופר בתרגיל זמן.
+              שלושתם באותם 38 פיקסלים בדיוק, ולכן החלפה ביניהם לא מזיזה כלום.
+            */}
+            <div className="h-[38px]">
+              {tuneOpen ? (
+                <SetTuner
+                  targetSets={item.targetSets}
+                  doneWorkSets={workCount}
+                  onPick={(next) => void setTargetSets(item.key, next)}
+                />
+              ) : timed ? (
+                /*
+                  בתרגיל זמן הסטופר הוא המסלול הראשי: מודדים על המסך במקום
+                  לנחש מול שעון, והוא רושם את הסט בעצמו בעצירה. האריח שמעליו
+                  נשאר למי שמדד בדרך אחרת ומקליד תוצאה.
+                */
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    audio.keepAlive()
+                    setHoldOpen(true)
+                  }}
+                  className="flex h-full w-full items-center justify-center gap-2 rounded-xl border border-flame-500/40 bg-flame-500/10 text-[0.8125rem] font-extrabold text-flame-300 active:bg-flame-500/20"
+                >
+                  <Timer size={16} aria-hidden="true" />
+                  מדוד עם סטופר — היעד {formatClock(item.targetReps.min)}
+                </button>
+              ) : chips.length > 0 ? (
+                <ValueChips chips={chips} />
+              ) : (
+                /*
+                  תרגיל בלי היסטוריה, בלי המלצה ובלי משקל זריעה — כלומר כל
+                  תרגיל בהתקנה טרייה. אין מה להציע, ולכן במקום פס ריק בגובה 38
+                  יושב כאן המשפט שאומר מה כן אפשר לעשות. שורת "אין נתונים
+                  קודמים" תיארה היעדר; זו מצביעה על פעולה.
+                */
+                <p className="flex h-full items-center justify-center text-[0.71875rem] font-medium text-bone-500">
+                  אפשר להקליד את המשקל ישירות בשדה
+                </p>
+              )}
+            </div>
+
+            {/* הפעולה הראשית. כפתור אחד, ענק, במקום קבוע בכל תרגיל */}
+            {/*
+              משקל 0 חוסם את הכפתור בדיוק כמו 0 חזרות.
+
+              בלי זה, תרגיל בלי היסטוריה ובלי משקל זריעה נפתח על 0 והכפתור
+              הראשי פעיל — כלומר הלחיצה הכי סבירה בעולם רושמת "סט עבודה של
+              0 ק״ג", ומאותו רגע ההמלצה וההיסטוריה מדברות על אפס.
+            */}
+            <button
+              type="button"
+              disabled={busy || entry.reps <= 0 || zeroWeight}
+              onClick={() => void commitSet('work', entry.weightKg, entry.reps)}
+              className="btn-flame flex flex-1 items-center justify-center rounded-[18px] text-[1.375rem] font-black [-webkit-touch-callout:none] disabled:opacity-40 disabled:shadow-none disabled:[filter:none] disabled:[transform:none]"
+            >
+              {heroLabel}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 5 — דגשים · הערה · חימום. פס אחד בגובה 40, שלושתם מכווצים */}
+      <div className="mt-[9px] flex gap-2">
+        {exercise.cues.length > 0 && (
           <button
             type="button"
             onClick={() => setCuesOpen((v) => !v)}
             aria-expanded={cuesOpen}
-            className="flex min-h-12 w-full items-center justify-between gap-2 px-3 text-start"
+            className="relative flex h-10 flex-1 items-center justify-between gap-2 rounded-[13px] border border-ink-800 bg-ink-900 px-3 text-start after:absolute after:inset-x-0 after:-inset-y-[2px] after:content-[''] active:border-ink-600"
           >
-            <span className="text-xs font-extrabold tracking-wide text-bone-300">דגשי ביצוע</span>
-            <ChevronDown
-              size={18}
-              className={`shrink-0 text-bone-500 transition-transform ${cuesOpen ? 'rotate-180' : ''}`}
-            />
+            <span className="text-[0.78125rem] font-bold text-bone-300">
+              דגשי ביצוע · {exercise.cues.length}
+            </span>
+            <span className="shrink-0 text-[0.6875rem] font-semibold text-bone-500">
+              {cuesOpen ? 'סגור' : 'פתח'}
+            </span>
           </button>
-          {cuesOpen && (
-            <ul className="animate-fade flex flex-col gap-1.5 px-3 pt-0.5 pb-3">
-              {exercise.cues.map((cue) => (
-                <li key={cue} className="flex gap-2 text-[0.8125rem] leading-snug text-bone-200">
-                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-flame-500" />
-                  {cue}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      {/* 2.5 — ההערה שלי על המכונה הזו */}
-      <button
-        type="button"
-        onClick={() => {
-          setNoteDraft(exercise.personalNote ?? '')
-          setNoteOpen(true)
-        }}
-        className={`mt-3 flex w-full items-start gap-2 rounded-card border px-3 py-2.5 text-start ${
-          exercise.personalNote
-            ? 'border-flame-500/25 bg-flame-500/[0.06]'
-            : 'border-dashed border-ink-700'
-        }`}
-      >
-        <NotebookPen
-          size={14}
-          className={`mt-0.5 shrink-0 ${exercise.personalNote ? 'text-flame-400' : 'text-bone-600'}`}
-          aria-hidden="true"
-        />
-        <span
-          className={`min-w-0 flex-1 text-[0.8125rem] leading-snug ${
-            exercise.personalNote ? 'font-semibold text-bone-100' : 'text-bone-500'
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            setNoteDraft(exercise.personalNote ?? '')
+            setNoteOpen(true)
+          }}
+          className={`relative flex h-10 items-center justify-center rounded-[13px] border px-2 text-[0.71875rem] font-semibold after:absolute after:inset-x-0 after:-inset-y-[2px] after:content-[''] ${
+            exercise.cues.length > 0 ? 'w-24 shrink-0' : 'flex-1'
+          } ${
+            exercise.personalNote
+              ? 'border-flame-500/25 bg-flame-500/[0.06] text-bone-100'
+              : 'border-dashed border-ink-700 text-bone-500'
           }`}
         >
-          {exercise.personalNote || 'הערה למכונה הזו — גובה מושב, מה כאב, מה לזכור'}
-        </span>
-      </button>
-
-      {/* 3 — פעם קודמת */}
-      <div className="mt-3">
-        <p className="meta">פעם קודמת</p>
-        {previous && previousWork.length > 0 ? (
-          <p className="mt-1 text-sm font-semibold text-bone-200">
-            <span dir="ltr" className="tnum">
-              {lastSessionSetsText(previous, exercise.weightMode, exercise.metric)}
-            </span>
-            <span className="text-bone-500">
-              {previous.rating ? ` · ${RATING_LABELS[previous.rating.rating]}` : ''}
-              {` · ${formatRelativeDay(previous.startedAt)}`}
-            </span>
-          </p>
-        ) : (
-          <p className="mt-1 text-sm font-semibold text-bone-400">
-            אין נתונים קודמים — הסט הזה קובע את הבסיס
-          </p>
+          <span className="truncate">{exercise.personalNote || 'הערה'}</span>
+        </button>
+        {/*
+          חימום בלחיצה אחת. הכפתור רושם את השלב הבא ברמפה ישירות — הוא לא
+          ממלא שדות שצריך לאשר — ולכן שם נגיש מלא: הכיתוב "חימום" לבדו לא
+          אומר כמה, וזה בדיוק מה שצריך לדעת לפני שלוחצים.
+        */}
+        {warmupNext && (
+          <button
+            type="button"
+            disabled={busy}
+            aria-label={`סט חימום ${formatWeight(warmupNext.weightKg, exercise.weightMode)} × ${
+              timed ? formatClock(warmupNext.reps) : warmupNext.reps
+            }`}
+            onClick={() => {
+              if (warmupDone + 1 >= warmupPlan.length) void markWarmupOffered(item.key)
+              void commitSet('warmup', warmupNext.weightKg, warmupNext.reps)
+            }}
+            className="relative flex h-10 w-[52px] shrink-0 items-center justify-center rounded-[13px] border border-warmup-400/30 bg-warmup-400/[0.07] text-[0.6875rem] font-extrabold text-warmup-400 after:absolute after:inset-x-0 after:-inset-y-[2px] after:content-[''] disabled:opacity-40"
+          >
+            חימום
+          </button>
         )}
       </div>
 
       {/*
-        4 — כמה להרים היום.
-
-        בלי היסטוריה (action === 'none') אין מה להמליץ, והשורה הייתה רק חוזרת
-        על מה ש"פעם קודמת" שמעליה כבר אמרה. במקרה הזה היא לא מוצגת בכלל.
+        הרשימה דוחפת את התור למטה, וזה מותר: זו פעולה מכוונת של המשתמש על
+        מסך שנגלל, ולא מקטע שיושב שם בכל תרגיל בלי שביקשו אותו.
       */}
-      {recommendation.action !== 'none' && (
-        <RecommendationChip
-          recommendation={recommendation}
-          exercise={exercise}
-          onApply={(weightKg) => setEntry((e) => ({ ...e, weightKg }))}
-          onApplyCount={(reps) => setEntry((e) => ({ ...e, reps }))}
-        />
-      )}
-
-      {/* 5 — מה כבר תועד */}
-      {sets.length > 0 && (
-        <ul key={sets.length} className="animate-exhale mt-3 flex flex-col gap-1.5">
-          {sets.map((s) => {
-            if (s.type === 'work') workNumber += 1
-            return (
-              <SetRow
-                key={s.logId}
-                index={workNumber}
-                set={s}
-                exercise={exercise}
-                isPr={prStamps.has(s.completedAt)}
-                onEdit={() => setEditing(s)}
-                onToggleType={() => void toggleSetType(item.key, s.logId)}
-                onDelete={() => void removeSet(item.key, s.logId)}
-              />
-            )
-          })}
+      {cuesOpen && exercise.cues.length > 0 && (
+        <ul className="animate-fade mt-[9px] flex flex-col gap-2 px-1">
+          {exercise.cues.map((cue) => (
+            <li key={cue} className="flex items-start gap-[9px]">
+              <span className="mt-1.5 size-[5px] shrink-0 rounded-full bg-flame-500" />
+              <span className="text-[0.78125rem] leading-[1.45] text-bone-400">{cue}</span>
+            </li>
+          ))}
         </ul>
       )}
 
       {/*
-        6 — סט חימום. יש כזה בכל תרגיל שיש לו משקל, ולא רק בראשון של הקבוצה.
-
-        שני מצבים לאותו דבר: כל עוד יש שלב שלא הוצע, ההצעה פרושה עם הנימוק —
-        למה דווקא המשקל הזה, ואם זו רמפה, איזה שלב מתוך כמה. אחרי ש"לא צריך"
-        נלחץ או שהרמפה נגמרה, היא מתכווצת לכפתור אחד שנשאר זמין עד סוף התרגיל.
-        בשני המצבים לחיצה אחת רושמת את הסט — לא ממלאת שדות שצריך לאשר.
+        הכרטיס הכחול הפרוש נשאר רק לפני הסט הראשון של תרגיל שיש לו רמפה —
+        שם הנימוק באמת נקרא ("רמפת חימום לרגליים, שלב 1 מתוך 3"). מרגע שיש
+        סט על השעון הוא מתכווץ לשבב שבפס למעלה, שנשאר זמין עד סוף התרגיל.
       */}
-      {warmupSuggestion && !item.warmupOffered ? (
-        <div className="mt-3 rounded-card border border-dashed border-warmup-400/45 bg-warmup-400/[0.06] p-3">
+      {warmupSuggestion && !item.warmupOffered && sets.length === 0 && (
+        <div className="mt-[9px] rounded-[13px] border border-dashed border-warmup-400/45 bg-warmup-400/[0.06] p-3">
           <p className="text-[0.8125rem] font-bold text-warmup-400">{warmupSuggestion.reason}</p>
           <p className="tnum mt-0.5 text-sm font-semibold text-bone-200">
             {formatWeight(warmupSuggestion.weightKg, exercise.weightMode)} ×{' '}
@@ -632,210 +835,31 @@ export function ExerciseCard({
             </Button>
           </div>
         </div>
-      ) : warmupNext ? (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void commitSet('warmup', warmupNext.weightKg, warmupNext.reps)}
-          className="mt-3 flex min-h-12 w-full items-center gap-2 rounded-card border border-warmup-400/40 bg-warmup-400/[0.06] px-3 py-2 text-warmup-400 active:bg-warmup-400/15 disabled:opacity-40"
-        >
-          <Flame size={16} className="shrink-0" aria-hidden="true" />
-          <span className="shrink-0 text-[0.8125rem] font-extrabold">סט חימום</span>
-          <span className="tnum ms-auto text-[0.8125rem] font-bold text-bone-200">
-            {formatWeight(warmupNext.weightKg, exercise.weightMode)} ×{' '}
-            {timed ? formatClock(warmupNext.reps) : warmupNext.reps}
-          </span>
-        </button>
-      ) : null}
+      )}
 
-      {/* 7 — הזנת הסט */}
-      <div className="mt-4">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsWarmup((v) => !v)}
-            aria-pressed={isWarmup}
-            className={`flex min-h-12 items-center rounded-pill border px-4 text-sm font-extrabold transition-colors ${
-              isWarmup
-                ? 'border-warmup-400/60 bg-warmup-400/15 text-warmup-400'
-                : 'border-ink-700 bg-ink-800 text-bone-400'
-            }`}
-          >
-            חימום
-          </button>
-          {isWarmup && (
-            <span className="text-[0.6875rem] leading-snug font-medium text-warmup-400">
-              לא נספר בנפח, בשיאים ובהמלצות
-            </span>
-          )}
-        </div>
-
-        {/*
-          שני מסלולי הזנה שונים לשני סוגי ציוד. במכונת פינים המספר על המדבקה
-          הוא האמת ומקלידים אותו; במוט ובמזחלת סופרים פלטות בזמן שמעמיסים.
-          שדה המשקל זהה בשניהם — מה שמשתנה זה מה עומד לידו.
-        */}
-        {/*
-          שדה מתחת לשדה, ולא שניים בשורה. בעמודה של חצי כרטיס שני כפתורי ה-+/-
-          בולעים את כל הרוחב והמספר נמעך לפס דק — בדיוק ה"אני לא רואה כמה ק״ג
-          וכמה חזרות" שהפריסה הזו באה לתקן. השדות האלה הם הפעולה של המסך.
-        */}
-        <div className="mt-3 flex flex-col gap-4">
-          {!bodyweight && (
-            <div>
-              <Stepper
-                label="משקל"
-                unit={exercise.weightMode === 'perSide' ? 'ק״ג לכל צד' : 'ק״ג'}
-                value={entry.weightKg}
-                onChange={(weightKg) => setEntry((e) => ({ ...e, weightKg }))}
-                step={weightStep(exercise)}
-                min={0}
-                /*
-                  בתרגיל צלחות הרמז בדרך כלל מיותר — השבבים שמתחת הם המסלול.
-                  אבל כשהשדה עדיין על 0 (תרגיל בלי היסטוריה ובלי משקל זריעה)
-                  השבבים לבדם דורשים הרבה לחיצות כדי להגיע למשקל אמיתי, ולכן
-                  שם דווקא כדאי לומר שאפשר פשוט להקליד.
-                */
-                hint={
-                  !exercise.usesPlates
-                    ? 'אפשר להקליד בדיוק את המספר שכתוב על המכונה'
-                    : entry.weightKg <= 0
-                      ? 'אפשר גם להקליד את המשקל ישירות'
-                      : undefined
-                }
-              />
-              {exercise.usesPlates ? (
-                <PlateChips
-                  exercise={exercise}
-                  plates={settings.plates}
-                  onAdd={(deltaKg) =>
-                    setEntry((e) => ({ ...e, weightKg: round2(e.weightKg + deltaKg) }))
-                  }
-                  onReset={() =>
-                    setEntry((e) => ({
-                      ...e,
-                      weightKg:
-                        exercise.weightMode === 'perSide'
-                          ? 0
-                          : (exercise.barWeightKg ?? settings.plates.barWeightKg),
-                    }))
-                  }
-                />
-              ) : null}
-              {/* 8 — מה להעמיס על כל צד */}
-              <PlateHint targetKg={entry.weightKg} exercise={exercise} plates={settings.plates} />
-            </div>
-          )}
-          <div>
-            {/*
-              בתרגיל זמן הסטופר הוא המסלול הראשי: מודדים על המסך במקום לנחש
-              מול שעון. הוא רושם את הסט בעצמו בעצירה — השדה למטה נשאר למי
-              שמדד בדרך אחרת ומקליד תוצאה.
-            */}
-            {timed && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  audio.keepAlive()
-                  setHoldOpen(true)
-                }}
-                className="mb-3 flex min-h-14 w-full items-center justify-center gap-2 rounded-card border border-flame-500/40 bg-flame-500/10 text-base font-extrabold text-flame-300 active:bg-flame-500/20"
-              >
-                <Timer size={20} />
-                מדוד עם סטופר — היעד {formatClock(item.targetReps.min)}
-              </button>
-            )}
-            <Stepper
-              label={countLabel(exercise.metric)}
-              unit={timed ? 'שניות' : 'חזרות'}
-              value={entry.reps}
-              onChange={(reps) => setEntry((e) => ({ ...e, reps }))}
-              step={countStep(exercise.metric)}
-              min={0}
-              hint={timed ? `היעד ${formatClock(item.targetReps.min)}` : undefined}
-            />
-            {!timed && (
-              <RepChips
-                value={entry.reps}
-                targetReps={item.targetReps}
-                fallback={fallbackCount}
-                onPick={(reps) => setEntry((e) => ({ ...e, reps }))}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 9 — הפעולה הראשית. כפתור אחד, ענק, במקום קבוע בכל תרגיל */}
-      {/*
-        משקל 0 חוסם את הכפתור בדיוק כמו 0 חזרות.
-
-        בלי זה, תרגיל בלי היסטוריה ובלי משקל זריעה נפתח על 0 והכפתור הראשי
-        פעיל — כלומר הלחיצה הכי סבירה בעולם רושמת "סט עבודה של 0 ק״ג", ומאותו
-        רגע ההמלצה וההיסטוריה מדברות על אפס. שני הסייגים חובה: תרגיל משקל גוף
-        ותרגיל זמן שומרים אפס בכוונה.
-      */}
-      <button
-        type="button"
-        disabled={busy || entry.reps <= 0 || zeroWeight}
-        onClick={() => void commitSet(isWarmup ? 'warmup' : 'work', entry.weightKg, entry.reps)}
-        className="btn-flame mt-4 flex min-h-[4.5rem] w-full items-center justify-center rounded-card text-2xl font-extrabold [-webkit-touch-callout:none] disabled:opacity-40 disabled:shadow-none disabled:[filter:none] disabled:[transform:none]"
-      >
-        {heroLabel}
-      </button>
-
-      {/* 10 — פעולות משניות. אייקון מעל תווית, כדי שהתווית לא תיחתך */}
-      <div className="mt-2.5 grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => void deferItem(item.key)}
-          className="btn-ghost flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-bold"
-        >
-          <Clock size={16} className="text-flame-400" />
-          המתקן תפוס
-        </button>
-        <button
-          type="button"
-          onClick={onOpenSubstitute}
-          className="btn-ghost flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-bold"
-        >
-          <Repeat size={16} className="text-bone-400" />
-          החלף תרגיל
-        </button>
-        {/* דילוג קיים רק לפני הסט הראשון — אחרי שיש סטים הסגירה היא "סיים תרגיל" */}
-        {sets.length === 0 && (
-          <button
-            type="button"
-            onClick={onSkip}
-            className="btn-ghost flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-bold"
-          >
-            <SkipForward size={16} className="text-bone-500" />
-            דלג היום
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onFinishExercise}
-          className={`btn-ghost flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[0.6875rem] font-bold ${
-            sets.length === 0 ? '' : 'col-span-2'
-          }`}
-        >
-          <Check size={16} className="text-pr-400" />
-          סיים תרגיל
-        </button>
-      </div>
-
-      {/* 11 — דירוג קיים, בלחיצה אפשר לשנות */}
+      {/* דירוג שכבר ניתן — הדרך לתקן אותו בדיעבד */}
       {rating && (
         <button
           type="button"
           onClick={onOpenRating}
-          className="mt-2.5 flex min-h-12 w-full items-center justify-center gap-2 rounded-pill border border-ink-700 bg-ink-900/60 px-4 text-sm font-bold text-bone-300"
+          className="mt-[9px] flex h-10 w-full items-center justify-center gap-2 rounded-[13px] border border-ink-700 bg-ink-900/60 px-3 text-[0.78125rem] font-bold text-bone-300"
         >
-          <span>הרגיש {formatRatingText(rating.rating, rating.rir)}</span>
+          הרגיש {formatRatingText(rating.rating, rating.rir)}
         </button>
       )}
+
+      <ExerciseActionsSheet
+        open={actionsOpen}
+        onClose={() => setActionsOpen(false)}
+        exerciseName={exercise.name}
+        restSeconds={item.restSeconds}
+        canSkip={sets.length === 0}
+        onDefer={() => void deferItem(item.key)}
+        onSubstitute={onOpenSubstitute}
+        onFinishExercise={onFinishExercise}
+        onSkip={onSkip}
+        onRest={(next) => void setItemRest(item.key, next)}
+      />
 
       <BottomSheet open={noteOpen} onClose={() => setNoteOpen(false)} title="הערה לתרגיל">
         <div className="flex flex-col gap-3 pt-1 pb-4">
@@ -864,12 +888,38 @@ export function ExerciseCard({
         </div>
       </BottomSheet>
 
+      {/* הסטים המלאים — תיקון, הפיכה לחימום ומחיקה, הרחק מהכפתור הכתום */}
+      <BottomSheet open={logOpen} onClose={() => setLogOpen(false)} title="הסטים שתועדו">
+        <ul className="flex flex-col gap-1.5 pt-1 pb-4">
+          {sets.map((s) => {
+            if (s.type === 'work') workNumber += 1
+            return (
+              <SetRow
+                key={s.logId}
+                index={workNumber}
+                set={s}
+                exercise={exercise}
+                isPr={prStamps.has(s.completedAt)}
+                onEdit={() => setEditing(s)}
+                onToggleType={() => void toggleSetType(item.key, s.logId)}
+                onDelete={() => void removeSet(item.key, s.logId)}
+              />
+            )
+          })}
+        </ul>
+      </BottomSheet>
+
+      {/*
+        עורך הסט הבודד נפתח *מעל* רשימת הסטים ולא במקומה. שני פורטלים,
+        והאחרון ב-DOM הוא שלמעלה — סגירתו מחזירה לרשימה שממנה נפתח.
+      */}
       <BottomSheet open={editing !== null} onClose={() => setEditing(null)} title="עריכת סט">
         {editing && (
           <SetEditor
             key={editing.logId}
             set={editing}
             exercise={exercise}
+            plates={settings.plates}
             onSave={(weightKg, reps) => {
               void updateSet(item.key, editing.logId, weightKg, reps)
               setEditing(null)
@@ -886,10 +936,10 @@ export function ExerciseCard({
           audio={audio}
           onClose={() => setHoldOpen(false)}
           onSave={(elapsed) => {
-            // הסטופר נסגר לפני הרישום: commitSet פותח את מסך המנוחה, ושני
-            // פורטלים על אותו z-index נלחמים זה בזה
+            // הסטופר נסגר לפני הרישום: commitSet יכול לפתוח את מסך המנוחה,
+            // ושני פורטלים על אותו z-index נלחמים זה בזה
             setHoldOpen(false)
-            void commitSet(isWarmup ? 'warmup' : 'work', entry.weightKg, elapsed)
+            void commitSet('work', entry.weightKg, elapsed)
           }}
         />
       )}

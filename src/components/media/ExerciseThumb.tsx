@@ -18,6 +18,15 @@ import { VideoThumb } from './VideoThumb'
  * הדמות ב-56px, והחיתוך יצא גרוע יותר: בהרמה לצדדים ובפלאנק הוא בולע את
  * התנוחה, שהיא כל מה שמזהים בגודל הזה. הכרטיסים כבר מהודקים במקור.
  */
+/** הרשת של הריבועים, במקום אחד — כדי ששני הרכיבים לא ייפרדו זה מזה */
+const THUMB_BOX = {
+  row: 'h-[34px] w-[34px]',
+  xs: 'h-10 w-10',
+  card: 'h-[46px] w-[46px]',
+  sm: 'h-14 w-14',
+  md: 'h-20 w-20',
+} as const
+
 export function ExerciseThumb({
   exerciseId,
   libraryId,
@@ -29,8 +38,11 @@ export function ExerciseThumb({
   libraryId?: string
   /** חסר = התמונה דקורטיבית והשורה שמסביבה נלחצת, בדיוק כמו ב-VideoThumb */
   onOpen?: () => void
-  /** xs לשורות צפופות — התור, הסל, וסיכום אימון שעבר */
-  size?: 'xs' | 'sm' | 'md'
+  /**
+   * ‏xs לשורות צפופות — הסל וסיכום אימון שעבר. `row` ו-`card` הם שני גדלים
+   * נעוצים לרשת של מסך האימון (34 ו-46), ולכן הם לא זזים עם הסולם הכללי.
+   */
+  size?: 'row' | 'xs' | 'card' | 'sm' | 'md'
   keepFrame?: boolean
 }): JSX.Element | null {
   const image = primaryImageFor(exerciseId, libraryId)
@@ -46,7 +58,7 @@ export function ExerciseThumb({
     )
   }
 
-  const box = size === 'xs' ? 'h-10 w-10' : size === 'sm' ? 'h-14 w-14' : 'h-20 w-20'
+  const box = THUMB_BOX[size]
   const frame = `relative shrink-0 overflow-hidden rounded-xl border border-ink-700 bg-bone-50 ${box}`
 
   const inner = (
@@ -64,7 +76,7 @@ export function ExerciseThumb({
       */}
       <span className="absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-ink-950/70 to-transparent pb-0.5 pt-2">
         <Play
-          size={size === 'md' ? 14 : size === 'sm' ? 11 : 9}
+          size={size === 'md' ? 14 : size === 'sm' || size === 'card' ? 11 : 9}
           className="text-bone-50 drop-shadow"
           fill="currentColor"
         />

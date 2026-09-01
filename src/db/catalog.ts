@@ -1,11 +1,11 @@
-import { db } from './db'
+import { db, getSettings } from './db'
 import { LIBRARY_CATALOG } from './libraryManifest'
 import type { LibraryExercise } from './libraryManifest'
 import { getAllExercises } from './queries'
 import { withSecondaryMuscles } from './muscleTags'
 import { loadHiddenExerciseIds, unhideExercises } from './hiddenExercises'
 import { loadMuscleFixes } from './muscleFixes'
-import { DEFAULT_REST_SECONDS, DEFAULT_TARGET_SETS } from './seed'
+import { DEFAULT_REST_SECONDS } from './seed'
 import type { Exercise, MuscleGroup, Routine } from './types'
 import { newId } from '@/domain/units'
 
@@ -301,6 +301,13 @@ async function blankExercise(
   const now = Date.now()
   const maxOrder = (await db.exercises.toArray()).reduce((m, e) => Math.max(m, e.order), -1)
   /*
+    כמה סטים — מההגדרות ולא מקבוע. `DEFAULT_TARGET_SETS` תיאר את הקטלוג ברגע
+    מיגרציה 5 ואינו מכוונן; מי שמתאמן בשלושה סטים לא אמור לתקן כל תרגיל חדש
+    ביד. `seed` מגיע אחרי זה בפריסה למטה, ולכן קורא שמביא targetSets משלו
+    עדיין גובר.
+  */
+  const { defaultSets } = await getSettings()
+  /*
     התיוג המשני מוחל כאן ולא בקוראים.
 
     זה מסלול היצירה *היחיד* של תרגיל בזמן ריצה, ושלושת המסלולים האחרים
@@ -319,7 +326,7 @@ async function blankExercise(
     weightMode: 'total',
     weightIncrementKg: 2.5,
     defaultRestSeconds: DEFAULT_REST_SECONDS,
-    targetSets: DEFAULT_TARGET_SETS,
+    targetSets: defaultSets,
     targetReps: { min: 8, max: 12 },
     cues: [],
     usesPlates: false,

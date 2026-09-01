@@ -13,6 +13,15 @@ import { peekVideoPrefs, useVideoPrefsVersion } from '@/db/videoPrefs'
  * בלחיצה אחת — שתי רשומות היסטוריה זהות, ו"חזרה" ראשונה שנראית כאילו לא עשתה
  * כלום. זה גם HTML לא חוקי שקורא-מסך מכריז כשני פקדים.
  */
+/** אותה רשת בדיוק כמו ב-`ExerciseThumb` — שני הרכיבים מחליפים זה את זה */
+const BOX = {
+  row: 'h-[34px] w-[34px]',
+  xs: 'h-10 w-10',
+  card: 'h-[46px] w-[46px]',
+  sm: 'h-14 w-14',
+  md: 'h-20 w-20',
+} as const
+
 export function VideoThumb({
   exerciseId,
   libraryId,
@@ -27,7 +36,12 @@ export function VideoThumb({
   onOpen?: () => void
   /** xs לשורות צפופות — חייב להתקיים גם כאן, אחרת שורה בלי כרטיס שרירים
    *  מקבלת ריבוע גדול יותר משכנותיה וגובה השורה קופץ */
-  size?: 'xs' | 'sm' | 'md'
+  /**
+   * ‏`row` ו-`card` הם שני גדלים נעוצים לרשת של מסך האימון (34 ו-46), להבדיל
+   * מהסולם הכללי. הם קיימים כדי ששורת התור והכרטיס הפעיל יישבו על הגובה
+   * שנמדד להם, בלי להזיז אף ריבוע אחר באפליקציה.
+   */
+  size?: 'row' | 'xs' | 'card' | 'sm' | 'md'
   /**
    * שומר על התיבה גם כשאין תמונה.
    *
@@ -119,7 +133,7 @@ export function VideoThumb({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseId, libraryId, hiddenVersion, prefsVersion])
 
-  const box = size === 'xs' ? 'h-10 w-10' : size === 'sm' ? 'h-14 w-14' : 'h-20 w-20'
+  const box = BOX[size]
 
   if (!url) {
     if (!keepFrame) return null
@@ -154,7 +168,7 @@ export function VideoThumb({
       />
       <span className="absolute inset-0 flex items-center justify-center bg-ink-950/35">
         <Play
-          size={size === 'md' ? 20 : size === 'sm' ? 16 : 12}
+          size={size === 'md' ? 20 : size === 'sm' || size === 'card' ? 16 : 12}
           className="text-bone-50 drop-shadow"
           fill="currentColor"
         />

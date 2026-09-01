@@ -151,8 +151,9 @@ describe('מיון רשימת התרגילים', () => {
     window.location.hash = '#/workout'
     render(<App />)
 
-    await screen.findByRole('button', { name: 'תור התרגילים' }, { timeout: SLOW })
-    await user.click(screen.getByRole('button', { name: 'הוסף תרגיל לאימון' }))
+    await user.click(
+      await screen.findByRole('button', { name: 'הוסף תרגיל לאימון' }, { timeout: SLOW })
+    )
 
     /*
       הבורר הוא גיליון מעל מסך האימון, ולכן הטענות נשאלות בתוכו: מסך האימון

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { JSX } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ListOrdered, MessageCircleQuestion, Plus, Timer, Trophy } from 'lucide-react'
+import { MessageCircleQuestion, Plus, Timer, Trophy } from 'lucide-react'
 import { getSettings, saveSettings } from '@/db/db'
 import { getBlocks, getExerciseHistory, getFinishedSessions, getRoutines } from '@/db/queries'
 import type { DraftSet, ExerciseMetric, WeightMode } from '@/db/types'
@@ -64,6 +64,42 @@ function summarize(
   return { count: work.length, top: formatSetShort(top.weightKg, top.reps, mode, metric) }
 }
 
+/**
+ * מתג "איזה אימון זה היום" — שבב בגובה 28 בשורת פס ההתקדמות.
+ *
+ * הוויזואל 28 והאצבע 44: הפסאודו שמסביב מרחיב את שטח הלחיצה בלי לגעת בגובה
+ * השורה. `aria-pressed` נשאר, כי זה מתג ולא ניווט.
+ */
+function ModeChip({
+  on,
+  icon,
+  label,
+  onToggle,
+}: {
+  on: boolean
+  icon: JSX.Element
+  label: string
+  onToggle: () => void
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={onToggle}
+      className={`relative flex h-7 shrink-0 items-center gap-1 rounded-pill border px-2.5 text-[0.625rem] font-extrabold whitespace-nowrap transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] ${
+        on
+          ? 'border-flame-500/40 bg-flame-500/10 text-flame-300'
+          : 'border-ink-700 bg-ink-900 text-bone-500'
+      }`}
+    >
+      <span aria-hidden="true" className="shrink-0">
+        {icon}
+      </span>
+      {label}
+    </button>
+  )
+}
+
 export function WorkoutScreen(): JSX.Element | null {
   const workout = useWorkout((s) => s.workout)
   const exercisesById = useWorkout((s) => s.exercisesById)
@@ -87,6 +123,14 @@ export function WorkoutScreen(): JSX.Element | null {
   const wakeLock = useWakeLock(settings?.wakeLockEnabled ?? true)
 
   const [sheet, setSheet] = useState<SheetName | null>(null)
+  /**
+   * האם מסך המנוחה המלא פרוש.
+   *
+   * ברירת המחדל אחרי סט היא המנוחה שבתוך הכרטיס, והמסך המלא נפתח רק בלחיצה
+   * על המספר. שניהם קוראים את אותה חותמת `restEndsAt` מהחנות — אין כאן שני
+   * טיימרים לסנכרן, יש שכבה שנפתחת ונסגרת מעל ספירה אחת.
+   */
+  const [restFull, setRestFull] = useState(false)
   const [videoOpen, setVideoOpen] = useState(false)
   const [banner, setBanner] = useState<string | null>(null)
   const [finishedId, setFinishedId] = useState<string | null>(null)
@@ -139,6 +183,18 @@ export function WorkoutScreen(): JSX.Element | null {
       cancelled = true
     }
   }, [activeExerciseId])
+
+  /*
+    כל מנוחה נפתחת מכווצת.
+
+    ‏`restEndsAt === null` בלבד, ולא כל שינוי שלו: `adjustRest` מזיז את החותמת
+    בכל לחיצה על ±30, ואיפוס על כל שינוי היה סוגר את המסך המלא מתחת לאצבע
+    בדיוק כשמוסיפים שם זמן.
+  */
+  const restEndsAt = workout?.restEndsAt ?? null
+  useEffect(() => {
+    if (restEndsAt === null) setRestFull(false)
+  }, [restEndsAt])
 
   useEffect(() => {
     if (!wakeLock.error || wakeToasted.current) return
@@ -305,7 +361,38 @@ export function WorkoutScreen(): JSX.Element | null {
   const total = workout.queue.length
   // דילוג מפורש נחשב "טופל" — פס ההתקדמות מודד כמה נשאר להחליט עליו, לא כמה בוצע
   const done = workout.queue.filter((q) => q.status === 'done' || q.status === 'skipped').length
-  const progress = total > 0 ? (done / total) * 100 : 0
+  const activeIndex = workout.queue.findIndex((q) => q.key === workout.currentKey)
+  const remaining = total - done - (activeIndex >= 0 ? 1 : 0)
+
+  /*
+    מה שהמנוחה שבכרטיס מכריזה עליו כשהיעד של התרגיל הנוכחי הושלם: השורה
+    הבאה בתור שעוד לא נסגרה. פריט שדולג או שהסתיים אינו "הבא", גם כשהוא
+    יושב בשורה שמתחת.
+  */
+  const nextItem =
+    activeIndex >= 0
+      ? (workout.queue
+          .slice(activeIndex + 1)
+          .find((q) => q.status !== 'done' && q.status !== 'skipped') ?? null)
+      : null
+  const nextExercise = nextItem ? exercisesById[nextItem.exerciseId] : undefined
+  const nextUp =
+    nextItem && nextExercise
+      ? {
+          name: nextExercise.name,
+          targetSets: nextItem.targetSets,
+          targetReps: formatRepRange(nextItem.targetReps, nextExercise.metric),
+        }
+      : null
+
+  /** כל מה שאינו הכרטיס הפעיל, בסדר התור, עם התרגיל והסטים שלו */
+  const queueRows = workout.queue
+    .filter((q) => q.key !== workout.currentKey && exercisesById[q.exerciseId])
+    .map((q) => ({
+      item: q,
+      exercise: exercisesById[q.exerciseId],
+      sets: workout.setsByKey[q.key] ?? [],
+    }))
 
   /*
     מה שמסך המנוחה מציג. הכל נגזר כאן ולא בתוך השכבה: התור, הסטים והתרגילים
@@ -323,11 +410,13 @@ export function WorkoutScreen(): JSX.Element | null {
       או שהסתיים אינו "הבא", גם כשהוא יושב בשורה שמתחת.
     */
     const restIndex = workout.queue.findIndex((q) => q.key === restItem.key)
-    const nextItem =
+    // מהפריט שנחים ממנו ולא מהפעיל: כשהיעד הושלם התור כבר התקדם, ושני
+    // המספרים חייבים לתאר את אותו רגע
+    const afterRestItem =
       workout.queue
         .slice(restIndex + 1)
         .find((q) => q.status !== 'done' && q.status !== 'skipped') ?? null
-    const nextExercise = nextItem ? exercisesById[nextItem.exerciseId] : undefined
+    const afterRestExercise = afterRestItem ? exercisesById[afterRestItem.exerciseId] : undefined
 
     restFocus = {
       name: restExercise.name,
@@ -351,12 +440,12 @@ export function WorkoutScreen(): JSX.Element | null {
       */
       shares: image ? loadMapFor(imageIdOf(image.src)) : [],
       next:
-        nextItem && nextExercise
+        afterRestItem && afterRestExercise
           ? {
-              exerciseId: nextExercise.id,
-              libraryId: nextExercise.libraryId,
-              name: nextExercise.name,
-              targetSets: nextItem.targetSets,
+              exerciseId: afterRestExercise.id,
+              libraryId: afterRestExercise.libraryId,
+              name: afterRestExercise.name,
+              targetSets: afterRestItem.targetSets,
             }
           : null,
     }
@@ -365,92 +454,89 @@ export function WorkoutScreen(): JSX.Element | null {
   return (
     <Screen dock={false}>
       <header
-        className="sticky top-0 z-30 -mx-4 mb-3 border-b border-ink-800/70 bg-ink-950/85 px-3 backdrop-blur-xl"
-        style={{ paddingTop: 'calc(var(--safe-t) + 0.5rem)' }}
+        className="sticky top-0 z-30 -mx-4 mb-1 border-b border-ink-800/70 bg-ink-950/85 px-3.5 pb-2.5 backdrop-blur-xl"
+        style={{ paddingTop: 'calc(var(--safe-t) + 0.375rem)' }}
       >
-        <div className="flex items-center gap-1 pb-2">
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={() => setSheet('finish')}
-            className="flex min-h-12 shrink-0 items-center rounded-xl px-3 text-sm font-bold text-bone-400 active:bg-ink-800"
+            className="relative shrink-0 px-1.5 py-2 text-[0.84375rem] font-semibold text-bone-500 after:absolute after:inset-x-0 after:-inset-y-[7px] after:content-['']"
           >
             סיים
           </button>
 
-          <div className="min-w-0 flex-1 text-center">
-            <p className="truncate text-sm font-extrabold text-bone-50">
-              {routine ? routine.name : 'אימון חופשי'}
-            </p>
-            {subtitle && <p className="truncate text-[0.6875rem] text-bone-500">{subtitle}</p>}
-          </div>
+          {/*
+            שורה אחת, לא שתיים. הכתובית שהייתה מתחת לשם ("חזה ויד אחורית ·
+            כתפיים · אמו...") נחתכה ממילא באמצע מילה, ולכן היא נכנסת לאותה
+            שורה אחרי נקודה מפרידה — מי שרוצה את הפירוט המלא רואה אותו ברשימה
+            שמתחת, שעכשיו נמצאת על המסך.
+          */}
+          <p className="min-w-0 flex-1 truncate text-center text-[0.90625rem] font-extrabold text-bone-100">
+            {routine ? routine.name : 'אימון חופשי'}
+            {subtitle ? ` · ${subtitle}` : ''}
+          </p>
 
-          <div className="flex shrink-0 items-center gap-0.5">
-            <ElapsedClock startedAt={workout.startedAt} className="me-1 min-h-9" />
-            {/*
-              ההוספה יושבת בכותרת ולא במזח, ובכוונה רחוק מהכתום של "סיים סט":
-              היא הפעולה שהופכת את המסך הזה לבנייה ולא רק לתיעוד, אבל היא
-              לעולם לא מתחרה על האגודל מול היעד היחיד של אזור התחתון.
-            */}
-            <button
-              type="button"
-              aria-label="הוסף תרגיל לאימון"
-              onClick={() => setSheet('add')}
-              className="flex size-12 items-center justify-center rounded-full text-bone-400 active:bg-ink-800"
-            >
-              <Plus size={20} />
-            </button>
-            <button
-              type="button"
-              aria-label="תור התרגילים"
-              onClick={() => setSheet('queue')}
-              className="flex size-12 items-center justify-center rounded-full text-bone-400 active:bg-ink-800"
-            >
-              <ListOrdered size={20} />
-            </button>
-          </div>
+          <ElapsedClock startedAt={workout.startedAt} />
+          {/*
+            ההוספה יושבת בכותרת ולא במזח, ובכוונה רחוק מהכתום של "סיים סט":
+            היא הפעולה שהופכת את המסך הזה לבנייה ולא רק לתיעוד, אבל היא
+            לעולם לא מתחרה על האגודל מול היעד היחיד של אזור התחתון.
+          */}
+          <button
+            type="button"
+            aria-label="הוסף תרגיל לאימון"
+            onClick={() => setSheet('add')}
+            className="relative flex size-[34px] shrink-0 items-center justify-center rounded-[11px] border border-ink-700 bg-ink-900 text-bone-500 after:absolute after:-inset-[5px] after:content-[''] active:bg-ink-800"
+          >
+            <Plus size={18} />
+          </button>
         </div>
 
-        <div className="-mx-3 h-[3px] bg-ink-800" role="img" aria-label={`${done} מתוך ${total} תרגילים`}>
+        {/*
+          פס ההתקדמות ושני המתגים באותה שורה.
+
+          המתגים ("איזה אימון זה היום": עם/בלי טיימר, עם/בלי שאלון קושי) ירדו
+          משורה משלהם בגובה 44 לשני שבבים בגובה 28 — הם החלטה שמתקבלת פעם
+          באימון, ו-88 פיקסלים קבועים בשבילה היו באים על חשבון הכפתור הכתום.
+          שטח הלחיצה נשאר 44 דרך הפסאודו שמסביבם.
+        */}
+        <div className="mt-2.5 flex items-center gap-2">
           <div
-            className="h-full bg-linear-to-l from-flame-500 to-flame-400 transition-[width] duration-500"
-            style={{ width: `${progress}%` }}
+            className="flex h-[5px] min-w-0 flex-1 gap-1"
+            role="img"
+            aria-label={`${done} מתוך ${total} תרגילים`}
+          >
+            {workout.queue.map((q) => (
+              <span
+                key={q.key}
+                className={`flex-1 rounded-[3px] ${
+                  q.status === 'done' || q.status === 'skipped'
+                    ? 'bg-pr-400/50'
+                    : q.key === workout.currentKey
+                      ? 'bg-linear-to-l from-flame-500 to-flame-300'
+                      : 'bg-ink-800'
+                }`}
+              />
+            ))}
+          </div>
+          <span className="shrink-0 text-[0.625rem] leading-none font-bold tracking-[0.04em] whitespace-nowrap text-bone-500">
+            {activeIndex >= 0 ? `תרגיל ${activeIndex + 1} מתוך ${total}` : `${total} תרגילים`}
+          </span>
+          <ModeChip
+            on={settings.restTimerEnabled}
+            icon={<Timer size={11} />}
+            label={settings.restTimerEnabled ? 'מנוחה' : 'מנוחה כבויה'}
+            onToggle={() => void saveSettings({ restTimerEnabled: !settings.restTimerEnabled })}
+          />
+          <ModeChip
+            on={settings.askRating}
+            icon={<MessageCircleQuestion size={11} />}
+            label={settings.askRating ? 'קושי' : 'קושי כבוי'}
+            onToggle={() => void saveSettings({ askRating: !settings.askRating })}
           />
         </div>
       </header>
-
-      {/*
-        שני מתגים של "איזה אימון זה היום": עם/בלי טיימר מנוחה, עם/בלי שאלון
-        קושי. הם יושבים כאן ולא רק בהגדרות כי ההחלטה מתקבלת על רצפת חדר הכושר —
-        והם נשמרים, כך שהבחירה מחזיקה גם לאימון הבא עד שמשנים אותה.
-      */}
-      <div className="mb-3 flex gap-2">
-        <button
-          type="button"
-          aria-pressed={settings.restTimerEnabled}
-          onClick={() => void saveSettings({ restTimerEnabled: !settings.restTimerEnabled })}
-          className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-pill border px-3 text-xs font-bold transition-colors ${
-            settings.restTimerEnabled
-              ? 'border-flame-500/40 bg-flame-500/10 text-flame-300'
-              : 'border-ink-700 bg-ink-900/60 text-bone-500'
-          }`}
-        >
-          <Timer size={14} />
-          {settings.restTimerEnabled ? 'טיימר מנוחה' : 'טיימר מנוחה כבוי'}
-        </button>
-        <button
-          type="button"
-          aria-pressed={settings.askRating}
-          onClick={() => void saveSettings({ askRating: !settings.askRating })}
-          className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-pill border px-3 text-xs font-bold transition-colors ${
-            settings.askRating
-              ? 'border-flame-500/40 bg-flame-500/10 text-flame-300'
-              : 'border-ink-700 bg-ink-900/60 text-bone-500'
-          }`}
-        >
-          <MessageCircleQuestion size={14} />
-          {settings.askRating ? 'שאלון קושי' : 'שאלון קושי כבוי'}
-        </button>
-      </div>
 
       {total === 0 ? (
         <EmptyState
@@ -468,65 +554,94 @@ export function WorkoutScreen(): JSX.Element | null {
           }
         />
       ) : (
-        <div className="flex flex-col gap-2">
-          {workout.queue.map((item) => {
-            const exercise = exercisesById[item.exerciseId]
-            if (!exercise) return null
-            const sets = workout.setsByKey[item.key] ?? []
+        <>
+          {activeItem && activeExercise && (
+            <div
+              ref={activeCardRef}
+              className="animate-rise relative mt-2.5"
+              style={{ scrollMarginTop: 'calc(var(--safe-t) + 4.5rem)' }}
+            >
+              {banner && (
+                <div className="animate-stamp pointer-events-none absolute inset-x-4 -top-2 z-20 flex items-center justify-center gap-2 rounded-pill border border-pr-400/40 bg-ink-950/95 px-4 py-2 text-sm font-extrabold text-pr-400 shadow-lg">
+                  <Trophy size={16} />
+                  {banner}
+                </div>
+              )}
+              <ExerciseCard
+                key={activeItem.key}
+                item={activeItem}
+                exercise={activeExercise}
+                sets={workout.setsByKey[activeItem.key] ?? []}
+                rating={workout.ratingsByKey[activeItem.key] ?? null}
+                onOpenVideo={() => setVideoOpen(true)}
+                onOpenSubstitute={() => setSheet('substitute')}
+                onOpenRating={() => setSheet('rating')}
+                onFinishExercise={handleFinishExercise}
+                onSkip={() => handleSkip(activeItem.key)}
+                settings={settings}
+                history={historyFor === activeItem.exerciseId ? history : []}
+                audio={audio}
+                onLogged={celebrate}
+                rest={
+                  workout.restEndsAt !== null
+                    ? { endsAt: workout.restEndsAt, totalSeconds: workout.restTotalSeconds }
+                    : null
+                }
+                onOpenFullRest={() => setRestFull(true)}
+                onAdjustRest={(delta) => void adjustRest(delta)}
+                onStopRest={() => void stopRest()}
+                nextUp={nextUp}
+              />
+            </div>
+          )}
 
-            if (item.key === workout.currentKey) {
-              return (
-                <div
-                  key={item.key}
-                  ref={activeCardRef}
-                  className="animate-rise relative"
-                  style={{ scrollMarginTop: 'calc(var(--safe-t) + 4.5rem)' }}
+          {/*
+            הרשימה. מאז שהכרטיס הפעיל נכנס למסך אחד היא נראית באמת, וזה מה
+            שהופך אותה למסלול הראשי אל התור במקום לגיליון: נגיעה בשורה מעבירה
+            את האימון לתרגיל שבה.
+
+            כותרת הספירה היא כפתור, כי סידור מחדש של התור עדיין חי בגיליון
+            ואין לו דלת אחרת מאז שהאייקון ירד מהכותרת.
+          */}
+          {queueRows.length > 0 && (
+            <>
+              <div className="mt-3.5 flex items-center justify-between gap-2 px-1">
+                <span className="text-[0.625rem] leading-none font-bold tracking-[0.12em] text-bone-500">
+                  הבאים בתור
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSheet('queue')}
+                  className="relative text-[0.65625rem] leading-none font-semibold text-bone-500 after:absolute after:inset-x-0 after:-inset-y-[17px] after:content-['']"
                 >
-                  {banner && (
-                    <div className="animate-stamp pointer-events-none absolute inset-x-4 -top-2 z-20 flex items-center justify-center gap-2 rounded-pill border border-pr-400/40 bg-ink-950/95 px-4 py-2 text-sm font-extrabold text-pr-400 shadow-lg">
-                      <Trophy size={16} />
-                      {banner}
-                    </div>
-                  )}
-                  <ExerciseCard
+                  {done > 0 ? `${done} הושלמו · ` : ''}
+                  {remaining > 0 ? `נשארו ${remaining}` : 'זה האחרון'}
+                </button>
+              </div>
+
+              <div className="mt-2.5 flex flex-col gap-1.5">
+                {queueRows.map(({ item, exercise, sets }) => (
+                  <QueueRow
+                    key={item.key}
                     item={item}
                     exercise={exercise}
-                    sets={sets}
-                    rating={workout.ratingsByKey[item.key] ?? null}
-                    onOpenVideo={() => setVideoOpen(true)}
-                    onOpenSubstitute={() => setSheet('substitute')}
-                    onOpenRating={() => setSheet('rating')}
-                    onFinishExercise={handleFinishExercise}
+                    apart={distinguisher(exercise, duplicates)}
+                    setCount={sets.length}
+                    summary={summarize(sets, exercise.weightMode, exercise.metric)}
+                    onTap={() => void setCurrent(item.key)}
                     onSkip={() => handleSkip(item.key)}
-                    settings={settings}
-                    history={historyFor === item.exerciseId ? history : []}
-                    audio={audio}
-                    onLogged={celebrate}
                   />
-                </div>
-              )
-            }
-
-            return (
-              <QueueRow
-                key={item.key}
-                item={item}
-                exercise={exercise}
-                apart={distinguisher(exercise, duplicates)}
-                setCount={sets.length}
-                summary={summarize(sets, exercise.weightMode, exercise.metric)}
-                onTap={() => void setCurrent(item.key)}
-                onSkip={() => handleSkip(item.key)}
-              />
-            )
-          })}
+                ))}
+              </div>
+            </>
+          )}
 
           {workout.currentKey === null && (
-            <p className="card px-4 py-5 text-center text-sm font-semibold text-bone-400">
+            <p className="card mt-2.5 px-4 py-5 text-center text-sm font-semibold text-bone-400">
               כל התרגילים סומנו כהושלמו. אפשר לפתוח תרגיל מהתור, או לסגור את האימון.
             </p>
           )}
-        </div>
+        </>
       )}
 
       {/* המזח: כפתור אחד שקט בסוף התוכן, הרחק מהכתום של "סיים סט" */}
@@ -540,13 +655,24 @@ export function WorkoutScreen(): JSX.Element | null {
         </button>
       </div>
 
+      {/*
+        מסך המנוחה המלא. הוא **מורכב תמיד** כשיש מנוחה, גם כשהוא מכווץ, כי הוא
+        הבעלים היחיד של הצליל ושל ההבזק — ומנוחה שנוחה בתוך הכרטיס חייבת
+        להיגמר באותו cue בדיוק. `collapsed` הוא רק שאלה של מה מצויר.
+      */}
       <RestOverlay
         endsAt={workout.restEndsAt}
         totalSeconds={workout.restTotalSeconds}
+        collapsed={!restFull}
+        onCollapse={() => setRestFull(false)}
         audio={audio}
         onAdjust={(delta) => void adjustRest(delta)}
-        onStartSet={() => void stopRest()}
+        onStartSet={() => {
+          setRestFull(false)
+          void stopRest()
+        }}
         onDisable={() => {
+          setRestFull(false)
           void saveSettings({ restTimerEnabled: false })
           void stopRest()
           toast('טיימר המנוחה כבוי — מדליקים חזרה במתג שבראש מסך האימון')

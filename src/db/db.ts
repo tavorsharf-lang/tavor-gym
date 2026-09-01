@@ -16,6 +16,7 @@ import type {
 import {
   DEFAULT_REPS,
   DEFAULT_REST_SECONDS,
+  DEFAULT_SETS,
   DEFAULT_SETTINGS,
   DEFAULT_TARGET_SETS,
   PLANK_RANGE,
@@ -464,6 +465,27 @@ class GymDatabase extends Dexie {
       .stores({})
       .upgrade(() => {
         markFirstRunSeen()
+      })
+
+    /**
+     * גרסה 14 — "סטים ברירת מחדל" נכנסת להגדרות.
+     *
+     * ‏`mergeSettings` כבר משלים שדה חסר בקריאה, ולכן המסך מציג 3 גם בלי
+     * המיגרציה הזו. מה שהיא מוסיפה הוא שהערך *ייכתב* לשורה: בלעדיה
+     * `defaultSets` היה נולד מחדש בכל קריאה ונעדר מהגיבוי, וייצוא ושחזור
+     * היו מחזירים משתמש שכבר שינה את הערך אל ברירת המחדל בשקט.
+     *
+     * רק שדה חסר. מי שכבר שמר ערך משלו — למשל בין העדכון להרצת המיגרציה —
+     * שומר עליו.
+     */
+    this.version(14)
+      .stores({})
+      .upgrade(async (tx) => {
+        const settings = tx.table<SettingsRow, string>('settings')
+        const row = await settings.get('app')
+        if (!row) return
+        if (typeof row.value.defaultSets === 'number') return
+        await settings.put({ key: 'app', value: { ...row.value, defaultSets: DEFAULT_SETS } })
       })
 
     /*

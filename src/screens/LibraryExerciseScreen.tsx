@@ -10,9 +10,9 @@ import { libraryExercise } from '@/db/libraryLinks'
 import { LIBRARY_MAX_PER_EXERCISE } from '@/db/libraryManifest'
 import { MUSCLE_GROUPS } from '@/db/types'
 import type { Exercise, VideoAsset } from '@/db/types'
-import { db } from '@/db/db'
+import { db, getSettings } from '@/db/db'
 import { getCatalogEntry } from '@/db/catalog'
-import { DEFAULT_REST_SECONDS, DEFAULT_TARGET_SETS } from '@/db/seed'
+import { DEFAULT_REST_SECONDS } from '@/db/seed'
 import { formatBytes, newId } from '@/domain/units'
 import { Screen, ScreenHeader } from '@/components/shell/ScreenHeader'
 import { Button, EmptyState, toast } from '@/components/ui'
@@ -127,6 +127,9 @@ export function LibraryExerciseScreen(): JSX.Element {
       }
       const now = Date.now()
       const maxOrder = (await db.exercises.toArray()).reduce((m, e) => Math.max(m, e.order), -1)
+      // כמה סטים — מההגדרות, בדיוק כמו ב-`blankExercise`. שני מסלולי היצירה
+      // חייבים להסכים, אחרת אותו תרגיל נולד שונה לפי הדלת שנכנסו ממנה.
+      const { defaultSets } = await getSettings()
       const created: Exercise = {
         id: newId('ex-'),
         name: exercise.nameHe,
@@ -137,7 +140,7 @@ export function LibraryExerciseScreen(): JSX.Element {
         weightMode: 'total',
         weightIncrementKg: 2.5,
         defaultRestSeconds: DEFAULT_REST_SECONDS,
-        targetSets: DEFAULT_TARGET_SETS,
+        targetSets: defaultSets,
         targetReps: { min: 8, max: 12 },
         cues: [],
         usesPlates: false,

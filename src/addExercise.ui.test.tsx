@@ -54,9 +54,14 @@ describe('הוספת תרגיל תוך כדי אימון', () => {
     window.location.hash = '#/workout'
     render(<App />)
 
-    // פקד שקיים רק במסך האימון — ההוכחה שהמסך התייצב ולא רק נכתב ל-hash
-    await screen.findByRole('button', { name: 'תור התרגילים' }, { timeout: SLOW })
-    await user.click(screen.getByRole('button', { name: 'הוסף תרגיל לאימון' }))
+    /*
+      פקד שקיים רק במסך האימון — ההוכחה שהמסך התייצב ולא רק נכתב ל-hash.
+      אייקון "תור התרגילים" ירד מהכותרת (התור עצמו נראה במסך עכשיו), ולכן
+      ההוספה היא הכפתור שממלא את התפקיד הזה.
+    */
+    await user.click(
+      await screen.findByRole('button', { name: 'הוסף תרגיל לאימון' }, { timeout: SLOW })
+    )
 
     // הגיליון נפתח על "שלי", ותרגיל מאגר לא דולף לשם
     await screen.findByRole('button', { name: 'הכל' }, { timeout: SLOW })
@@ -194,6 +199,15 @@ describe('הוספת תרגיל תוך כדי אימון', () => {
 
     window.location.hash = '#/workout'
     render(<App />)
+
+    /*
+      המנוחה נפתחת **בתוך הכרטיס** ולא כשכבה, ולכן קודם פותחים את המסך המלא
+      בלחיצה על המספר. זו הזרימה האמיתית מאז שהבמה בגובה 196 קיימת: הספירה
+      היא ברירת המחדל, והמסך המלא הוא מה שנפתח מעליה כשרוצים אותו.
+    */
+    await user.click(
+      await screen.findByRole('button', { name: /פתח את מסך המנוחה המלא/ }, { timeout: SLOW })
+    )
 
     /*
       תווית נפרדת מזו של הכפתור בכותרת. שניהם יכולים להיות על המסך יחד —

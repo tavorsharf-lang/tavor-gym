@@ -145,18 +145,21 @@ describe('מדידה בזמן מול חזרות', () => {
       expect(marks).toContain(6)
       expect(marks).toContain(range.min)
       expect(marks).toContain(range.max)
-      expect(marks.length).toBeLessThanOrEqual(12)
+      // שורה אחת שלא נגללת — שישה שבבים הם התקרה, לא הצעה
+      expect(marks.length).toBeLessThanOrEqual(6)
       // תמיד עולה, בלי כפילויות — השורה נקראת משמאל לימין כמו סרגל
       expect([...marks].sort((a, b) => a - b)).toEqual(marks)
       expect(new Set(marks).size).toBe(marks.length)
     }
 
-    // ברירת מחדל שכבר בתוך הטווח לא מוסיפה שבב, וטווח צר מרופד משני הצדדים
-    expect(repMarks({ min: 10, max: 12 }, 10)).toEqual([9, 10, 11, 12, 13])
+    // ברירת מחדל שכבר בתוך הטווח לא מוסיפה שבב
+    expect(repMarks({ min: 10, max: 12 }, 10)).toEqual([10, 11, 12])
     // אף פעם לא 0 חזרות, ואף פעם לא שורה בלי סוף
-    expect(repMarks({ min: 1, max: 3 }, 1)).toEqual([1, 2, 3, 4])
+    expect(repMarks({ min: 1, max: 3 }, 1)).toEqual([1, 2, 3])
+    // טווח צפוף נדגם בקפיצות שוות, וראש הטווח נכנס גם כשהדגימה פספסה אותו
+    expect(repMarks({ min: 10, max: 15 }, 6)).toEqual([6, 10, 12, 14, 15])
     const wide = repMarks({ min: 5, max: 30 }, 6)
-    expect(wide.length).toBeLessThanOrEqual(12)
+    expect(wide.length).toBeLessThanOrEqual(6)
     expect(wide).toContain(30)
     expect(wide).toContain(6)
   })

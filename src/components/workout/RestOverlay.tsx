@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Minus, Plus, TimerOff } from 'lucide-react'
+import { Minus, Plus, TimerOff, X } from 'lucide-react'
 import { useRestTimer } from '@/hooks/useRestTimer'
 import type { AudioCue } from '@/hooks/useAudioCue'
 import { formatClock } from '@/domain/units'
@@ -84,6 +84,8 @@ export function RestOverlay({
   focus,
   onAddExercise,
   onFinishWorkout,
+  onCollapse,
+  collapsed = false,
   startedAt,
 }: {
   endsAt: number | null
@@ -123,6 +125,23 @@ export function RestOverlay({
    */
   onFinishWorkout?: () => void
   /**
+   * חזרה למנוחה המוטמעת שבכרטיס, **בלי לעצור את הטיימר**.
+   *
+   * זו כל ההבחנה בין הכפתור הזה לבין "סט הבא" שלידו: אחד מוותר על השאר
+   * מהמנוחה, והשני רק מקטין את התצוגה שלה. הספירה היא אותה חותמת `restEndsAt`
+   * בשני המסכים, ולכן אין כאן מה לסנכרן — יש מסך אחד שנפתח ונסגר מעליה.
+   */
+  onCollapse?: () => void
+  /**
+   * המסך מכווץ: המנוחה רצה, אבל היא מוצגת בתוך הכרטיס ולא כאן.
+   *
+   * הרכיב עדיין מורכב, ובכוונה — הוא **הבעלים היחיד של הצליל ושל ההבזק**.
+   * מתג ההשתקה של האייפון משתיק את הצפצוף, וההבזק הוא מה שנשאר; אם הוא היה
+   * יורד עם השכבה, כל מנוחה שנוחה בתוך הכרטיס הייתה נגמרת בלי שום סימן.
+   * שני בעלים לאותו cue היו מייצרים שני צפצופים, ולכן יש רק אחד.
+   */
+  collapsed?: boolean
+  /**
    * תחילת האימון, כדי ששעון האימון ימשיך להיראות גם מכאן.
    *
    * המסך הזה חוסם את כותרת האימון לגמרי, ומנוחה היא בדיוק הרגע שבו שואלים
@@ -154,6 +173,18 @@ export function RestOverlay({
   const urgent = timer.active && timer.remainingSeconds <= 3 && timer.remainingSeconds > 0
 
   if (!timer.active && !flash) return null
+
+  /*
+    מכווץ: רק ההבזק, ומעליו כלום. `pointer-events-none` הוא העיקר — השכבה
+    הזאת חייבת לתת לאצבע להמשיך למנוחה שבכרטיס מתחתיה.
+  */
+  if (collapsed) {
+    if (!flash) return null
+    return createPortal(
+      <div className="animate-flash pointer-events-none fixed inset-0 z-50 bg-flame-500" />,
+      document.body
+    )
+  }
 
   /*
     הטבעת נמדדת ביחידות ה-viewBox ולא בפיקסלים, כי הקופסה עצמה משנה גודל לפי
@@ -240,6 +271,17 @@ export function RestOverlay({
           לכל האימון ולא רפלקס של אמצע סט, והמרחק מהאגודל הוא מה שמונע לחיצה
           בטעות בדיוק ברגע שמחכים לצפצוף.
         */}
+        {onCollapse ? (
+          <button
+            onClick={onCollapse}
+            aria-label="סגור את מסך המנוחה — הספירה ממשיכה בכרטיס"
+            className="flex size-11 items-center justify-center rounded-full text-bone-300 active:bg-ink-800"
+          >
+            <span className="flex size-9 items-center justify-center rounded-full bg-ink-800">
+              <X size={17} strokeWidth={2.5} />
+            </span>
+          </button>
+        ) : null}
         <button
           onClick={onDisable}
           aria-label="אני עם שעון — כבה את טיימר המנוחה"

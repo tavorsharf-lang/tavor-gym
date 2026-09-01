@@ -33,6 +33,16 @@ export interface StepperProps {
   decimals?: 0 | 1 | 2
   size?: 'md' | 'hero'
   disabled?: boolean
+  /**
+   * `tile` — הפקד כאריח בתוך במת הסט: מסגרת אחת סביב הכל, ± בגודל 42,
+   * והתווית יורדת לקורא מסך בלבד. הלוגיקה זהה לחלוטין; מה שמשתנה הוא
+   * שהאריח הוא יחידה אחת שאפשר להאיר, ולא שלושה פקדים בשורה.
+   */
+  variant?: 'stack' | 'tile'
+  /** ‏`tile` בלבד — האריח הפעיל, זה ששורת השבבים מדברת עליו */
+  focused?: boolean
+  /** ‏`tile` בלבד — נגיעה כלשהי באריח מעבירה אליו את המיקוד */
+  onActivate?: () => void
 }
 
 const HOLD_DELAY_MS = 400
@@ -73,23 +83,47 @@ interface StepButtonProps {
   disabled: boolean
   active: boolean
   ariaLabel: string
+  tile?: boolean
   onStart: (dir: -1 | 1) => void
   onStop: () => void
 }
 
-function StepButton({ dir, disabled, active, ariaLabel, onStart, onStop }: StepButtonProps): JSX.Element {
+function StepButton({
+  dir,
+  disabled,
+  active,
+  ariaLabel,
+  tile = false,
+  onStart,
+  onStop,
+}: StepButtonProps): JSX.Element {
   return (
     <button
       type="button"
       disabled={disabled}
       aria-label={ariaLabel}
       className={[
-        // רוחב קבוע וגובה נמתח: הכפתור נצמד לגובה תיבת המספר, ולעולם לא גונב
-        // ממנה רוחב. size-16 קבוע היה מוחץ את המספר לפס דק בעמודה צרה.
-        'btn-ghost flex w-16 shrink-0 select-none items-center justify-center self-stretch rounded-2xl',
+        'flex shrink-0 select-none items-center justify-center',
         '[-webkit-touch-callout:none]',
         'disabled:opacity-30 disabled:[transform:none]',
-        active ? 'border-flame-500/60 bg-ink-700 text-flame-400' : '',
+        tile
+          ? // 42 חזותי, 50 באצבע: הריבוע נשאר בדיוק בגודל שבעיצוב, והפסאודו
+            // שמסביבו מרחיב את שטח הלחיצה מעבר למינימום של 44 בלי לזוז.
+            [
+              'relative size-[42px] rounded-xl bg-ink-800 text-bone-300 active:bg-ink-700',
+              "after:absolute after:-inset-1 after:content-['']",
+              active ? 'bg-ink-700 text-flame-400' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')
+          : // רוחב קבוע וגובה נמתח: הכפתור נצמד לגובה תיבת המספר, ולעולם לא גונב
+            // ממנה רוחב. size-16 קבוע היה מוחץ את המספר לפס דק בעמודה צרה.
+            [
+              'btn-ghost w-16 self-stretch rounded-2xl',
+              active ? 'border-flame-500/60 bg-ink-700 text-flame-400' : '',
+            ]
+              .filter(Boolean)
+              .join(' '),
       ]
         .filter(Boolean)
         .join(' ')}
@@ -112,7 +146,11 @@ function StepButton({ dir, disabled, active, ariaLabel, onStart, onStop }: StepB
       }}
       onKeyUp={onStop}
     >
-      {dir === 1 ? <Plus size={30} strokeWidth={3} /> : <Minus size={30} strokeWidth={3} />}
+      {dir === 1 ? (
+        <Plus size={tile ? 20 : 30} strokeWidth={3} />
+      ) : (
+        <Minus size={tile ? 20 : 30} strokeWidth={3} />
+      )}
     </button>
   )
 }
@@ -130,6 +168,9 @@ export function Stepper({
   decimals,
   size = 'md',
   disabled = false,
+  variant = 'stack',
+  focused = false,
+  onActivate,
 }: StepperProps): JSX.Element {
   const inputId = useId()
   // ההסבר מתחת לשדה נקרא בעיניים ממילא. בלי הקישור הזה קורא מסך מקריא את
@@ -250,6 +291,116 @@ export function Stepper({
   const atMin = min !== undefined && value <= min
   const atMax = max !== undefined && value >= max
   const hero = size === 'hero'
+  const tile = variant === 'tile'
+
+  /*
+    שדה המספר עצמו, משותף לשתי הפריסות.
+
+    הוא נשאר `input` גם באריח, ולא כיתוב שפותח מקלדת בלחיצה ארוכה: המסלול
+    הזה הוא מה שמאפשר להקליד "62.5" בלי שתים-עשרה לחיצות על +, ובכל תרגיל
+    שאין לו היסטוריה הוא הדרך היחידה להגיע למשקל אמיתי. הפוקוס עליו הוא גם
+    מה שמסמן את האריח כפעיל — כלומר נגיעה במספר מעבירה אליו את שורת השבבים,
+    בדיוק כמו בעיצוב.
+  */
+  const field = (
+    <input
+      id={inputId}
+      aria-describedby={hint ? hintId : undefined}
+      inputMode="decimal"
+      dir="ltr"
+      type="text"
+      autoComplete="off"
+      disabled={disabled}
+      className={[
+        'numeral-hero tnum w-full appearance-none border-0 bg-transparent text-center leading-none text-bone-50 outline-none',
+        tile ? 'text-[1.6875rem]' : hero ? 'text-[2.75rem]' : 'text-[2.125rem]',
+      ].join(' ')}
+      value={draft ?? display(value, dec)}
+      onChange={(e) => typeDraft(e.target.value)}
+      onFocus={(e) => {
+        onActivate?.()
+        // בחירת הכל כדי שהקלדה תחליף במקום להוסיף. ספארי מאבד את
+        // הבחירה בפריים הראשון של הפוקוס, ולכן חוזרים עליה ב-rAF.
+        const el = e.currentTarget
+        const atFocus = el.value
+        el.select()
+        requestAnimationFrame(() => {
+          // רק אם המשתמש עוד לא הספיק להקליד. במכשיר עמוס הפריים הבא
+          // יכול לנחות *אחרי* ההקשה הראשונה, ובחירה חוזרת אז הייתה בולעת
+          // אותה — בדיוק תחושת "הקלדתי ולא נתפס" שהפקד הזה נועד למנוע.
+          if (el.value === atFocus) el.select()
+        })
+      }}
+      onBlur={(e) => commitDraft(e.currentTarget.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          e.currentTarget.blur()
+        } else if (e.key === 'Escape') {
+          setDraft(null)
+          e.currentTarget.blur()
+        }
+      }}
+    />
+  )
+
+  if (tile) {
+    return (
+      /*
+        ‏dir=ltr מאותה סיבה בדיוק כמו בפריסה הרגילה — מינוס בצד השמאלי הפיזי
+        ופלוס בימני, כי האצבע באמצע סט הולכת לפי זיכרון שריר.
+      */
+      <div
+        dir="ltr"
+        onPointerDown={onActivate}
+        className={[
+          'flex h-full items-center gap-1 rounded-2xl border bg-ink-900 px-1.5 transition-colors',
+          focused
+            ? 'border-flame-500/45 shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-flame-500)_7%,transparent)]'
+            : 'border-ink-700',
+          disabled ? 'opacity-45' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        <StepButton
+          dir={-1}
+          tile
+          disabled={!canStep || atMin}
+          active={held === -1}
+          ariaLabel={`הפחת ${label}`}
+          onStart={startHold}
+          onStop={stopHold}
+        />
+        <div className="flex min-w-0 flex-1 flex-col items-center justify-center">
+          {/* התווית יורדת מהעין ונשארת לקורא מסך — שני אריחים באותו מסך
+              מוכרחים להיות מובחנים גם כשהמלל היחיד עליהם הוא היחידה */}
+          <label htmlFor={inputId} className="sr-only">
+            {label}
+          </label>
+          {field}
+          {unit ? (
+            <span
+              aria-hidden="true"
+              dir="rtl"
+              className="mt-1 text-[0.625rem] leading-none font-semibold text-bone-500"
+            >
+              {unit}
+            </span>
+          ) : null}
+        </div>
+        <StepButton
+          dir={1}
+          tile
+          disabled={!canStep || atMax}
+          active={held === 1}
+          ariaLabel={`הוסף ${label}`}
+          onStart={startHold}
+          onStop={stopHold}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className={disabled ? 'opacity-45' : undefined}>
@@ -285,44 +436,7 @@ export function Stepper({
             hero ? 'min-h-20 py-1.5' : 'min-h-16 py-1',
           ].join(' ')}
         >
-          <input
-            id={inputId}
-            aria-describedby={hint ? hintId : undefined}
-            inputMode="decimal"
-            dir="ltr"
-            type="text"
-            autoComplete="off"
-            disabled={disabled}
-            className={[
-              'numeral-hero tnum w-full appearance-none border-0 bg-transparent text-center leading-none text-bone-50 outline-none',
-              hero ? 'text-[2.75rem]' : 'text-[2.125rem]',
-            ].join(' ')}
-            value={draft ?? display(value, dec)}
-            onChange={(e) => typeDraft(e.target.value)}
-            onFocus={(e) => {
-              // בחירת הכל כדי שהקלדה תחליף במקום להוסיף. ספארי מאבד את
-              // הבחירה בפריים הראשון של הפוקוס, ולכן חוזרים עליה ב-rAF.
-              const el = e.currentTarget
-              const atFocus = el.value
-              el.select()
-              requestAnimationFrame(() => {
-                // רק אם המשתמש עוד לא הספיק להקליד. במכשיר עמוס הפריים הבא
-                // יכול לנחות *אחרי* ההקשה הראשונה, ובחירה חוזרת אז הייתה בולעת
-                // אותה — בדיוק תחושת "הקלדתי ולא נתפס" שהפקד הזה נועד למנוע.
-                if (el.value === atFocus) el.select()
-              })
-            }}
-            onBlur={(e) => commitDraft(e.currentTarget.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                e.currentTarget.blur()
-              } else if (e.key === 'Escape') {
-                setDraft(null)
-                e.currentTarget.blur()
-              }
-            }}
-          />
+          {field}
           {unit ? (
             // aria-hidden: התווית והיחידה כבר נקראות מה-label של השדה, ואין
             // טעם שקורא מסך יגיד "חזרות" פעמיים על אותו מספר

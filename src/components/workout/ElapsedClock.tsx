@@ -1,5 +1,4 @@
 import type { JSX } from 'react'
-import { Clock } from 'lucide-react'
 import { useNow } from '@/hooks/useNow'
 import { formatClock } from '@/domain/units'
 
@@ -12,8 +11,11 @@ import { formatClock } from '@/domain/units'
  *   • הזמן מחושב מ-`startedAt` בכל רינדור ולא נצבר מטיקים. iOS מקפיא
  *     אינטרוולים ברקע, ו-`useNow` מיישר מחדש ברגע החזרה לאפליקציה — אימון
  *     שהטלפון ננעל באמצעו מראה את הזמן הנכון, לא את הזמן שהמסך היה דלוק.
- *   • אין כאן `<button>`: זה מד ולא פעולה. בכותרת האימון הוא יושב צמוד לשני
- *     כפתורי אייקון, ומראה של כפתור היה מזמין לחיצה שלא עושה כלום.
+ *   • אין כאן `<button>`: זה מד ולא פעולה. בכותרת האימון הוא יושב צמוד לכפתור
+ *     אייקון, ומראה של כפתור היה מזמין לחיצה שלא עושה כלום.
+ *
+ * הנקודה הירוקה במקום אייקון שעון: היא אומרת "רץ עכשיו" ולא "זמן", וזו
+ * ההבחנה שמפרידה אותו משעון המנוחה שיכול לחיות לידו על אותו מסך.
  */
 export function ElapsedClock({
   startedAt,
@@ -34,10 +36,10 @@ export function ElapsedClock({
     <div
       role="timer"
       aria-label={label}
-      className={`flex shrink-0 items-center gap-1.5 rounded-pill border border-ink-700 bg-ink-900/70 px-2.5 py-1 ${className}`}
+      className={`flex h-7 shrink-0 items-center gap-1.5 rounded-pill border border-ink-700 bg-ink-900 px-[11px] ${className}`}
     >
-      <Clock size={13} className="shrink-0 text-bone-500" aria-hidden="true" />
-      <span dir="ltr" className="tnum text-[0.9375rem] leading-none font-extrabold text-bone-50">
+      <span className="size-[5px] shrink-0 rounded-full bg-pr-400" aria-hidden="true" />
+      <span dir="ltr" className="tnum text-[0.78125rem] leading-none font-bold text-bone-300">
         {formatClock(Math.max(0, (now - startedAt) / 1000))}
       </span>
     </div>

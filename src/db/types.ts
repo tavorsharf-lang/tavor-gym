@@ -374,6 +374,14 @@ export interface AppSettings {
    * ברגע שיש היסטוריה היא גוברת — הערך הזה הוא נקודת פתיחה, לא יעד.
    */
   defaultReps: number
+  /**
+   * כמה סטים מקבל תרגיל *חדש* שנוצר בזמן ריצה — מהמאגר הלימודי או מאפס.
+   *
+   * ברירת מחדל ליצירה בלבד, לא override: `Exercise.targetSets` שכבר יושב על
+   * הרשומה גובר עליה תמיד, ולכן שינוי כאן לא נוגע ב-29 תרגילי הקטלוג ולא
+   * באימון שכבר רץ.
+   */
+  defaultSets: number
   soundEnabled: boolean
   /** 0–1 */
   soundVolume: number

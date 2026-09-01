@@ -29,6 +29,15 @@ export const DEFAULT_REST_SECONDS = 120
 /** כמה חזרות מוצעות כשאין שום היסטוריה על התרגיל */
 export const DEFAULT_REPS = 6
 
+/**
+ * כמה סטים מקבל תרגיל חדש שנוצר בזמן ריצה.
+ *
+ * נפרד מ-`DEFAULT_TARGET_SETS` בכוונה: ההוא תיאר את *הקטלוג* ברגע מיגרציה 5
+ * ומעולם לא היה מכוונן, וזה כאן הוא הגדרה שהמשתמש שולט בה. שינוי שלה משנה
+ * רק את מה שייווצר מכאן והלאה.
+ */
+export const DEFAULT_SETS = 3
+
 /** היעד של הפלאנק — 1:15. נמדד בשניות, ולכן טווח סגור על מספר אחד. */
 export const PLANK_RANGE: RepRange = { min: 75, max: 75 }
 
@@ -979,6 +988,7 @@ export const freshSeedBlocks = (): Block[] => SEED_BLOCKS.map(withoutStartWeight
 export const DEFAULT_SETTINGS: AppSettings = {
   defaultRestSeconds: DEFAULT_REST_SECONDS,
   defaultReps: DEFAULT_REPS,
+  defaultSets: DEFAULT_SETS,
   soundEnabled: true,
   soundVolume: 0.8,
   wakeLockEnabled: true,

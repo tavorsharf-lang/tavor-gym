@@ -10,11 +10,13 @@ import { useBasket } from './state/builderBasket'
 import { useWorkout } from './state/activeWorkoutStore'
 
 /**
- * מסך המנוחה כמסך של תוכן, לא רק ספירה.
+ * המנוחה — שני מסכים על ספירה אחת.
  *
- * מה שנבדק כאן ואי אפשר לבדוק ברמת ה-store: שהתמונה של התרגיל, מד הסטים,
- * התרגיל הבא בתור ומפת השרירים עם האחוזים באמת מגיעים למסך — ושהכפתור
- * הראשי אומר איזה סט מתחיל עכשיו ולא "דלג".
+ * ברירת המחדל אחרי סט היא המנוחה **שבתוך הכרטיס**, והמסך המלא נפתח רק בלחיצה
+ * על המספר. שתי הצלעות נבדקות כאן, וזו ההפרדה:
+ *   • שהמנוחה המוטמעת אכן מופיעה אחרי סט, ושהמסך המלא *אינו* קופץ לבד.
+ *   • שהמסך המלא, כשפותחים אותו, הוא עדיין אותו מסך: הכרטיס, מד הסטים,
+ *     התרגיל הבא ומפת השרירים — ושהוא רץ על אותו טיימר, לא על ספירה שנייה.
  *
  * הנתונים לא נבנים בבדיקה: מכונת הרגליים היא הפריט הראשון ב-F1, יש לה כרטיס
  * במניפסט ויש עליו אחוזים. אם אחד מהשלושה יישבר — הבדיקה נופלת, וזו בדיוק
@@ -41,10 +43,50 @@ async function resetAll(): Promise<void> {
   await ensureReady()
 }
 
-describe('מסך המנוחה', () => {
+describe('המנוחה', () => {
   beforeEach(resetAll)
 
-  it('מציג את הכרטיס, מה נשאר, מה הבא ואת מפת השרירים', async () => {
+  it('מופיעה בתוך הכרטיס, ולא כשכבה שקופצת מעל המסך', async () => {
+    const user = userEvent.setup()
+    await useWorkout.getState().start('F1', [])
+    const first = (useWorkout.getState().workout?.queue ?? [])[0].key
+
+    await useWorkout.getState().logSet(first, 'work', 100, 10)
+    await useWorkout.getState().startRest(first, 90)
+
+    window.location.hash = '#/workout'
+    render(<App />)
+
+    // המנוחה המוטמעת על המסך — ושום דיאלוג לא נפתח מעליה
+    const clock = await screen.findByRole(
+      'button',
+      { name: /פתח את מסך המנוחה המלא/ },
+      { timeout: SLOW }
+    )
+    expect(screen.queryByRole('dialog')).toBeNull()
+    /*
+      הכרטיס עצמו נשאר קריא מתחת לספירה — זו כל הנקודה. השם מופיע פעמיים
+      במכוון: ככותרת הכרטיס, ושוב בצד המנוחה כ"הסט הבא", כי נשאר עוד סט בו.
+    */
+    expect(screen.getAllByText('לחיצת רגליים').length).toBeGreaterThanOrEqual(2)
+
+    /*
+      לחיצה על המספר פותחת את המסך המלא — **על אותו טיימר**. חותמת הסיום
+      היא מקור אמת אחד בחנות, ולכן פתיחת השכבה לא נוגעת בה בכלל.
+    */
+    const before = useWorkout.getState().workout?.restEndsAt
+    await user.click(clock)
+    await screen.findByRole('dialog')
+    expect(useWorkout.getState().workout?.restEndsAt).toBe(before)
+
+    // וה-✕ מחזיר למנוחה שבכרטיס בלי לעצור אותה
+    await user.click(screen.getByRole('button', { name: /סגור את מסך המנוחה/ }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(useWorkout.getState().workout?.restEndsAt).toBe(before)
+  }, 40000)
+
+  it('המסך המלא מציג את הכרטיס, מה נשאר, מה הבא ואת מפת השרירים', async () => {
+    const user = userEvent.setup()
     await useWorkout.getState().start('F1', [])
     const queue = useWorkout.getState().workout?.queue ?? []
     const first = queue[0].key
@@ -56,6 +98,10 @@ describe('מסך המנוחה', () => {
 
     window.location.hash = '#/workout'
     render(<App />)
+
+    await user.click(
+      await screen.findByRole('button', { name: /פתח את מסך המנוחה המלא/ }, { timeout: SLOW })
+    )
 
     /*
       הכפתור הראשי אומר לאן הלחיצה מובילה — "סט הבא" כשנשאר סט בתרגיל הזה,
@@ -95,7 +141,6 @@ describe('מסך המנוחה', () => {
     expect(sheet.queryByText(/ונדוס|רקטוס/)).toBeNull()
 
     // הכוונון קופץ ב-30 שניות לשני הכיוונים
-    const user = userEvent.setup()
     const before = useWorkout.getState().workout?.restEndsAt ?? 0
     await user.click(screen.getByRole('button', { name: 'הוסף 30 שניות' }))
     await waitFor(() =>

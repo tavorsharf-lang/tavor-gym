@@ -5,6 +5,7 @@ import { db, ensureReady } from '@/db/db'
 import {
   addFromLibrary,
   compareByName,
+  createBlankExercise,
   detachFromPlans,
   findPlanUsage,
   getCatalogEntries,
@@ -12,9 +13,10 @@ import {
   removeFromMine,
   restoreToMine,
 } from '@/db/catalog'
+import { saveSettings } from '@/db/db'
 import { LIBRARY_CATALOG } from '@/db/libraryManifest'
 import { LIBRARY_LINKS } from '@/db/libraryLinks'
-import { SEED_EXERCISES } from '@/db/seed'
+import { DEFAULT_SETS, SEED_EXERCISES } from '@/db/seed'
 import type { Exercise } from '@/db/types'
 import { getAllExercises, getSubstituteCandidates } from '@/db/queries'
 
@@ -312,5 +314,48 @@ describe('מיגרציה לגרסה 4', () => {
     const stored = await db.exercises.get('hammer-curl')
     expect(stored?.libraryId).toBeUndefined()
     expect(stored?.name).toBe(SEED_EXERCISES.find((e) => e.id === 'hammer-curl')?.name)
+  })
+})
+
+/**
+ * "סטים ברירת מחדל" — ההגדרה שמחליפה קבוע.
+ *
+ * שני מסלולי היצירה בזמן ריצה עוברים דרך `blankExercise`: תרגיל מאפס ותרגיל
+ * שנולד משורת מאגר. שניהם נבדקים כאן, כי הגדרה שמשפיעה רק על אחד מהם היא
+ * בדיוק סוג ההפתעה שהמשתמש מגלה חודש אחרי שהוא שינה אותה.
+ *
+ * מה שהיא **לא** עושה נבדק גם הוא: `Exercise.targetSets` שכבר יושב על רשומה
+ * גובר עליה תמיד. זו ברירת מחדל ליצירה, לא override.
+ */
+describe('סטים ברירת מחדל', () => {
+  beforeEach(async () => {
+    await db.delete()
+    await db.open()
+    await ensureReady()
+  })
+
+  it('תרגיל חדש מאפס נולד עם הערך שבהגדרות', async () => {
+    expect((await createBlankExercise()).targetSets).toBe(DEFAULT_SETS)
+
+    await saveSettings({ defaultSets: 5 })
+    expect((await createBlankExercise()).targetSets).toBe(5)
+  })
+
+  it('גם תרגיל שנולד משורת מאגר', async () => {
+    await saveSettings({ defaultSets: 4 })
+    const lib = LIBRARY_CATALOG.find((l) => !Object.values(LIBRARY_LINKS).includes(l.id))
+    expect(lib).toBeDefined()
+
+    const { exercise } = await addFromLibrary(lib!)
+    expect(exercise.targetSets).toBe(4)
+  })
+
+  it('לא נוגעת בתרגילי הקטלוג — לכל אחד מהם יש מספר משלו', async () => {
+    await saveSettings({ defaultSets: 8 })
+
+    const seeded = await db.exercises.get('leg-press')
+    expect(seeded?.targetSets).toBe(
+      SEED_EXERCISES.find((e) => e.id === 'leg-press')?.targetSets
+    )
   })
 })

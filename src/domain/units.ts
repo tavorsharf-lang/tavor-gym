@@ -95,48 +95,51 @@ export function countMax(metric: ExerciseMetric = 'reps'): number {
   return metric === 'seconds' ? 600 : 50
 }
 
-/** שתי שורות שבבים על מסך טלפון, בלי להפוך את הכרטיס לרשימה */
-const MAX_REP_MARKS = 12
-
 /**
- * טווח צר מקבל מספר אחד מתחת ומעל, כי סט נגמר גם בחזרה שלא יצאה וגם בחזרה
- * שיצאה בהפתעה. טווח רחב כמו 12–20 כבר מכסה בעצמו את שתי האפשרויות, וריפוד
- * שלו רק גונב מקום.
+ * שורה אחת שלא נגללת, ולכן תקרה קשיחה.
+
+ * במת הסט נותנת לשבבים 38 פיקסלים ורוחב מסך אחד. שבב שביעי לא "נדחף החוצה"
+ * אלא פשוט אינו קיים — `overflow: hidden` היה בולע אותו בשקט, וזה גרוע יותר
+ * מלא להציע אותו מלכתחילה.
  */
-const NARROW_SPAN = 4
+const MAX_REP_MARKS = 6
 
 /**
  * המספרים שאפשר לסמן בהם "כמה חזרות עשיתי" בסוף סט.
  *
- * שני מקורות, ולא אחד: כל טווח היעד של התרגיל, *ובנוסף* המספר שהשדה נפתח
- * עליו. הם רחוקים זה מזה — היעד בהרמות צד הוא 12–20 והשדה נפתח על 6 — ולכן
- * חלון רציף אחד שמתחיל ב-5 לא מגיע ל-20, וגם ההפך. חלון כזה היה נותן את אותה
- * שורה בדיוק לכל תרגיל באימון ועוצר ב-12, כלומר בשני שלישים מהתרגילים אי אפשר
- * לסמן את מה שבאמת עשית — וזו כל מטרת השורה.
+ * שני מקורות, ולא אחד: טווח היעד של התרגיל, *ובנוסף* המספר שהשדה נפתח עליו.
+ * הם רחוקים זה מזה — היעד בהרמות צד הוא 12–20 והשדה נפתח על 6 — ולכן ברירת
+ * המחדל מקבלת שבב משלה במקום להיבלע בטווח.
  *
- * לכן ברירת המחדל נוסעת כשבב נפרד לפני הטווח (או אחריו), ולא נבלעת בו.
+ * הצפיפות נגזרת מהתקציב ולא להפך: טווח רחב נדגם בקפיצות שוות, וראש הטווח
+ * תמיד נכנס גם כשהדגימה לא נחתה עליו בדיוק — הוא לאן מכוונים, והשורה שאין
+ * בה את היעד עצמו מפספסת את כל העניין.
+ *
+ * הפלט עולה תמיד. השורה נקראת כסרגל משמאל לימין, ומספר שקופץ אחורה באמצע
+ * הופך אותה לרשימה שצריך לקרוא במקום לסרוק.
  */
 export function repMarks(range: RepRange, fallback: number): number[] {
-  const pad = range.max - range.min <= NARROW_SPAN ? 1 : 0
-  const hi = Math.max(1, range.max + pad)
-  const lo = Math.min(hi, Math.max(1, range.min - pad))
+  const lo = Math.max(1, Math.round(range.min))
+  const hi = Math.max(lo, Math.round(range.max))
   const seed = Number.isFinite(fallback) && fallback >= 1 ? Math.round(fallback) : null
 
-  /*
-    יעד חריג ורחב לא מותר לו לפרוץ את הכרטיס, ולכן הוא נחתך — מלמטה דווקא, כי
-    ראש הטווח הוא לאן מכוונים. החיתוך נעשה פעמיים: הרמת הרצפה יכולה להוציא את
-    ברירת המחדל מהחלון ולדרוש לה שבב משלה, וזה תופס מקום שצריך לפנות מראש.
-    מעבר שני מספיק — הרצפה רק עולה, וערך שכבר בחוץ לא חוזר פנימה.
-  */
-  const outside = (start: number): boolean => seed !== null && (seed < start || seed > hi)
-  let start = Math.max(lo, hi - MAX_REP_MARKS + 1)
-  if (outside(start)) start = Math.max(lo, hi - MAX_REP_MARKS + 2)
+  const picked = new Set<number>()
+  if (seed !== null) picked.add(seed)
 
-  const out: number[] = []
-  if (seed !== null && seed < start) out.push(seed)
-  for (let n = start; n <= hi; n += 1) out.push(n)
-  if (seed !== null && seed > hi) out.push(seed)
-  return out
+  // מה שנשאר לטווח אחרי שברירת המחדל לקחה את שלה
+  const budget = MAX_REP_MARKS - picked.size
+  const span = hi - lo
+  const step = budget > 1 && span > budget - 1 ? Math.ceil(span / (budget - 1)) : 1
+
+  const wanted: number[] = []
+  for (let n = lo; n <= hi; n += step) wanted.push(n)
+  if (wanted[wanted.length - 1] !== hi) wanted.push(hi)
+
+  for (const n of wanted) {
+    if (picked.size >= MAX_REP_MARKS) break
+    picked.add(n)
+  }
+  return [...picked].sort((a, b) => a - b)
 }
 
 /** שניות → "1:30" · "12:05" · "1:02:30" */

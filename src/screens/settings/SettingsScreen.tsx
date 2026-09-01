@@ -173,6 +173,15 @@ export function SettingsScreen(): JSX.Element {
               min={1}
               max={50}
             />
+            <SettingNumber
+              label="סטים ברירת מחדל"
+              description="כמה סטים מקבל תרגיל חדש שנוצר מהמאגר או מאפס. לתרגיל קיים יש מספר משלו, והוא מנצח"
+              value={settings.defaultSets}
+              onChange={(v) => update({ defaultSets: v })}
+              step={1}
+              min={1}
+              max={8}
+            />
             <SettingToggle
               label="צליל בסיום מנוחה"
               description="גם הבזק על המסך, למקרה שהטלפון מושתק"

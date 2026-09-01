@@ -72,8 +72,11 @@ describe('זרימת אימון', () => {
       ש-`start()` הספיק לכתוב לחנות, והשורה הבאה נפלה על `workout === null`.
       זו הייתה בדיקה רועדת שנראתה כמו עומס מכונה. הכלל: להמתין למה שמוכיח
       שהמסך הנכון התייצב, לא למה שיכול להופיע גם לפניו.
+
+      ההוספה ולא "תור התרגילים": האייקון ההוא ירד מהכותרת מרגע שהתור עצמו
+      נראה על המסך, ומעבר לתרגיל נעשה בנגיעה בשורה שלו.
     */
-    await screen.findByRole('button', { name: 'תור התרגילים' }, { timeout: 5000 })
+    await screen.findByRole('button', { name: 'הוסף תרגיל לאימון' }, { timeout: 5000 })
 
     // אין תרגיל חימום קבוע בראש התוכנית — החימום מוצע לפי השריר שנפתח —
     // ולכן הראשון הוא התרגיל הכבד של הרגליים.
@@ -133,14 +136,12 @@ describe('זרימת אימון', () => {
     })
 
     /*
-      שעון האימון שורד את שכבת המנוחה.
-
-      השכבה חוסמת את כל הכותרת, ולכן שעון שקיים רק שם היה נעלם בדיוק בדקה
-      שבה שואלים "כמה זמן אני כבר פה". שני השעונים חיים יחד ולכן יש להם
-      שמות נגישים שונים.
+      והיא נכנסת **לתוך הכרטיס** ולא כשכבה מעל המסך: הכותרת, שעון האימון
+      והתור נשארים גלויים, וזה כל ההבדל מהגרסה שקדמה לה.
     */
+    await screen.findByRole('button', { name: /פתח את מסך המנוחה המלא/ })
+    expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.getByRole('timer', { name: 'זמן מתחילת האימון' })).toBeTruthy()
-    expect(screen.getByRole('timer', { name: /בזמן מנוחה/ })).toBeTruthy()
 
     // סיום האימון
     await useWorkout.getState().stopRest()
@@ -332,25 +333,30 @@ describe('כפתור סט חימום', () => {
     window.location.hash = '#/workout'
     render(<App />)
 
-    // התקנה טרייה: אין משקל, ולכן עדיין אין מה להציע
-    const plate = await screen.findByRole(
-      'button',
-      { name: 'הוסף פלטה של 20 קילו לכל צד' },
-      { timeout: 15000 }
-    )
-    expect(screen.queryByText(/חימום/)).toBeTruthy() // מתג סוג הסט קיים תמיד
+    /*
+      התקנה טרייה: אין משקל, ולכן עדיין אין מה להציע — לא כרטיס חימום ולא
+      שבב. המשקל נקבע בהקלדה ישירה באריח, שהיא המסלול מאז ששבבי הפלטות
+      ירדו מהכרטיס לטובת שורת שבבים אחת שמדברת על האריח הפעיל.
+    */
+    const weight = await screen.findByLabelText('משקל', {}, { timeout: 15000 })
+    expect(screen.queryByRole('button', { name: /^סט חימום/ })).toBeNull()
     expect(screen.queryByRole('button', { name: 'לא צריך' })).toBeNull()
 
-    // שלוש פלטות של 20 לכל צד = 120 ק״ג, ומשם נולדת רמפה של שלושה שלבים
-    for (let i = 0; i < 3; i++) await user.click(plate)
+    // ‏120 ק״ג, ומשם נולדת רמפה של שלושה שלבים
+    await user.clear(weight)
+    await user.type(weight, '120')
     const dismiss = await screen.findByRole('button', { name: 'לא צריך' })
     expect(document.body.textContent).toContain('רמפת חימום לרגליים')
 
-    // "לא צריך" מקפל את ההצעה — ומשאיר כפתור
+    /*
+      "לא צריך" מקפל את ההצעה — ומשאיר את השבב שבפס התחתון. הכיתוב עליו הוא
+      "חימום" בלבד (52 פיקסלים), ולכן המשקל והחזרות חיים בשם הנגיש: מה
+      שהלחיצה עומדת לרשום חייב להיות קריא לפני שלוחצים.
+    */
     await user.click(dismiss)
     const button = await screen.findByRole('button', { name: /^סט חימום/ })
-    expect(button.textContent).toContain('45 ק״ג') // 40% מ-120, מעוגל לרשת של 5
-    expect(button.textContent).toContain('10')
+    expect(button.getAttribute('aria-label')).toContain('45 ק״ג') // 40% מ-120, לרשת של 5
+    expect(button.getAttribute('aria-label')).toContain('10')
 
     await user.click(button)
     await waitFor(() => {
@@ -365,7 +371,9 @@ describe('כפתור סט חימום', () => {
       היה נעלם כאן, ורמפה בת שלושה שלבים הייתה נגמרת אחרי אחד.
     */
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /^סט חימום/ }).textContent).toContain('70 ק״ג')
+      expect(
+        screen.getByRole('button', { name: /^סט חימום/ }).getAttribute('aria-label')
+      ).toContain('70 ק״ג')
     })
   }, 30000)
 })

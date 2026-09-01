@@ -4,12 +4,23 @@ import type { Exercise, QueueItem } from '@/db/types'
 import { formatRepRange } from '@/domain/units'
 import { ExerciseThumb } from '@/components/media/ExerciseThumb'
 
+/** "סט אחד" ולא "1 סטים" — שורה בתור נסרקת בעין ושגיאת מספר נתקעת בה */
+function setsLabel(n: number): string {
+  return n === 1 ? 'סט אחד' : `${n} סטים`
+}
+
 /**
- * תרגיל מכווץ בתור. שורה אחת, שטח לחיצה של 60 פיקסל — נגיעה אחת מעבירה
- * את האימון לתרגיל הזה.
+ * תרגיל מכווץ בתור — "הבאים בתור", מתחת לכרטיס הפעיל.
+ *
+ * מאז שהכרטיס הפעיל נכנס למסך אחד, הרשימה הזאת **נראית באמת** ולא רק קיימת
+ * מתחת לקו הקיפול, והיא מחליפה את גיליון התור כמסלול הראשי: נגיעה בשורה
+ * מעבירה את האימון לתרגיל הזה, בלי לפתוח כלום.
  *
  * הדילוג יושב כלחצן נפרד בקצה השורה ולא בתוכה: העטיפה היא div ולא button,
  * כי כפתור בתוך כפתור הוא HTML לא חוקי ו-iOS מפעיל את שניהם יחד.
+ *
+ * שורה שהושלמה מתכווצת עוד — 44 במקום 48, מסגרת מקווקוות ובלי תמונה. היא
+ * כבר לא החלטה, היא רשומה.
  */
 export function QueueRow({
   item,
@@ -35,59 +46,61 @@ export function QueueRow({
   const done = item.status === 'done'
   const deferred = item.status === 'deferred'
   const skipped = item.status === 'skipped'
+  const closed = done || skipped
   const skippable = !done && !skipped && setCount === 0
 
-  const frame = deferred
-    ? 'border-dashed border-flame-500/45 bg-flame-500/[0.04]'
-    : done
-      ? 'border-ink-800 bg-ink-900/40'
-      : skipped
-        ? 'border-dashed border-ink-700 bg-ink-900/30'
-        : 'border-ink-800 bg-ink-900/60'
+  if (closed) {
+    return (
+      <button
+        type="button"
+        onClick={onTap}
+        className="flex h-11 w-full items-center gap-2.5 rounded-[14px] border border-dashed border-ink-700 px-[11px] text-start active:bg-ink-900"
+      >
+        <span
+          className={`flex size-[22px] shrink-0 items-center justify-center rounded-full ${
+            done ? 'bg-pr-400/10' : 'bg-ink-800'
+          }`}
+          aria-hidden="true"
+        >
+          {done ? (
+            <Check size={13} strokeWidth={3} className="text-pr-400" />
+          ) : (
+            <SkipForward size={12} strokeWidth={2.5} className="text-bone-500" />
+          )}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[0.78125rem] font-semibold text-bone-500">
+          {exercise.name} · {done ? 'הושלם' : 'דילגת היום'}
+        </span>
+        <span className="shrink-0 text-[0.6875rem] font-semibold text-bone-500">
+          {summary ? setsLabel(summary.count) : done ? '' : 'לחיצה מחזירה'}
+        </span>
+      </button>
+    )
+  }
 
   return (
     <div
-      className={`flex min-h-[60px] w-full items-stretch rounded-card border transition-colors ${frame} ${
-        done || skipped ? 'opacity-55' : ''
+      className={`flex h-12 w-full items-stretch rounded-[14px] border bg-linear-to-b from-ink-850 to-ink-900 transition-colors ${
+        deferred ? 'border-dashed border-flame-500/45' : 'border-ink-800'
       }`}
     >
       <button
         type="button"
         onClick={onTap}
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-s-card px-3 py-2 text-start active:bg-ink-800"
+        className="flex min-w-0 flex-1 items-center gap-[11px] rounded-s-[14px] ps-[11px] pe-2 text-start active:bg-ink-800"
       >
-        <span className="flex size-6 shrink-0 items-center justify-center" aria-hidden="true">
-          {done ? (
-            <Check size={20} strokeWidth={3} className="text-pr-400" />
-          ) : deferred ? (
-            <Clock size={18} strokeWidth={2.5} className="text-flame-400" />
-          ) : skipped ? (
-            <SkipForward size={18} strokeWidth={2.5} className="text-bone-500" />
-          ) : (
-            <span className="size-3.5 rounded-full border-2 border-ink-600" />
-          )}
-        </span>
-
-        <ExerciseThumb exerciseId={exercise.id} libraryId={exercise.libraryId} size="xs" />
+        <ExerciseThumb exerciseId={exercise.id} libraryId={exercise.libraryId} size="row" />
 
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[0.9375rem] font-bold text-bone-100">
+          <span className="block truncate text-[0.8125rem] leading-tight font-bold text-bone-200">
             {exercise.name}
           </span>
-          {deferred ? (
-            <span className="mt-0.5 block truncate text-[0.6875rem] font-semibold text-flame-400">
-              ממתין — המתקן היה תפוס
-            </span>
-          ) : skipped ? (
-            <span className="mt-0.5 block truncate text-[0.6875rem] font-semibold text-bone-500">
-              דילגת היום — לחיצה מחזירה אותו
-            </span>
-          ) : apart ? (
-            // שתי שורות באותו שם בתור הן טעות שמחכה לקרות — המשקל מפריד ביניהן
-            <span className="mt-0.5 block truncate text-[0.6875rem] font-semibold text-bone-500">
-              {apart}
-            </span>
-          ) : null}
+          <span className="mt-[3px] block truncate text-[0.625rem] leading-none font-medium text-bone-500">
+            {deferred
+              ? 'ממתין — המתקן היה תפוס'
+              : // שתי שורות באותו שם בתור הן טעות שמחכה לקרות — המשקל מפריד ביניהן
+                (apart ?? exercise.subTarget)}
+          </span>
         </span>
 
         {/*
@@ -95,20 +108,29 @@ export function QueueRow({
           של RTL הזוג משקל×חזרות מתהפך ו-25×10 נקרא כ-10×25 — שני מספרים סבירים
           לגמרי, ולכן טעות שקטה. לכן כל חלק מקבל את הכיוון שלו.
         */}
-        <span className="shrink-0 text-xs font-semibold text-bone-500">
+        <span className="tnum shrink-0 text-[0.71875rem] font-bold text-bone-500">
           {summary ? (
             <>
-              <span>{summary.count} סטים · </span>
-              <span dir="ltr" className="tnum inline-block">
+              <span>{setsLabel(summary.count)} · </span>
+              <span dir="ltr" className="inline-block">
                 {summary.top}
               </span>
             </>
-          ) : skipped ? null : (
-            <span dir="ltr" className="tnum inline-block">
+          ) : (
+            <span dir="ltr" className="inline-block">
               {item.targetSets}×{formatRepRange(item.targetReps, exercise.metric)}
             </span>
           )}
         </span>
+
+        {deferred ? (
+          <Clock size={15} strokeWidth={2.5} className="shrink-0 text-flame-400" aria-hidden="true" />
+        ) : (
+          <span
+            className="size-[22px] shrink-0 rounded-full border border-ink-700"
+            aria-hidden="true"
+          />
+        )}
 
         {/* קורא מסך: מספר הסטים כבר מגולם בסיכום, אבל שורה בלי סיכום צריכה אותו */}
         {!summary && setCount > 0 && <span className="sr-only">{setCount} סטים</span>}
@@ -119,9 +141,9 @@ export function QueueRow({
           type="button"
           onClick={onSkip}
           aria-label={`דלג היום על ${exercise.name}`}
-          className="flex w-12 shrink-0 items-center justify-center rounded-e-card border-s border-ink-800/70 text-bone-600 active:bg-ink-800 active:text-bone-300"
+          className="flex w-11 shrink-0 items-center justify-center rounded-e-[14px] border-s border-ink-800/70 text-bone-600 active:bg-ink-800 active:text-bone-300"
         >
-          <SkipForward size={16} />
+          <SkipForward size={15} />
         </button>
       )}
     </div>
