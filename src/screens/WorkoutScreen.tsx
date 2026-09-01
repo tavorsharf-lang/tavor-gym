@@ -5,7 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { MessageCircleQuestion, Plus, Timer, Trophy } from 'lucide-react'
 import { getSettings, saveSettings } from '@/db/db'
 import { getBlocks, getExerciseHistory, getFinishedSessions, getRoutines } from '@/db/queries'
-import type { DraftSet, ExerciseMetric, WeightMode } from '@/db/types'
+import type { DraftSet, ExerciseMetric, QueueItem, WeightMode } from '@/db/types'
 import { EmptyState, fireConfetti, toast } from '@/components/ui'
 import { Screen } from '@/components/shell/ScreenHeader'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
@@ -397,14 +397,30 @@ export function WorkoutScreen(): JSX.Element | null {
         }
       : null
 
-  /** כל מה שאינו הכרטיס הפעיל, בסדר התור, עם התרגיל והסטים שלו */
-  const queueRows = workout.queue
-    .filter((q) => q.key !== workout.currentKey && exercisesById[q.exerciseId])
-    .map((q) => ({
+  /**
+   * כל מה שאינו הכרטיס הפעיל, עם התרגיל והסטים שלו.
+   *
+   * **הסדר כאן אינו סדר התור.** מה שנסגר — הושלם או דולג — יורד לתחתית
+   * הרשימה, ומה שעוד לפנינו עולה למעלה. הרשימה הזאת עונה על שאלה אחת ויחידה,
+   * "מה הלאה", והתשובה עליה נדחפה קודם למטה: אחרי שלושה תרגילים באימון של
+   * שבעה, שלוש שורות של ✓ ישבו בין הכרטיס הפעיל לבין מה שבאמת בא אחריו.
+   *
+   * זו תצוגה בלבד — `workout.queue` לא זז. הוא מה שקובע את הפריט הבא
+   * (`nextOpenKey`), את סדר האימון שנשמר להיסטוריה, את מקטעי פס ההתקדמות
+   * ואת מה שגיליון הסידור עורך. חלוקה יציבה לשתי קבוצות, בלי מיון בתוכן,
+   * כדי שסדר התוכנית יישמר בתוך כל אחת מהן.
+   */
+  const isClosed = (q: QueueItem): boolean => q.status === 'done' || q.status === 'skipped'
+  const visibleRows = workout.queue.filter(
+    (q) => q.key !== workout.currentKey && exercisesById[q.exerciseId]
+  )
+  const queueRows = [...visibleRows.filter((q) => !isClosed(q)), ...visibleRows.filter(isClosed)].map(
+    (q) => ({
       item: q,
       exercise: exercisesById[q.exerciseId],
       sets: workout.setsByKey[q.key] ?? [],
-    }))
+    })
+  )
 
   /*
     מה שמסך המנוחה מציג. הכל נגזר כאן ולא בתוך השכבה: התור, הסטים והתרגילים

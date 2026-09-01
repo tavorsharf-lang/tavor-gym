@@ -174,4 +174,39 @@ describe('הבמה שבכרטיס', () => {
       expect(useWorkout.getState().workout?.setsByKey[key]?.[0].weightKg).toBe(140)
     )
   }, 40000)
+
+  /*
+    "מה הלאה" הוא כל מה שהרשימה הזאת עונה עליו.
+
+    התרגילים שנסגרו יושבים במקומם ב-`workout.queue` — הוא מה שקובע את הפריט
+    הבא ואת סדר האימון שנשמר — אבל בתצוגה הם יורדים לתחתית. בלי זה, אחרי
+    שלושה תרגילים באימון של שבעה, שלוש שורות של ✓ נדחפות בין הכרטיס הפעיל
+    לבין מה שבאמת בא אחריו.
+  */
+  it('תרגיל שנסגר יורד לתחתית הרשימה, והתור עצמו לא זז', async () => {
+    await useWorkout.getState().start('C', [])
+    const queue = useWorkout.getState().workout!.queue
+    const byId = useWorkout.getState().exercisesById
+    const firstName = byId[queue[0].exerciseId].name
+    const lastName = byId[queue[queue.length - 1].exerciseId].name
+
+    await useWorkout.getState().logSet(queue[0].key, 'work', 100, 10)
+    await useWorkout.getState().completeCurrent()
+
+    window.location.hash = '#/workout'
+    render(<App />)
+
+    const closed = await screen.findByText(`${firstName} · הושלם`, {}, { timeout: SLOW })
+    const upcoming = screen.getByText(lastName)
+
+    // השורה שנסגרה מופיעה ב-DOM *אחרי* התרגיל האחרון שעוד לפנינו
+    expect(
+      upcoming.compareDocumentPosition(closed) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+
+    // והתור עצמו שמר על סדר התוכנית — זו תצוגה, לא סידור מחדש
+    expect(useWorkout.getState().workout?.queue.map((q) => q.key)).toEqual(
+      queue.map((q) => q.key)
+    )
+  }, 40000)
 })
