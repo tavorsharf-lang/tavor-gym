@@ -55,12 +55,18 @@ describe('מיון רשימת התרגילים', () => {
     window.location.hash = '#/builder/legs'
     render(<App />)
 
-    // שורת המיון קיימת, ו"רגיל" הוא מה שנבחר בפתיחה — הסדר שהמסך תמיד היה בו
-    const byPct = await screen.findByRole('button', { name: /^אחוז/ }, { timeout: SLOW })
-    expect(screen.getByRole('button', { name: /^רגיל/ }).getAttribute('aria-pressed')).toBe('true')
+    /*
+      המיון מאחורי כפתור בכותרת ולא בשורה קבועה: על מסך טלפון כבר יושבים
+      מעל הרשימה מתג, חיפוש ושורת שרירים, והמיון הוא החלטה של פעם בכמה
+      דקות. הבדיקה עוברת דרך אותו מסלול שהמשתמש עובר.
+    */
+    const menu = await screen.findByRole('button', { name: 'מיון וסינון' }, { timeout: SLOW })
     expect(screen.queryByText('95%')).toBeNull()
+    await user.click(menu)
 
-    await user.click(byPct)
+    const sheet = await screen.findByRole('dialog', {}, { timeout: SLOW })
+    await user.click(within(sheet).getByRole('button', { name: /^אחוז/ }))
+    await user.keyboard('{Escape}')
 
     /*
       תחת "ארבע-ראשי" הכרטיסים אומרים: פשיטת ברכיים 100, לחיצת רגליים 95,
@@ -78,15 +84,16 @@ describe('מיון רשימת התרגילים', () => {
     window.location.hash = '#/builder/legs'
     render(<App />)
 
-    const byPct = await screen.findByRole('button', { name: /^אחוז/ }, { timeout: SLOW })
-    await user.click(byPct)
+    await user.click(await screen.findByRole('button', { name: 'מיון וסינון' }, { timeout: SLOW }))
+    const sheet = await screen.findByRole('dialog', {}, { timeout: SLOW })
+    await user.click(within(sheet).getByRole('button', { name: /^אחוז/ }))
     await waitFor(() => expect(screen.getAllByText('100%').length).toBeGreaterThan(0), {
       timeout: SLOW,
     })
     expect(orderOnScreen(['פשיטת ברכיים', 'לחיצת רגליים'])).toEqual(['פשיטת ברכיים', 'לחיצת רגליים'])
 
-    // אותו צ׳יפ שוב — מהנמוך לגבוה, והחץ בתווית הנגישה מעיד על הכיוון
-    await user.click(screen.getByRole('button', { name: /^אחוז/ }))
+    // אותה שורה שוב בתוך התפריט — מהנמוך לגבוה, והחץ מעיד על הכיוון
+    await user.click(within(sheet).getByRole('button', { name: /^אחוז/ }))
     await waitFor(() =>
       expect(orderOnScreen(['פשיטת ברכיים', 'לחיצת רגליים'])).toEqual([
         'לחיצת רגליים',
@@ -101,11 +108,10 @@ describe('מיון רשימת התרגילים', () => {
     window.location.hash = '#/library'
     render(<App />)
 
-    await screen.findByRole('button', { name: 'סינון לפי ציוד' }, { timeout: SLOW })
-    await user.click(screen.getByRole('button', { name: 'סינון לפי ציוד' }))
-
+    await user.click(await screen.findByRole('button', { name: 'מיון וסינון' }, { timeout: SLOW }))
     const sheet = await screen.findByRole('dialog', {}, { timeout: SLOW })
     await user.click(within(sheet).getByRole('button', { name: 'משקל גוף' }))
+    await user.keyboard('{Escape}')
 
     /*
       רשומות המאגר שעדיין לא נוספו לתרגילים שלי אין להן סיווג ציוד — הוא
@@ -122,8 +128,7 @@ describe('מיון רשימת התרגילים', () => {
     window.location.hash = '#/builder/biceps'
     render(<App />)
 
-    await screen.findByRole('button', { name: 'סינון לפי ציוד' }, { timeout: SLOW })
-    await user.click(screen.getByRole('button', { name: 'סינון לפי ציוד' }))
+    await user.click(await screen.findByRole('button', { name: 'מיון וסינון' }, { timeout: SLOW }))
     const sheet = await screen.findByRole('dialog', {}, { timeout: SLOW })
     // אין תרגיל יד קדמית במשקל גוף — הרשימה מתרוקנת לגמרי
     await user.click(within(sheet).getByRole('button', { name: 'משקל גוף' }))
@@ -136,7 +141,7 @@ describe('מיון רשימת התרגילים', () => {
       המסך נתקע ריק עד שיוצאים ממנו.
     */
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /סינון ציוד/ })).toBeTruthy()
+      expect(screen.getByRole('button', { name: /מיון וסינון/ })).toBeTruthy()
     )
   }, 40000)
 
@@ -153,14 +158,22 @@ describe('מיון רשימת התרגילים', () => {
       הבורר הוא גיליון מעל מסך האימון, ולכן הטענות נשאלות בתוכו: מסך האימון
       חי מתחתיו ונושא שמות משלו.
     */
-    const sheet = await screen.findByRole('dialog', {}, { timeout: SLOW })
-    await user.click(within(sheet).getByRole('button', { name: /^אחוז/ }))
+    const picker = await screen.findByRole('dialog', {}, { timeout: SLOW })
+    await user.click(within(picker).getByRole('button', { name: 'מיון וסינון' }))
 
-    await waitFor(() => expect(within(sheet).getAllByText(/%$/).length).toBeGreaterThan(0), {
+    /*
+      שני גיליונות על המסך יחד — הבורר ותפריט המיון שמעליו. האחרון ב-DOM
+      הוא זה שנפתח עכשיו, וזו אותה אנטומיה שכבר קיימת בהוספת תרגיל מתוך
+      מסך המנוחה.
+    */
+    const sheets = await screen.findAllByRole('dialog', {}, { timeout: SLOW })
+    const menu = sheets[sheets.length - 1]
+    await user.click(within(menu).getByRole('button', { name: /^אחוז/ }))
+    await user.keyboard('{Escape}')
+
+    await waitFor(() => expect(within(picker).getAllByText(/%$/).length).toBeGreaterThan(0), {
       timeout: SLOW,
     })
-    // והסינון קיים גם כאן — "מה פנוי עכשיו" היא שאלה של אמצע אימון
-    expect(within(sheet).getByRole('button', { name: 'סינון לפי ציוד' })).toBeTruthy()
   }, 40000)
 
   it('"כל מי שנוגע" חושף תרגילים שיושבים תחת כותרת של שריר אחר', async () => {

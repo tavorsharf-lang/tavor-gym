@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { JSX } from 'react'
-import { ArrowDown, ArrowUp, Dumbbell, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, Check } from 'lucide-react'
 import type { Equipment } from '@/db/types'
 import { EQUIPMENT_LABELS } from '@/db/types'
 import { SORT_HINTS, SORT_LABELS } from '@/domain/exerciseSort'
@@ -8,34 +8,30 @@ import type { SortKey, SortState } from '@/domain/exerciseSort'
 import { BottomSheet } from '@/components/ui'
 
 /**
- * שורת המיון והסינון של רשימות התרגילים — אותה שורה בבונה ובמסך התרגילים.
+ * המיון והסינון של רשימות התרגילים — כפתור אחד בכותרת, ותפריט שנפתח ממנו.
  *
- * שלוש החלטות:
+ * הצורה הראשונה כאן הייתה שורת צ׳יפים קבועה מתחת לסינון השרירים, בנימוק
+ * שהחלפת מיון צריכה לעלות לחיצה אחת. הנימוק נכון והמחיר היה גבוה ממנו: על
+ * מסך טלפון כבר יושבים מעליה מתג שלי/הכל, שדה חיפוש ושורת שרירים דו-שלבית,
+ * ושורה רביעית קבועה דחפה את התרגיל הראשון מתחת לקו. המיון הוא החלטה שנעשית
+ * פעם בכמה דקות, והרשימה היא מה שמסתכלים עליו כל הזמן.
  *
- *   1. **המיונים הם צ׳יפים ולא גיליון.** החלפת מיון היא לחיצה אחת: זו לא
- *      הגדרה שקובעים פעם אחת אלא שאלה שמתחלפת תוך כדי — "מה עובד הכי חזק"
- *      ואז "ומה מזה לא עשיתי מזמן". גיליון היה עולה שתי לחיצות בכל פעם.
- *   2. **לחיצה על מיון פעיל הופכת את הכיוון.** "מה עשיתי לאחרונה" ו"מה
- *      הזנחתי" הן אותה שאלה משני צדדים, ושני צ׳יפים נפרדים לשתיהן היו
- *      מכפילים את השורה. החץ על הצ׳יפ הוא מה שאומר לאן היא מצביעה עכשיו.
- *   3. **הציוד כן בגיליון.** הוא ארבע אפשרויות שנבחרות ביחד, זו בחירה
- *      שנשארת לאורך כל הגלישה, והיא נעשית לפני הרשימה ולא בתוכה.
+ * לכן: כפתור בשורה העליונה, עם נקודה כתומה כשמשהו פעיל — כדי שרשימה ממוינת
+ * או מסוננת לעולם לא תיראה כמו רשימה רגילה שחסרים בה תרגילים.
  */
-export function ListSortBar({
+export function SortMenuButton({
   sort,
   onSort,
   equipment,
   onEquipment,
-  hiddenNoEquipment = 0,
 }: {
   sort: SortState
   onSort: (next: SortState) => void
   equipment: ReadonlySet<Equipment>
   onEquipment: (next: ReadonlySet<Equipment>) => void
-  /** כמה שורות נעלמו רק כי אין להן סיווג ציוד — נאמר, לא מוסתר */
-  hiddenNoEquipment?: number
 }): JSX.Element {
-  const [sheet, setSheet] = useState(false)
+  const [open, setOpen] = useState(false)
+  const active = sort.key !== 'default' || equipment.size > 0
 
   const pick = (key: SortKey): void => {
     // אותו מיון פעמיים = הפוך כיוון. מיון חדש נפתח תמיד ביורד, כי זו השאלה
@@ -52,112 +48,144 @@ export function ListSortBar({
 
   const keys: SortKey[] = ['default', 'pct', 'focus', 'recent']
 
+  /* מה שהכפתור מספר בלי לפתוח אותו — לקורא מסך, ולמי שחוזר למסך אחרי שעה */
+  const summary = [
+    sort.key === 'default' ? null : SORT_LABELS[sort.key],
+    equipment.size > 0 ? [...equipment].map((e) => EQUIPMENT_LABELS[e]).join(', ') : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
   return (
     <>
-      <div className="mb-3 flex items-center gap-1.5">
-        <div
-          role="group"
-          aria-label="מיון הרשימה"
-          className="flex min-w-0 flex-1 gap-1 overflow-x-auto"
-        >
-          {keys.map((key) => {
-            const on = sort.key === key
-            return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={summary ? `מיון וסינון — ${summary}` : 'מיון וסינון'}
+        className={[
+          'relative flex size-11 shrink-0 items-center justify-center rounded-full transition-colors',
+          active ? 'text-flame-400 active:bg-ink-800' : 'text-bone-400 active:bg-ink-800',
+        ].join(' ')}
+      >
+        <ArrowUpDown size={20} />
+        {active ? (
+          <span
+            aria-hidden="true"
+            className="absolute end-1.5 top-1.5 size-2 rounded-full bg-flame-500"
+          />
+        ) : null}
+      </button>
+
+      <BottomSheet open={open} onClose={() => setOpen(false)} title="מיון וסינון">
+        <div className="space-y-5">
+          <section>
+            <h3 className="meta mb-2 px-1">לפי מה לסדר</h3>
+            <div className="space-y-2">
+              {keys.map((key) => {
+                const on = sort.key === key
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-pressed={on}
+                    aria-label={`${SORT_LABELS[key]} — ${SORT_HINTS[key]}${
+                      on ? (sort.desc ? ', מהגבוה לנמוך' : ', מהנמוך לגבוה') : ''
+                    }`}
+                    onClick={() => pick(key)}
+                    className={[
+                      'flex min-h-14 w-full items-center gap-3 rounded-card border px-4 text-start transition-colors',
+                      on
+                        ? 'border-flame-500/40 bg-flame-500/12'
+                        : 'border-ink-700 bg-ink-900/60 active:bg-ink-800',
+                    ].join(' ')}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={[
+                          'block text-sm font-bold',
+                          on ? 'text-flame-300' : 'text-bone-200',
+                        ].join(' ')}
+                      >
+                        {SORT_LABELS[key]}
+                      </span>
+                      <span className="meta mt-0.5 block truncate">{SORT_HINTS[key]}</span>
+                    </span>
+
+                    {/*
+                      החץ על הפעיל הוא גם מצב וגם הזמנה: לחיצה נוספת עליו
+                      הופכת את הכיוון, ובלי הסימן אי אפשר לנחש שזה אפשרי.
+                      ל"רגיל" אין כיוון להפוך — הוא הסדר של המסך.
+                    */}
+                    {on ? (
+                      key === 'default' ? (
+                        <Check size={18} className="shrink-0 text-flame-400" aria-hidden="true" />
+                      ) : (
+                        <span className="flex shrink-0 items-center gap-1 text-[0.6875rem] font-bold text-flame-400">
+                          {sort.desc ? 'מהגבוה' : 'מהנמוך'}
+                          {sort.desc ? (
+                            <ArrowDown size={14} aria-hidden="true" />
+                          ) : (
+                            <ArrowUp size={14} aria-hidden="true" />
+                          )}
+                        </span>
+                      )
+                    ) : null}
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+
+          <section>
+            <h3 className="meta mb-2 px-1">רק ציוד מסוים</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {(Object.keys(EQUIPMENT_LABELS) as Equipment[]).map((value) => {
+                const on = equipment.has(value)
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => toggleEquipment(value)}
+                    className={[
+                      'flex min-h-13 items-center justify-center rounded-card border px-3 text-center text-xs font-bold transition-colors',
+                      on
+                        ? 'border-flame-500/40 bg-flame-500/12 text-flame-300'
+                        : 'border-ink-700 bg-ink-900/60 text-bone-300 active:bg-ink-800',
+                    ].join(' ')}
+                  >
+                    {EQUIPMENT_LABELS[value]}
+                  </button>
+                )
+              })}
+            </div>
+            {equipment.size > 0 ? (
               <button
-                key={key}
                 type="button"
-                aria-pressed={on}
-                aria-label={`${SORT_LABELS[key]} — ${SORT_HINTS[key]}${
-                  on ? (sort.desc ? ', מהגבוה לנמוך' : ', מהנמוך לגבוה') : ''
-                }`}
-                onClick={() => pick(key)}
-                className={[
-                  'flex min-h-10 shrink-0 items-center gap-1 rounded-pill border px-3 text-xs font-bold transition-colors',
-                  on
-                    ? 'border-flame-500/40 bg-flame-500/12 text-flame-300'
-                    : 'border-ink-700 bg-ink-900/60 text-bone-400 active:bg-ink-800',
-                ].join(' ')}
+                onClick={() => onEquipment(new Set())}
+                className="btn-ghost mt-2 flex min-h-12 w-full items-center justify-center rounded-card text-sm font-bold"
               >
-                {SORT_LABELS[key]}
-                {/* החץ רק על הפעיל, ורק כשיש לכיוון משמעות */}
-                {on && key !== 'default' ? (
-                  sort.desc ? (
-                    <ArrowDown size={12} aria-hidden="true" />
-                  ) : (
-                    <ArrowUp size={12} aria-hidden="true" />
-                  )
-                ) : null}
+                בלי סינון ציוד
               </button>
-            )
-          })}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setSheet(true)}
-          aria-label={
-            equipment.size > 0
-              ? `סינון ציוד — ${[...equipment].map((e) => EQUIPMENT_LABELS[e]).join(', ')}`
-              : 'סינון לפי ציוד'
-          }
-          className={[
-            'flex min-h-10 shrink-0 items-center gap-1 rounded-pill border px-3 text-xs font-bold transition-colors',
-            equipment.size > 0
-              ? 'border-flame-500/40 bg-flame-500/12 text-flame-300'
-              : 'border-ink-700 bg-ink-900/60 text-bone-400 active:bg-ink-800',
-          ].join(' ')}
-        >
-          <Dumbbell size={14} />
-          {equipment.size > 0 ? <span className="tnum">{equipment.size}</span> : 'ציוד'}
-        </button>
-      </div>
-
-      {/*
-        השורה שאומרת מה נעלם. רשומת מאגר שעוד לא נוספה לתרגילים שלי אין לה
-        סיווג ציוד בכלל — הוא נקבע בהוספה — ולכן מסנן ציוד מפיל אותה. בלי
-        המשפט הזה היא פשוט הייתה נעלמת, וזה נקרא כמו באג.
-      */}
-      {hiddenNoEquipment > 0 ? (
-        <p className="meta mb-3 px-1">
-          {hiddenNoEquipment} רשומות מאגר אינן מוצגות — אין להן עדיין סיווג ציוד
-        </p>
-      ) : null}
-
-      <BottomSheet open={sheet} onClose={() => setSheet(false)} title="סינון לפי ציוד">
-        <div className="space-y-2">
-          {(Object.keys(EQUIPMENT_LABELS) as Equipment[]).map((value) => {
-            const on = equipment.has(value)
-            return (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={on}
-                onClick={() => toggleEquipment(value)}
-                className={[
-                  'flex min-h-13 w-full items-center justify-between rounded-card border px-4 text-sm font-bold transition-colors',
-                  on
-                    ? 'border-flame-500/40 bg-flame-500/12 text-flame-300'
-                    : 'border-ink-700 bg-ink-900/60 text-bone-300 active:bg-ink-800',
-                ].join(' ')}
-              >
-                {EQUIPMENT_LABELS[value]}
-                {on ? <X size={16} aria-hidden="true" /> : null}
-              </button>
-            )
-          })}
-
-          {equipment.size > 0 ? (
-            <button
-              type="button"
-              onClick={() => onEquipment(new Set())}
-              className="btn-ghost flex min-h-13 w-full items-center justify-center rounded-card text-sm font-bold"
-            >
-              בלי סינון ציוד
-            </button>
-          ) : null}
+            ) : null}
+          </section>
         </div>
       </BottomSheet>
     </>
+  )
+}
+
+/**
+ * השורה שאומרת מה נעלם בגלל מסנן הציוד.
+ *
+ * רשומת מאגר שעוד לא נוספה לתרגילים שלי אין לה סיווג ציוד בכלל — הוא נקבע
+ * בהוספה — ולכן מסנן ציוד מפיל אותה. היא יושבת ליד הרשימה ולא בתוך התפריט,
+ * כי היא מסבירה שורות חסרות במקום שבו הן חסרות.
+ */
+export function EquipmentNote({ count }: { count: number }): JSX.Element | null {
+  if (count <= 0) return null
+  return (
+    <p className="meta mb-3 px-1">{count} רשומות מאגר אינן מוצגות — אין להן עדיין סיווג ציוד</p>
   )
 }
 
@@ -169,8 +197,9 @@ export function ListSortBar({
  * שובר את הקיבוץ ומראה את כל מי שהכרטיס שלו מזכיר את השריר בכלל — כולל
  * סקוואט, שהכותרת שלו היא עכוז והוא עדיין 45% ארבע-ראשי.
  *
- * ההצדקה למתג ולא להחלפה: שתי השאלות אמיתיות. "מה יש לי לארבע-ראשי" היא
- * שאלת בניית אימון, ו"מי בכלל מעמיס ארבע-ראשי" היא שאלת תכנון שבוע.
+ * הוא נשאר בשורה ולא עבר לתפריט המיון, בניגוד לכל השאר: הוא מופיע רק אחרי
+ * בחירת תת-שריר, והמספר שעליו — "עוד שבעה נוגעים" — הוא מה שמזמין ללחוץ.
+ * בתוך תפריט הוא היה יכולת שאיש לא היה מגלה.
  */
 export function SubScopeToggle({
   sub,

@@ -28,7 +28,7 @@ import { EmptyState, IconButton, toast } from '@/components/ui'
 import { ExerciseThumb } from '@/components/media/ExerciseThumb'
 import { GroupCardButton } from '@/components/exercises/GroupCardButton'
 import { SubTargetHeading } from '@/components/exercises/SubTargetHeading'
-import { ListSortBar, SubScopeToggle } from '@/components/exercises/ListSortBar'
+import { EquipmentNote, SortMenuButton, SubScopeToggle } from '@/components/exercises/ListSortBar'
 import {
   MuscleFilterChips,
   NO_MUSCLE_FILTER,
@@ -293,7 +293,17 @@ export function BuilderMuscleScreen(): JSX.Element {
         title={MUSCLE_GROUPS[group].label}
         subtitle="הכי מזמן שלא עשית — למעלה"
         fallback="/builder"
-        action={<GroupCardButton group={group} />}
+        action={
+          <>
+            <GroupCardButton group={group} />
+            <SortMenuButton
+              sort={sort}
+              onSort={setSort}
+              equipment={equipment}
+              onEquipment={setEquipment}
+            />
+          </>
+        }
       />
 
       {/*
@@ -358,20 +368,7 @@ export function BuilderMuscleScreen(): JSX.Element {
         <MuscleFilterChips options={filterOptions} value={active} onChange={setFilter} fixed />
       ) : null}
 
-      {/*
-        שורת המיון **לא** מותנית ברשימה, בניגוד לצ׳יפים.
-
-        הצ׳יפים מרפאים את עצמם — `resolveMuscleFilter` מוותר על בחירה שהתרוקנה
-        — אבל סינון ציוד לא. סינון שמרוקן את הרשימה לגמרי היה מעלים יחד איתה
-        את הכפתור היחיד שמבטל אותו, והמסך היה נתקע ריק עד שיוצאים ממנו.
-      */}
-      <ListSortBar
-        sort={sort}
-        onSort={setSort}
-        equipment={equipment}
-        onEquipment={setEquipment}
-        hiddenNoEquipment={noEquipment}
-      />
+      <EquipmentNote count={noEquipment} />
 
       {active.sub ? (
         <SubScopeToggle

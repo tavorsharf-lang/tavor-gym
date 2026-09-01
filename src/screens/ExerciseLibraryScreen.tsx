@@ -35,7 +35,7 @@ import { ExerciseThumb } from '@/components/media/ExerciseThumb'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { RemoveExerciseSheet } from '@/components/exercises/RemoveExerciseSheet'
 import { SubTargetHeading } from '@/components/exercises/SubTargetHeading'
-import { ListSortBar, SubScopeToggle } from '@/components/exercises/ListSortBar'
+import { EquipmentNote, SortMenuButton, SubScopeToggle } from '@/components/exercises/ListSortBar'
 import { GroupCardButton } from '@/components/exercises/GroupCardButton'
 import {
   MuscleFilterChips,
@@ -432,7 +432,18 @@ export function ExerciseLibraryScreen({
 
   return (
     <Screen dock={false}>
-      <ScreenHeader title="תרגילים" subtitle={subtitle} />
+      <ScreenHeader
+        title="תרגילים"
+        subtitle={subtitle}
+        action={
+          <SortMenuButton
+            sort={sort}
+            onSort={setSort}
+            equipment={equipment}
+            onEquipment={setEquipment}
+          />
+        }
+      />
 
       {/*
         aria-pressed ולא role=tab: אין כאן tabpanel ואין ניווט חצים, ולכן
@@ -495,13 +506,7 @@ export function ExerciseLibraryScreen({
       {/* סינון לפי שריר — קבוצות, ובתוך קבוצה תת-השרירים שלה */}
       <MuscleFilterChips options={filterOptions} value={active} onChange={setFilter} />
 
-      <ListSortBar
-        sort={sort}
-        onSort={setSort}
-        equipment={equipment}
-        onEquipment={setEquipment}
-        hiddenNoEquipment={noEquipment}
-      />
+      <EquipmentNote count={noEquipment} />
 
       {active.sub ? (
         <SubScopeToggle

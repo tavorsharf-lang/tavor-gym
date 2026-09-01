@@ -26,7 +26,7 @@ import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { GroupCardButton } from './GroupCardButton'
 import { SubTargetHeading } from './SubTargetHeading'
 import { MuscleFilterChips, NO_MUSCLE_FILTER, resolveMuscleFilter } from './MuscleFilterChips'
-import { ListSortBar, SubScopeToggle } from './ListSortBar'
+import { EquipmentNote, SortMenuButton, SubScopeToggle } from './ListSortBar'
 import type { MuscleFilter } from './MuscleFilterChips'
 
 /**
@@ -298,10 +298,15 @@ export function ExercisePickerSheet({
         aria-pressed ולא role=tab: אין כאן tabpanel ואין ניווט חצים. אותה צורה
         ואותו נימוק כמו במסך התרגילים, וזה מכוון — זה אותו מתג.
       */}
+      {/*
+        המתג והמיון באותה שורה — זו השורה העליונה של הגיליון, ושם יושבות
+        שתי ההחלטות שלפני הרשימה: מאיפה מציעים, ולפי מה מסודר.
+      */}
+      <div className="mb-3 flex items-center gap-2">
       <div
         role="group"
         aria-label="אילו תרגילים להציע"
-        className="mb-3 flex gap-1 rounded-pill border border-ink-700 bg-ink-950 p-1"
+        className="flex min-w-0 flex-1 gap-1 rounded-pill border border-ink-700 bg-ink-950 p-1"
       >
         {([
           { key: 'mine' as const, label: 'שלי' },
@@ -322,6 +327,13 @@ export function ExercisePickerSheet({
             {tab.label}
           </button>
         ))}
+      </div>
+        <SortMenuButton
+          sort={sort}
+          onSort={setSort}
+          equipment={equipment}
+          onEquipment={setEquipment}
+        />
       </div>
 
       <div className="relative mb-4">
@@ -355,18 +367,7 @@ export function ExercisePickerSheet({
       {ready ? (
         <>
           <MuscleFilterChips options={filterOptions} value={active} onChange={setFilter} />
-          {/*
-            שורת המיון אינה מותנית ב-`total`, בניגוד לצ׳יפים: סינון ציוד
-            שמרוקן את הרשימה היה מעלים את הכפתור היחיד שמבטל אותו, והגיליון
-            היה נתקע ריק עד שסוגרים ופותחים אותו מחדש.
-          */}
-          <ListSortBar
-            sort={sort}
-            onSort={setSort}
-            equipment={equipment}
-            onEquipment={setEquipment}
-            hiddenNoEquipment={noEquipment}
-          />
+          <EquipmentNote count={noEquipment} />
           {active.sub ? (
             <SubScopeToggle
               sub={active.sub}
