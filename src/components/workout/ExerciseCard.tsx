@@ -320,14 +320,9 @@ export function ExerciseCard({
     setEntry({ weightKg: seedWeight, reps: seedReps })
   }
 
-  // דגשי ביצוע פתוחים עד הסט הראשון, ואז נסגרים פעם אחת ומשאירים את ההחלטה
-  // למשתמש. הכרטיס ממילא מקבל key לפי פריט התור, ולכן זה מתאפס בכל תרגיל.
-  const [cuesOpen, setCuesOpen] = useState(sets.length === 0)
-  const autoCollapsed = useRef(sets.length > 0)
-  if (!autoCollapsed.current && sets.length > 0) {
-    autoCollapsed.current = true
-    setCuesOpen(false)
-  }
+  // דגשי ביצוע סגורים תמיד בהתחלה — מי שרוצה לקרוא פותח, וכל השאר מקבלים
+  // כרטיס קצר. הכרטיס ממילא מקבל key לפי פריט התור, ולכן זה מתאפס בכל תרגיל.
+  const [cuesOpen, setCuesOpen] = useState(false)
 
   const autoRated = useRef(false)
 
@@ -563,13 +558,20 @@ export function ExerciseCard({
         )}
       </div>
 
-      {/* 4 — כמה להרים היום */}
-      <RecommendationChip
-        recommendation={recommendation}
-        exercise={exercise}
-        onApply={(weightKg) => setEntry((e) => ({ ...e, weightKg }))}
-        onApplyCount={(reps) => setEntry((e) => ({ ...e, reps }))}
-      />
+      {/*
+        4 — כמה להרים היום.
+
+        בלי היסטוריה (action === 'none') אין מה להמליץ, והשורה הייתה רק חוזרת
+        על מה ש"פעם קודמת" שמעליה כבר אמרה. במקרה הזה היא לא מוצגת בכלל.
+      */}
+      {recommendation.action !== 'none' && (
+        <RecommendationChip
+          recommendation={recommendation}
+          exercise={exercise}
+          onApply={(weightKg) => setEntry((e) => ({ ...e, weightKg }))}
+          onApplyCount={(reps) => setEntry((e) => ({ ...e, reps }))}
+        />
+      )}
 
       {/* 5 — מה כבר תועד */}
       {sets.length > 0 && (
