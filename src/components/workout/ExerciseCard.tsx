@@ -34,6 +34,7 @@ import {
 import { workSets } from '@/domain/volume'
 import type { AudioCue } from '@/hooks/useAudioCue'
 import { SetRow } from './SetRow'
+import { PlateChips } from './PlateChips'
 import { PlateHint } from './PlateHint'
 import { HoldOverlay } from './HoldOverlay'
 import { ValueChips } from './ValueChips'
@@ -123,11 +124,24 @@ function SetEditor({
             min={0}
           />
           {/*
-            "מה להעמיס על כל צד" יושב כאן ולא על הכרטיס: הוא ארבע-חמש מילים
-            צפופות שנקראות פעם אחת ליד המוט, וכל שורה על הבמה נמדדת מול הכפתור
-            הכתום. הגיליון הזה הוא המקום היחיד באפליקציה שבו מקלידים משקל
-            בשקט, וזה בדיוק מתי הפירוק שימושי.
+            שני הכיוונים של אותה שאלה, וזה בדיוק למה שניהם כאן ולא על הכרטיס:
+            ‏`PlateChips` סופר פלטות אל תוך המספר ("הנחתי עוד 20"), ו-`PlateHint`
+            מפרק את המספר חזרה לפלטות ("על כל צד: 20+10"). שניהם ארבע-חמש מילים
+            צפופות שנקראות ליד המוט, וכל שורה על הבמה נמדדת מול הכפתור הכתום.
+            הגיליון הזה הוא המקום שבו מקלידים משקל בשקט.
           */}
+          <PlateChips
+            exercise={exercise}
+            plates={plates}
+            onAdd={(deltaKg) => setWeightKg((w) => round2(w + deltaKg))}
+            onReset={() =>
+              setWeightKg(
+                exercise.weightMode === 'perSide'
+                  ? 0
+                  : (exercise.barWeightKg ?? plates.barWeightKg)
+              )
+            }
+          />
           <PlateHint targetKg={weightKg} exercise={exercise} plates={plates} />
         </div>
       )}

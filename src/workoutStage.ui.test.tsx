@@ -13,11 +13,15 @@ import { useWorkout } from './state/activeWorkoutStore'
  *
  * מה שנבדק כאן הוא **מי נכנס לבמה ומתי**, וזה בדיוק מה שאי אפשר לבדוק ברמת
  * ה-store: הדירוג אינו פעולה שמישהו קורא לה, אלא מצב שנולד מהסט שהשלים את
- * היעד — ורק כשהמתג דלוק. שלוש הצלעות:
+ * היעד — ורק כשהמתג דלוק.
  *
  *   • סט שאינו האחרון ⇒ מנוחה, לא דירוג.
  *   • הסט שמשלים את היעד ⇒ דירוג, ואחריו RIR, ואחריו התרגיל הבא נפתח.
  *   • אותו סט כשמתג הקושי כבוי ⇒ מעבר ישיר לתרגיל הבא, בלי שאלה.
+ *   • עורך הסטים מחליף את שורת השבבים באותם 38 פיקסלים.
+ *
+ * והאחרון נעול כאן מסיבה אחרת: ספירת הפלטות ירדה מהכרטיס לגיליון עריכת הסט,
+ * וזה המסלול היחיד שנשאר אליה.
  */
 
 const SLOW = 15_000
@@ -133,5 +137,41 @@ describe('הבמה שבכרטיס', () => {
     )
     // התוכנית הקבועה לא זזה — השינוי חי בתור בלבד
     expect((await db.routines.get('C'))?.items[0].targetSets).toBe(2)
+  }, 40000)
+
+  /*
+    ספירת פלטות חיה בגיליון עריכת הסט, ולא על הכרטיס.
+
+    שני הכיוונים של אותה שאלה נבדקים יחד, כי רק ביחד הם נכונים: השבב סופר
+    פלטות *אל תוך* המספר, והרמז מפרק את המספר *חזרה* לפלטות. במצב total פלטה
+    של 20 מוסיפה 40 — אחת לכל צד — וזו בדיוק הכפילות היחידה בקוד שאפשר לטעות
+    בה, ולכן היא זו שנעולה כאן במספר.
+  */
+  it('ספירת פלטות בגיליון עריכת הסט מוסיפה לשני הצדדים', async () => {
+    const user = userEvent.setup()
+    const { key } = await openWorkout(3)
+
+    await user.click(await screen.findByRole('button', { name: 'סיים סט' }))
+    await waitFor(() =>
+      expect(useWorkout.getState().workout?.setsByKey[key]?.length).toBe(1)
+    )
+
+    // "תועד" ← הסטים שתועדו ← פעולות לסט ← ערוך
+    await user.click(screen.getByRole('button', { name: /תועד/ }))
+    await user.click(await screen.findByRole('button', { name: 'פעולות לסט' }))
+    await user.click(await screen.findByRole('button', { name: 'ערוך' }))
+
+    const weight = await screen.findByRole('textbox', { name: 'משקל' })
+    expect((weight as HTMLInputElement).value).toBe('100')
+
+    await user.click(screen.getByRole('button', { name: 'הוסף פלטה של 20 קילו לכל צד' }))
+    expect((weight as HTMLInputElement).value).toBe('140')
+    // והפירוק מסכים: 70 לכל צד
+    expect(screen.getByText(/3×20 \+ 10/)).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: 'שמור שינוי' }))
+    await waitFor(() =>
+      expect(useWorkout.getState().workout?.setsByKey[key]?.[0].weightKg).toBe(140)
+    )
   }, 40000)
 })
