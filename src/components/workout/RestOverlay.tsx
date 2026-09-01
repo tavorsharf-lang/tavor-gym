@@ -86,6 +86,7 @@ export function RestOverlay({
   onFinishWorkout,
   onCollapse,
   collapsed = false,
+  onOpenVideo,
   startedAt,
 }: {
   endsAt: number | null
@@ -141,6 +142,15 @@ export function RestOverlay({
    * שני בעלים לאותו cue היו מייצרים שני צפצופים, ולכן יש רק אחד.
    */
   collapsed?: boolean
+  /**
+   * פותח את גלריית התרגיל — ההדגמות ומפת האחוזים — מהתמונה שבתוך הטבעת.
+   *
+   * אותה מחווה בדיוק כמו הריבוע שעל הכרטיס: התמונה *היא* הכניסה לגלריה, ואין
+   * סיבה שהיא תפסיק להיות כזו רק מפני שהיא גדלה למרכז המסך. דווקא כאן זה הרגע
+   * הנכון — במנוחה יש ידיים פנויות ועיניים פנויות, וזה בדיוק מתי בודקים איך
+   * התרגיל אמור להיראות.
+   */
+  onOpenVideo?: () => void
   /**
    * תחילת האימון, כדי ששעון האימון ימשיך להיראות גם מכאן.
    *
@@ -365,8 +375,18 @@ export function RestOverlay({
                   מילה, וזו התשובה השקטה ל"רגע, על מה אני נח" כשמרימים את
                   העיניים מהטלפון של מישהו אחר באמצע ההפסקה.
                 */}
-                <span
-                  className="absolute overflow-hidden rounded-full bg-bone-50"
+                <button
+                  type="button"
+                  disabled={!onOpenVideo}
+                  onClick={onOpenVideo}
+                  /*
+                    שם נגיש שונה מזה של הריבוע על הכרטיס. שניהם קיימים ב-DOM
+                    יחד — השכבה הזו יושבת מעל מסך האימון ולא במקומו — ושני
+                    כפתורים באותו שם הם עמימות אמיתית, גם לקורא מסך וגם לכל
+                    שאילתת בדיקה שמחפשת אחד מהם.
+                  */
+                  aria-label={`הדגמות ואחוזי העומס של ${focus.name}`}
+                  className="absolute overflow-hidden rounded-full bg-bone-50 transition-transform active:scale-[0.98] disabled:active:scale-100"
                   style={{ inset: imageInset }}
                 >
                   {/*
@@ -383,7 +403,7 @@ export function RestOverlay({
                     alt=""
                     className="size-full object-contain"
                   />
-                </span>
+                </button>
                 {/*
                   הספירה יושבת על שפת הטבעת ולא במרכזה: במרכז יש עכשיו תמונה,
                   ומספר על גבי איור לבן הוא בדיוק המקום שבו קריאות נשברת.
@@ -391,7 +411,7 @@ export function RestOverlay({
                 <span
                   dir="ltr"
                   aria-hidden="true"
-                  className={`absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 rounded-pill border border-ink-700 bg-ink-950/95 px-4 py-1 numeral-hero text-[clamp(1.5rem,7vw,2.25rem)] shadow-lg ${
+                  className={`pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 rounded-pill border border-ink-700 bg-ink-950/95 px-4 py-1 numeral-hero text-[clamp(1.5rem,7vw,2.25rem)] shadow-lg ${
                     urgent ? 'animate-heat text-flame-400' : 'text-bone-50'
                   }`}
                 >

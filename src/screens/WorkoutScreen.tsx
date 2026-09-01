@@ -131,7 +131,19 @@ export function WorkoutScreen(): JSX.Element | null {
    * טיימרים לסנכרן, יש שכבה שנפתחת ונסגרת מעל ספירה אחת.
    */
   const [restFull, setRestFull] = useState(false)
-  const [videoOpen, setVideoOpen] = useState(false)
+  /**
+   * התרגיל שהגלריה מציגה — ולא בוליאני.
+   *
+   * בזמן מנוחה הפריט שנחים ממנו כבר לא בהכרח הפעיל: אחרי הסט האחרון התור
+   * מתקדם, והתמונה שעל מסך המנוחה שייכת לתרגיל שנסגר. גלריה שקשורה תמיד
+   * ל-`activeExercise` הייתה פותחת שם את התרגיל *הבא*, כלומר תמונה אחת על
+   * המסך ותמונה אחרת מתחת לאצבע.
+   */
+  const [videoFor, setVideoFor] = useState<{
+    id: string
+    libraryId?: string
+    name: string
+  } | null>(null)
   const [banner, setBanner] = useState<string | null>(null)
   const [finishedId, setFinishedId] = useState<string | null>(null)
   const [history, setHistory] = useState<ExerciseSessionSummary[]>([])
@@ -573,7 +585,13 @@ export function WorkoutScreen(): JSX.Element | null {
                 exercise={activeExercise}
                 sets={workout.setsByKey[activeItem.key] ?? []}
                 rating={workout.ratingsByKey[activeItem.key] ?? null}
-                onOpenVideo={() => setVideoOpen(true)}
+                onOpenVideo={() =>
+                  setVideoFor({
+                    id: activeExercise.id,
+                    libraryId: activeExercise.libraryId,
+                    name: activeExercise.name,
+                  })
+                }
                 onOpenSubstitute={() => setSheet('substitute')}
                 onOpenRating={() => setSheet('rating')}
                 onFinishExercise={handleFinishExercise}
@@ -665,6 +683,16 @@ export function WorkoutScreen(): JSX.Element | null {
         totalSeconds={workout.restTotalSeconds}
         collapsed={!restFull}
         onCollapse={() => setRestFull(false)}
+        onOpenVideo={
+          restExercise
+            ? () =>
+                setVideoFor({
+                  id: restExercise.id,
+                  libraryId: restExercise.libraryId,
+                  name: restExercise.name,
+                })
+            : undefined
+        }
         audio={audio}
         onAdjust={(delta) => void adjustRest(delta)}
         onStartSet={() => {
@@ -683,16 +711,25 @@ export function WorkoutScreen(): JSX.Element | null {
         onFinishWorkout={() => setSheet('finish')}
       />
 
+      {/*
+        הגלריה נפתחת מעל הכל — גם מעל מסך המנוחה — ולכן היא אחרונה ב-JSX:
+        שני פורטלים באותו z-index, והאחרון ב-DOM הוא שלמעלה. היא גם מורכבת
+        רק כשצריך אותה, וכך המיקום שלה בערימה נקבע ברגע הפתיחה.
+      */}
+      {videoFor && (
+        <VideoPlayer
+          key={videoFor.id}
+          exerciseId={videoFor.id}
+          libraryId={videoFor.libraryId}
+          exerciseName={videoFor.name}
+          open
+          startOnImage
+          onClose={() => setVideoFor(null)}
+        />
+      )}
+
       {activeExercise && (
         <>
-          <VideoPlayer
-            exerciseId={activeExercise.id}
-            libraryId={activeExercise.libraryId}
-            exerciseName={activeExercise.name}
-            open={videoOpen}
-            startOnImage
-            onClose={() => setVideoOpen(false)}
-          />
           <RatingSheet
             open={sheet === 'rating'}
             onClose={closeRating}

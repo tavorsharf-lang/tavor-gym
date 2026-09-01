@@ -155,4 +155,45 @@ describe('המנוחה', () => {
     await user.click(start)
     await waitFor(() => expect(useWorkout.getState().workout?.restEndsAt).toBeNull())
   }, 40000)
+
+  /*
+    התמונה שבטבעת היא הכניסה לגלריה, בדיוק כמו הריבוע שעל הכרטיס.
+
+    הבדיקה נכנסת דרך המסך המלא **אחרי שהיעד הושלם**, וזה לא סתם תרחיש: שם
+    התור כבר התקדם, והתרגיל שעל התמונה אינו הפעיל. גלריה שקשורה לתרגיל הפעיל
+    הייתה נפתחת על התרגיל הבא — תמונה אחת על המסך ואחרת מתחת לאצבע.
+  */
+  it('לחיצה על התמונה במסך המלא פותחת את הגלריה של התרגיל שנחים ממנו', async () => {
+    const user = userEvent.setup()
+    await useWorkout.getState().start('F1', [])
+    const queue = useWorkout.getState().workout?.queue ?? []
+    const first = queue[0].key
+    const firstName = useWorkout.getState().exercisesById[queue[0].exerciseId].name
+
+    // סוגרים את התרגיל: מנוחה רצה עליו, אבל הפעיל כבר הבא בתור
+    await useWorkout.getState().logSet(first, 'work', 100, 10)
+    await useWorkout.getState().startRest(first, 90)
+    await useWorkout.getState().completeCurrent()
+    expect(useWorkout.getState().workout?.currentKey).not.toBe(first)
+
+    window.location.hash = '#/workout'
+    render(<App />)
+
+    await user.click(
+      await screen.findByRole('button', { name: /פתח את מסך המנוחה המלא/ }, { timeout: SLOW })
+    )
+    await user.click(
+      await screen.findByRole('button', { name: `הדגמות ואחוזי העומס של ${firstName}` })
+    )
+
+    /*
+      הגלריה נפתחה, והיא של התרגיל שעל התמונה — לא של זה שהתור עבר אליו.
+      הכותרת שלה נושאת את השם, וזו הטענה שמפרידה בין השניים.
+    */
+    expect(
+      await screen.findByRole('dialog', { name: `הדגמות והסברים — ${firstName}` })
+    ).toBeTruthy()
+    // והספירה לא נעצרה מתחתיה
+    expect(useWorkout.getState().workout?.restEndsAt).not.toBeNull()
+  }, 40000)
 })
