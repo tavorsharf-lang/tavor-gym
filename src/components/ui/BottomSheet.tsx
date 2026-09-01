@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { JSX, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { lockBodyScroll } from '@/lib/scrollLock'
@@ -8,7 +8,17 @@ import { lockBodyScroll } from '@/lib/scrollLock'
  *
  * נפתח מלמטה כי שם היד. נטען דרך portal ל-body כדי לא לרשת overflow או
  * transform מהמסך שמתחתיו, מה שהיה שובר את ה-fixed באייפון.
+ *
+ * **סגירה בהחלקה מלמעלה למטה.** הידית שבראש הגיליון הייתה קישוט: היא נראית
+ * כמו ידית גרירה בכל אפליקציה אחרת, והאצבע ניסתה למשוך אותה ולא קרה כלום.
+ * עכשיו הגרירה אמיתית, והיא מה שמחזיר מבורר התרגילים אל מסך האימון שמתחתיו
+ * בלי לחפש כפתור.
  */
+
+/** כמה צריך למשוך כדי לסגור — או כמה מהר, למי שרק מנפנף */
+const CLOSE_DISTANCE_PX = 96
+const FLICK_DISTANCE_PX = 32
+const FLICK_SPEED_PX_MS = 0.5
 
 export interface BottomSheetProps {
   open: boolean
@@ -37,6 +47,64 @@ export function BottomSheet({
 
   const rootRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+
+  /*
+    ── גרירה לסגירה ──
+
+    הידית והכותרת הן שטח הגרירה, ולא כל הגיליון. זו לא התפשרות אלא הכרח:
+    ‏`touch-action` נקרא פעם אחת בתחילת המחווה, ולכן אי אפשר "להשתלט" על נגיעה
+    שכבר התחילה לגלול. שטח גרירה שכולל את התוכן היה דורש `touch-action: none`
+    עליו — כלומר לבטל את הגלילה בבורר שיש בו מאה שורות.
+
+    ‏`dragY` הוא state ולא ref כי הוא מצויר, אבל נקודת ההתחלה היא ref: בין
+    ‏pointerdown ל-pointerup יש רינדורים, וכל אחד מהם היה מאפס אותה.
+  */
+  const [dragY, setDragY] = useState(0)
+  const [dragging, setDragging] = useState(false)
+  const dragFrom = useRef<{ y: number; at: number } | null>(null)
+
+  const onDragStart = (e: React.PointerEvent<HTMLDivElement>): void => {
+    // תפיסת המצביע: גם אם האצבע יוצאת מהידית, ה-pointerup עדיין מגיע לכאן
+    e.currentTarget.setPointerCapture(e.pointerId)
+    dragFrom.current = { y: e.clientY, at: e.timeStamp }
+    setDragging(true)
+    setDragY(0)
+  }
+
+  const onDragMove = (e: React.PointerEvent<HTMLDivElement>): void => {
+    const from = dragFrom.current
+    if (!from) return
+    // רק כלפי מטה. משיכה למעלה לא "מותחת" את הגיליון — היא פשוט לא עושה כלום.
+    setDragY(Math.max(0, e.clientY - from.y))
+  }
+
+  const onDragEnd = (e: React.PointerEvent<HTMLDivElement>): void => {
+    const from = dragFrom.current
+    if (!from) return
+    dragFrom.current = null
+    setDragging(false)
+    const dy = Math.max(0, e.clientY - from.y)
+    const dt = Math.max(1, e.timeStamp - from.at)
+    /*
+      שני מסלולים לסגירה, ומי שרק מנפנף צריך את השני: משיכה ארוכה סוגרת לפי
+      מרחק, ותנועה קצרה ומהירה סוגרת לפי מהירות. בלי הענף השני נפנוף טבעי של
+      שלושים פיקסלים היה מחזיר את הגיליון למקומו, וזה נקרא "לא הגיב".
+    */
+    const flick = dy > FLICK_DISTANCE_PX && dy / dt > FLICK_SPEED_PX_MS
+    if (dy > CLOSE_DISTANCE_PX || flick) {
+      closeRef.current()
+      return
+    }
+    setDragY(0)
+  }
+
+  // גיליון שנפתח מחדש חייב להתחיל מאפס, אחרת הוא עולה כבר מוזז
+  useEffect(() => {
+    if (open) return
+    dragFrom.current = null
+    setDragging(false)
+    setDragY(0)
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -139,18 +207,44 @@ export function BottomSheet({
       <div
         ref={panelRef}
         tabIndex={-1}
-        className="animate-sheet relative flex w-full flex-col overflow-hidden rounded-t-[1.5rem] border-t border-ink-700 bg-ink-900 shadow-[0_-14px_44px_-14px_rgba(0,0,0,0.85)] focus:outline-none"
-        style={{ maxHeight: `${maxHeightVh}dvh` }}
+        className={`animate-sheet relative flex w-full flex-col overflow-hidden rounded-t-[1.5rem] border-t border-ink-700 bg-ink-900 shadow-[0_-14px_44px_-14px_rgba(0,0,0,0.85)] focus:outline-none ${
+          dragging ? '' : 'transition-transform duration-200'
+        }`}
+        style={{
+          maxHeight: `${maxHeightVh}dvh`,
+          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
+        }}
       >
-        <div className="flex shrink-0 justify-center pt-3 pb-1">
-          <div className="knurl h-1.5 w-12 rounded-full bg-ink-800" />
-        </div>
+        {/*
+          שטח הגרירה: הידית והכותרת יחד. `touch-action: none` חייב לשבת כאן
+          ולא על הפאנל — עליו הוא היה מבטל את הגלילה של התוכן.
+        */}
+        <div
+          onPointerDown={onDragStart}
+          onPointerMove={onDragMove}
+          onPointerUp={onDragEnd}
+          onPointerCancel={onDragEnd}
+          onLostPointerCapture={onDragEnd}
+          /*
+            ‏min-h-11 הוא הרצפה ולא העיצוב: עם כותרת האזור ממילא גבוה ממנה,
+            ובגיליון בלי כותרת הידית לבדה הייתה שטח גרירה של 22 פיקסלים.
+          */
+          className="no-touch-scroll min-h-11 shrink-0 cursor-grab active:cursor-grabbing"
+        >
+          <div className="flex justify-center pt-3 pb-1">
+            <div
+              className={`knurl h-1.5 w-12 rounded-full transition-colors ${
+                dragging ? 'bg-ink-600' : 'bg-ink-800'
+              }`}
+            />
+          </div>
 
-        {title ? (
-          <h2 id={titleId} className="shrink-0 px-5 pt-1 pb-3 text-lg font-extrabold text-bone-50">
-            {title}
-          </h2>
-        ) : null}
+          {title ? (
+            <h2 id={titleId} className="px-5 pt-1 pb-3 text-lg font-extrabold text-bone-50">
+              {title}
+            </h2>
+          ) : null}
+        </div>
 
         <div className="scroll-touch min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-safe">
           {children}

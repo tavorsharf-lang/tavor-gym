@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { JSX } from 'react'
 import { describe, expect, it } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { createEvent, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BottomSheet } from './BottomSheet'
 
@@ -91,6 +91,81 @@ describe('BottomSheet — כליאת פוקוס', () => {
     await user.keyboard('{Escape}')
 
     // הגיליון נשאר — הנגן שמעליו הוא זה שאמור להיסגר ראשון
+    expect(screen.getByRole('button', { name: 'ראשון' })).toBeTruthy()
+  })
+})
+
+/**
+ * סגירה בהחלקה מלמעלה למטה.
+ *
+ * הידית שבראש הגיליון נראתה כמו ידית גרירה מאז ומתמיד והייתה קישוט בלבד —
+ * האצבע משכה, וכלום לא קרה. מה שנעול כאן הוא לא האנימציה אלא שלושת התנאים
+ * שמפרידים בין כוונה לבין נגיעה מקרית: משיכה ארוכה סוגרת, נפנוף קצר ומהיר
+ * סוגר, ומשיכה קצרה ואיטית מחזירה את הגיליון למקומו.
+ *
+ * ‏`createEvent` ולא `fireEvent` ישירות: `timeStamp` הוא לקריאה בלבד ואי אפשר
+ * להעביר אותו ב-init. בלי השליטה בו כל האירועים נוחתים באותה מילישנייה, כלומר
+ * *כל* משיכה נקראת כנפנוף מהיר — והבדיקה שאמורה לוודא שמשיכה איטית לא סוגרת
+ * הייתה עוברת מהסיבה ההפוכה בדיוק.
+ */
+function drag(el: HTMLElement, dy: number, ms: number): void {
+  const at = (type: 'pointerDown' | 'pointerMove' | 'pointerUp', y: number, t: number): void => {
+    const event = createEvent[type](el, { pointerId: 1, clientY: y })
+    Object.defineProperty(event, 'timeStamp', { value: t })
+    fireEvent(el, event)
+  }
+  at('pointerDown', 100, 1000)
+  at('pointerMove', 100 + dy, 1000 + ms)
+  at('pointerUp', 100 + dy, 1000 + ms)
+}
+
+describe('BottomSheet — סגירה בהחלקה', () => {
+  /** אזור הגרירה הוא הידית והכותרת יחד */
+  const handle = (): HTMLElement =>
+    screen.getByRole('heading', { name: 'גיליון' }).parentElement as HTMLElement
+
+  it('משיכה ארוכה למטה סוגרת', () => {
+    render(<Harness />)
+
+    drag(handle(), 140, 400)
+
+    expect(screen.queryByRole('button', { name: 'ראשון' })).toBeNull()
+  })
+
+  it('משיכה קצרה ואיטית מחזירה את הגיליון למקומו', () => {
+    render(<Harness />)
+
+    // 40 פיקסלים לאורך 400 מילישניות — כוונה לזוז, לא לסגור
+    drag(handle(), 40, 400)
+
+    expect(screen.getByRole('button', { name: 'ראשון' })).toBeTruthy()
+  })
+
+  /*
+    נפנוף: תנועה קצרה אבל מהירה. בלי הענף הזה משיכה טבעית של ארבעים פיקסלים
+    הייתה מחזירה את הגיליון למקומו, וזה נקרא "לא הגיב".
+  */
+  it('נפנוף קצר ומהיר כן סוגר', () => {
+    render(<Harness />)
+
+    drag(handle(), 40, 40)
+
+    expect(screen.queryByRole('button', { name: 'ראשון' })).toBeNull()
+  })
+
+  it('משיכה כלפי מעלה לא סוגרת', () => {
+    render(<Harness />)
+
+    drag(handle(), -200, 300)
+
+    expect(screen.getByRole('button', { name: 'ראשון' })).toBeTruthy()
+  })
+
+  it('נגיעה בלי תנועה לא סוגרת', () => {
+    render(<Harness />)
+
+    drag(handle(), 0, 50)
+
     expect(screen.getByRole('button', { name: 'ראשון' })).toBeTruthy()
   })
 })
