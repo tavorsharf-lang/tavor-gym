@@ -44,6 +44,20 @@ import { todayISO } from '@/lib/dates'
  */
 export type AddExerciseOutcome = 'added' | 'duplicate' | 'failed'
 
+/**
+ * תוצאת פתיחת אימון.
+ *
+ * ‏`busy` הוא סירוב ולא תקלה: כבר יש אימון פתוח, ושום דבר לא נגע בו. **אימון
+ * פתוח לעולם לא נדרס** — לא כאן ולא בשום מסלול אחר. הסטים נכתבים ל-`setLogs`
+ * מיד, אבל שורת ה-session נכתבת רק ב-`finish`, ולכן דריסה הייתה משאירה סטים
+ * בלי סשן: הם נספרים ב"משקל אחרון", בגרפים ובבניית השיאים, אבל בלתי נראים
+ * בהיסטוריה ולכן בלתי ניתנים למחיקה.
+ *
+ * הדרך היחידה לפנות מקום היא מפורשת — לסיים את האימון (`finish`) או לבטל
+ * אותו (`discard`), ושתיהן פעולות שהמשתמש עושה על האימון *הפתוח*.
+ */
+export type StartOutcome = 'started' | 'busy'
+
 // ─── עזרים ─────────────────────────────────────────────────────────────────
 
 function itemFromPlan(
@@ -93,14 +107,14 @@ interface WorkoutState {
 
   // מחזור חיים
   hydrate: () => Promise<void>
-  start: (routineId: RoutineId | null, blockIds: string[]) => Promise<void>
+  start: (routineId: RoutineId | null, blockIds: string[]) => Promise<StartOutcome>
   /**
    * פותח אימון חופשי מרשימת תרגילים שנבחרה במסך בניית האימון.
    *
    * לא `start(null, [])` ואחריו `addExercise` בלולאה: זה היה כותב את המצב
    * לדיסק פעם לכל תרגיל, ומשאיר את התור כולו `pending` בלי תרגיל פתוח.
    */
-  startWithItems: (exerciseIds: readonly string[]) => Promise<void>
+  startWithItems: (exerciseIds: readonly string[]) => Promise<StartOutcome>
   discard: () => Promise<void>
   finish: () => Promise<string | null>
 
@@ -140,6 +154,24 @@ interface WorkoutState {
 
   setNotes: (notes: string) => Promise<void>
   drainPrEvents: () => PrEvent[]
+}
+
+/**
+ * האם יש אימון פתוח שחוסם פתיחה של חדש.
+ *
+ * נבדק בשתי רמות בכוונה. הזיכרון הוא המצב שהמסכים רואים, אבל הוא ריק גם לפני
+ * ש-`hydrate` רץ וגם בלשונית שנייה שנפתחה זה עתה — ובדיוק שם דריסה שקטה
+ * הייתה מוחקת אימון שרץ במכשיר. השורה על הדיסק היא האמת.
+ *
+ * כשהדיסק מחזיק אימון שהזיכרון לא מכיר, מסנכרנים אותו פנימה לפני שמסרבים:
+ * המסך שחוסם את המשתמש חייב גם להראות לו *מה* חוסם, אחרת הסירוב נראה כמו תקלה.
+ */
+async function blockedByOpenWorkout(): Promise<boolean> {
+  if (useWorkout.getState().workout) return true
+  const saved = await db.activeWorkout.get('current')
+  if (!saved) return false
+  await useWorkout.getState().hydrate()
+  return true
 }
 
 /** כותב את המצב לדיסק. נקרא אחרי כל מוטציה. */
@@ -261,16 +293,8 @@ export const useWorkout = create<WorkoutState>((set, get) => {
     },
 
     async start(routineId, blockIds) {
-      /*
-        אימון פתוח קודם נזרק כמו שצריך לפני שדורסים אותו.
-
-        הסטים נכתבים ל-setLogs מיד, אבל שורת ה-session נכתבת רק ב-finish —
-        ולכן דריסה של activeWorkout בלי ניקוי הייתה מותירה סטים בלי סשן: הם
-        נספרים ב"משקל אחרון", בגרפים ובבניית השיאים, אבל בלתי נראים בהיסטוריה
-        ולכן בלתי ניתנים למחיקה. ה-UI שואל לפני שמגיעים לכאן; זו הרשת שמתחת.
-      */
-      const open = get().workout
-      if (open) await get().discard()
+      // אימון פתוח חוסם, ולא נדרס. ההסבר המלא על `StartOutcome`.
+      if (await blockedByOpenWorkout()) return 'busy'
 
       const [exercises, routines, blocks, prs, settings] = await Promise.all([
         db.exercises.toArray(),
@@ -332,12 +356,12 @@ export const useWorkout = create<WorkoutState>((set, get) => {
         hydrated: true,
       })
       await persist(workout)
+      return 'started'
     },
 
     async startWithItems(exerciseIds) {
-      // אותה רשת בדיוק כמו ב-start, ומאותה סיבה: סטים בלי סשן.
-      const open = get().workout
-      if (open) await get().discard()
+      // אותו שער בדיוק כמו ב-start, ומאותה סיבה.
+      if (await blockedByOpenWorkout()) return 'busy'
 
       const [exercises, prs, settings] = await Promise.all([
         db.exercises.toArray(),
@@ -405,6 +429,7 @@ export const useWorkout = create<WorkoutState>((set, get) => {
         hydrated: true,
       })
       await persist(workout)
+      return 'started'
     },
 
     async discard() {

@@ -85,7 +85,6 @@ export function BasketBar(): JSX.Element | null {
   const [naming, setNaming] = useState(false)
   const [name, setName] = useState('')
   const [pickingPlan, setPickingPlan] = useState(false)
-  const [confirmDiscard, setConfirmDiscard] = useState(false)
 
   if (items.length === 0) return null
 
@@ -99,7 +98,6 @@ export function BasketBar(): JSX.Element | null {
     setOpen(false)
     setNaming(false)
     setPickingPlan(false)
-    setConfirmDiscard(false)
     toast(message, { tone: 'success' })
     if (goToWorkout) navigate('/workout')
   }
@@ -179,11 +177,6 @@ export function BasketBar(): JSX.Element | null {
   }
 
   const startNow = (): void => {
-    // האימון הפתוח נמחק ב-start, ולכן שואלים לפני — כמו בגיליון פתיחת האימון
-    if (workout && !confirmDiscard) {
-      setConfirmDiscard(true)
-      return
-    }
     /*
       שחרור האודיו חייב להיות המשפט הראשון.
       אחרי await המחווה של הלחיצה כבר נצרכה, וספארי מסרב לפתוח קול —
@@ -196,7 +189,14 @@ export function BasketBar(): JSX.Element | null {
         toast('לא הצלחתי להתחיל את האימון', { tone: 'warn' })
         return
       }
-      await useWorkout.getState().startWithItems(ids)
+      /*
+        אימון פתוח חוסם, ולא נדרס — והכפתור הזה ממילא לא מוצג כשיש אחד.
+        השער נשאר בשביל המרוץ: אימון שנפתח בלשונית אחרת בזמן שהסל היה פתוח.
+      */
+      if ((await useWorkout.getState().startWithItems(ids)) === 'busy') {
+        toast('יש כבר אימון פתוח — סיים אותו קודם', { tone: 'warn' })
+        return
+      }
       finish('האימון התחיל', true)
     })
   }
@@ -294,16 +294,11 @@ export function BasketBar(): JSX.Element | null {
         </div>
       </div>
 
-      {/*
-        סגירה מנטרלת את האישור ההרסני ומחזירה את הגיליון לתפריט הראשי.
-        בלי זה "כן — 3 סטים יימחקו" נשאר דרוך אחרי סגירה, והפתיחה הבאה מציגה
-        כפתור אדום שלחיצה אחת עליו מוחקת אימון — בלי שנשאלה שאלה.
-      */}
+      {/* סגירה מחזירה את הגיליון לתפריט הראשי ולא לתת-מסך שנפתח בתוכו */}
       <BottomSheet
         open={open}
         onClose={() => {
           setOpen(false)
-          setConfirmDiscard(false)
           setNaming(false)
           setPickingPlan(false)
         }}
@@ -390,18 +385,24 @@ export function BasketBar(): JSX.Element | null {
                 >
                   הוסף לאימון שרץ
                 </Button>
+                {/*
+                  אין כאן "התחל אימון חדש במקום". אימון פתוח לא נדרס, ולכן
+                  שתי האפשרויות האמיתיות מול סל מלא הן להוסיף אותו לאימון
+                  שרץ — או לחזור אליו ולסגור אותו קודם.
+                */}
                 <Button
-                  variant={confirmDiscard ? 'danger' : 'ghost'}
+                  variant="ghost"
                   size="lg"
                   fullWidth
                   disabled={busy}
-                  onClick={startNow}
+                  onClick={() => {
+                    setOpen(false)
+                    navigate('/workout')
+                  }}
                 >
-                  {confirmDiscard
-                    ? openSetCount > 0
-                      ? `כן — ${countMasculine(openSetCount)} סטים יימחקו`
-                      : 'כן, התחל אימון חדש'
-                    : 'התחל אימון חדש במקום'}
+                  {openSetCount > 0
+                    ? `חזור לאימון שרץ · ${countMasculine(openSetCount)} סטים`
+                    : 'חזור לאימון שרץ'}
                 </Button>
               </>
             ) : (

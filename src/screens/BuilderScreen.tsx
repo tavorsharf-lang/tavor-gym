@@ -65,7 +65,6 @@ export function BuilderScreen(): JSX.Element {
   const { unlock } = useAudioCue(settings?.soundEnabled ?? true, settings?.soundVolume ?? 0.8)
   const [starting, setStarting] = useState(false)
   /** אימון פתוח נמחק בהתחלה חדשה — לכן הכפתור שואל לפני, כמו בפס הסל */
-  const [confirmDiscard, setConfirmDiscard] = useState(false)
 
   const windowDays = settings?.coverageWindowDays ?? 4
   const ready = exercises !== undefined && history !== undefined && settings !== undefined
@@ -117,10 +116,6 @@ export function BuilderScreen(): JSX.Element {
    */
   const startEmpty = (): void => {
     if (starting) return
-    if (workout && !confirmDiscard) {
-      setConfirmDiscard(true)
-      return
-    }
     /*
       שחרור האודיו חייב להיות המשפט הראשון. אחרי await המחווה של הלחיצה כבר
       נצרכה, וספארי מסרב לפתוח קול — כלומר טיימר המנוחה היה שותק לאורך כל
@@ -131,8 +126,12 @@ export function BuilderScreen(): JSX.Element {
     void useWorkout
       .getState()
       .startWithItems([])
-      .then(() => {
-        setConfirmDiscard(false)
+      .then((outcome) => {
+        /*
+          אימון פתוח חוסם, ולא נדרס — והכפתור ממילא כבר לא מציע להתחיל
+          כשיש אחד. השער נשאר בשביל המרוץ: אימון שנפתח בלשונית אחרת.
+        */
+        if (outcome === 'busy') toast('יש כבר אימון פתוח — סיים אותו קודם', { tone: 'warn' })
         navigate('/workout')
       })
       .catch(() => toast('לא הצלחתי להתחיל את האימון', { tone: 'warn' }))
@@ -201,38 +200,27 @@ export function BuilderScreen(): JSX.Element {
             שיודע מה הוא רוצה בונה בסל, מי שלא יודע לוחץ על השרביט, ומי שרוצה
             להחליט מול המכונה מתחיל ריק.
           */}
+          {/*
+            כשיש אימון פתוח הכפתור לא מציע להתחיל ריק — הוא מחזיר אליו.
+            אימון פתוח לא נדרס, והדרך לפנות מקום היא לסיים או לבטל אותו
+            מתוכו, לא כתופעת לוואי של פתיחת אחר.
+          */}
           <button
             type="button"
-            onClick={startEmpty}
+            onClick={workout ? () => navigate('/workout') : startEmpty}
             disabled={starting}
-            className={[
-              'mb-5 flex min-h-14 w-full items-center gap-3 rounded-card border px-4 text-start disabled:opacity-50',
-              confirmDiscard
-                ? 'border-hard-400/50 bg-hard-400/12 active:bg-hard-400/20'
-                : 'border-ink-700 bg-ink-900/60 active:bg-ink-800',
-            ].join(' ')}
+            className="mb-5 flex min-h-14 w-full items-center gap-3 rounded-card border border-ink-700 bg-ink-900/60 px-4 text-start active:bg-ink-800 disabled:opacity-50"
           >
-            <Play
-              size={20}
-              className={['shrink-0', confirmDiscard ? 'text-hard-400' : 'text-bone-400'].join(' ')}
-              aria-hidden="true"
-            />
+            <Play size={20} className="shrink-0 text-bone-400" aria-hidden="true" />
             <span className="min-w-0 flex-1">
-              <span
-                className={[
-                  'block text-sm font-extrabold',
-                  confirmDiscard ? 'text-hard-400' : 'text-bone-100',
-                ].join(' ')}
-              >
-                {confirmDiscard
-                  ? openSetCount > 0
-                    ? `כן — ${countMasculine(openSetCount)} סטים יימחקו`
-                    : 'כן, התחל אימון ריק חדש'
-                  : 'אימון ריק — אבנה תוך כדי'}
+              <span className="block text-sm font-extrabold text-bone-100">
+                {workout ? 'חזור לאימון שרץ' : 'אימון ריק — אבנה תוך כדי'}
               </span>
               <span className="meta block">
-                {confirmDiscard
-                  ? 'האימון שרץ עכשיו נמחק'
+                {workout
+                  ? openSetCount > 0
+                    ? `${countMasculine(openSetCount)} סטים כבר תועדו — סיים אותו לפני שמתחילים חדש`
+                    : 'סיים אותו לפני שמתחילים חדש'
                   : 'מתחילים בלי כלום, ומוסיפים תרגילים מהכפתור שבכותרת האימון'}
               </span>
             </span>

@@ -77,15 +77,16 @@ export function StartWorkoutSheet({
   const [routineOverride, setRoutineOverride] = useState<RoutineId | null>(null)
   const [blocksOverride, setBlocksOverride] = useState<string[] | null>(null)
   const [starting, setStarting] = useState(false)
-  const [confirmDiscard, setConfirmDiscard] = useState(false)
 
   /*
-    אימון פתוח שעומד להימחק.
+    אימון פתוח **חוסם** פתיחה של חדש, ולא נדרס.
 
-    התחלת אימון חדש דורסת אותו, והסטים שלו נמחקים איתו — הם נכתבו ל-setLogs
-    אבל שורת ה-session שלהם נכתבת רק בסיום. זו פעולה בלתי הפיכה, ולכן היא
-    שואלת. הקריאה היא ל-store שבזיכרון ולא ל-liveQuery: אסור להאזין לטבלת
-    activeWorkout, היא נכתבת אחרי כל נגיעה.
+    הסטים שלו כבר ב-setLogs אבל שורת ה-session נכתבת רק בסיום, ולכן דריסה
+    הייתה משאירה אותם בלי סשן — נספרים בגרפים ובשיאים, בלתי נראים בהיסטוריה,
+    ולכן בלתי ניתנים למחיקה. הגיליון הזה לא מציע לדרוס אלא מחזיר לאימון שרץ;
+    לסיים או לבטל אותו עושים מתוכו, וזו פעולה על האימון הפתוח ולא תופעת לוואי
+    של פתיחת אחר. הקריאה היא ל-store שבזיכרון ולא ל-liveQuery: אסור להאזין
+    לטבלת activeWorkout, היא נכתבת אחרי כל נגיעה.
   */
   const exercises = useLiveQuery(() => getAllExercises(true), [], [])
 
@@ -97,7 +98,6 @@ export function StartWorkoutSheet({
   // סגירה מאפסת את הבחירה — פתיחה הבאה מתחילה שוב מההצעה
   useEffect(() => {
     if (open) return
-    setConfirmDiscard(false)
     setRoutineOverride(null)
     setBlocksOverride(null)
     setStarting(false)
@@ -138,17 +138,32 @@ export function StartWorkoutSheet({
     )
   }
 
+  /** חזרה לאימון שרץ — מה שהכפתור הראשי עושה כל עוד יש אחד */
+  const backToOpen = () => {
+    onClose()
+    navigate('/workout')
+  }
+
   const handleStart = async () => {
-    if (openWorkout && !confirmDiscard) {
-      setConfirmDiscard(true)
-      return
-    }
     // הלחיצה הזו היא ההזדמנות היחידה לפתוח את האודיו ב-iOS: אחרי await
     // המחווה כבר "נצרכה" וספארי יסרב. חייב להיות ראשון בפונקציה.
     unlock()
     setStarting(true)
     try {
-      await useWorkout.getState().start(selectedRoutine, chosenBlocks.map((b) => b.id))
+      const outcome = await useWorkout
+        .getState()
+        .start(selectedRoutine, chosenBlocks.map((b) => b.id))
+      /*
+        ‏`busy` הוא הרשת שמתחת לכפתור ולא מסלול רגיל — הכפתור כבר לא מציע
+        להתחיל כשיש אימון פתוח. הוא נשאר בשביל המרוץ האמיתי: לשונית שנייה,
+        או אימון שנפתח במכשיר אחר בזמן שהגיליון הזה היה פתוח.
+      */
+      if (outcome === 'busy') {
+        setStarting(false)
+        toast('יש כבר אימון פתוח — סיים אותו קודם', { tone: 'warn' })
+        backToOpen()
+        return
+      }
       onClose()
       navigate('/workout')
     } catch {
@@ -251,12 +266,12 @@ export function StartWorkoutSheet({
       </div>
 
       <div className="sticky bottom-0 -mx-5 mt-5 border-t border-ink-800 bg-ink-900/95 px-5 pt-3 pb-safe backdrop-blur-xl">
-        {confirmDiscard ? (
-          <p className="mb-2 rounded-xl border border-hard-400/35 bg-hard-400/10 px-3 py-2 text-center text-sm leading-relaxed text-hard-400">
+        {openWorkout ? (
+          <p className="mb-2 rounded-xl border border-flame-500/35 bg-flame-500/10 px-3 py-2 text-center text-sm leading-relaxed text-flame-300">
             <span className="font-extrabold">יש אימון פתוח.</span>{' '}
             {openSetCount > 0
-              ? `התחלה של אימון חדש תמחק אותו ואת ${openSetCount} הסטים שנרשמו בו.`
-              : 'התחלה של אימון חדש תבטל אותו.'}
+              ? `${openSetCount} סטים כבר תועדו בו. סיים אותו לפני שמתחילים חדש.`
+              : 'סיים אותו לפני שמתחילים חדש.'}
           </p>
         ) : (
           <p className="mb-2 text-center text-sm text-bone-400">
@@ -269,27 +284,12 @@ export function StartWorkoutSheet({
           size="hero"
           fullWidth
           loading={starting}
-          disabled={planItems.length === 0}
-          onClick={() => void handleStart()}
+          disabled={!openWorkout && planItems.length === 0}
+          onClick={() => (openWorkout ? backToOpen() : void handleStart())}
           style={{ minHeight: '4.25rem' }}
         >
-          {confirmDiscard ? 'בטל את הפתוח והתחל חדש' : 'התחל'}
+          {openWorkout ? 'חזור לאימון הפתוח' : 'התחל'}
         </Button>
-        {confirmDiscard ? (
-          <Button
-            variant="quiet"
-            size="md"
-            fullWidth
-            className="mt-2"
-            onClick={() => {
-              setConfirmDiscard(false)
-              onClose()
-              navigate('/workout')
-            }}
-          >
-            חזור לאימון הפתוח
-          </Button>
-        ) : null}
       </div>
     </BottomSheet>
   )
