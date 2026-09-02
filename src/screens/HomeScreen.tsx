@@ -9,6 +9,7 @@ import {
   CloudOff,
   Dumbbell,
   ListPlus,
+  Shuffle,
   X,
 } from 'lucide-react'
 import { getSettings } from '@/db/db'
@@ -205,6 +206,23 @@ export function HomeScreen(): JSX.Element {
               </span>
             </span>
           </Button>
+
+          {/*
+            המסלול השני, ובכוונה שקט יותר: הבונה הוא מסך תכנון, וזה מסלול למי
+            שמחליט ביום עצמו. שריר → תרגיל → מתעד, בלי סל ובלי אישור.
+          */}
+          <button
+            type="button"
+            onClick={() => navigate('/freestyle')}
+            className="mt-2 flex min-h-14 w-full items-center gap-3 rounded-card border border-ink-700 bg-ink-900/60 px-4 text-start active:bg-ink-800"
+          >
+            <Shuffle size={18} className="shrink-0 text-bone-400" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-extrabold text-bone-100">אימון חופשי</span>
+              <span className="meta block">בלי תוכנית — בוחר שריר, והתור נבנה תוך כדי</span>
+            </span>
+            <ChevronLeft size={16} className="shrink-0 text-bone-600" aria-hidden="true" />
+          </button>
         </section>
       )}
 

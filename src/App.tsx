@@ -17,6 +17,7 @@ import { UpdateBanner } from '@/components/shell/UpdateBanner'
 import { WelcomeScreen } from '@/screens/WelcomeScreen'
 import { HomeScreen } from '@/screens/HomeScreen'
 import { BuilderScreen } from '@/screens/BuilderScreen'
+import { FreestyleScreen } from '@/screens/FreestyleScreen'
 import { BuilderMuscleScreen } from '@/screens/BuilderMuscleScreen'
 import { WorkoutScreen } from '@/screens/WorkoutScreen'
 import { SummaryScreen } from '@/screens/SummaryScreen'
@@ -100,6 +101,7 @@ function Shell() {
         <Route path="/summary/:sessionId" element={<SummaryScreen />} />
         <Route path="/history" element={<HistoryScreen />} />
         <Route path="/history/:sessionId" element={<SessionDetailScreen />} />
+        <Route path="/freestyle" element={<FreestyleScreen />} />
         <Route path="/builder" element={<BuilderScreen />} />
         <Route path="/builder/:muscleGroup" element={<BuilderMuscleScreen />} />
         <Route path="/exercises" element={<ExerciseLibraryScreen />} />

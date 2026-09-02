@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { MessageCircleQuestion, Plus, Timer, Trophy } from 'lucide-react'
 import { getSettings, saveSettings } from '@/db/db'
 import { getBlocks, getExerciseHistory, getFinishedSessions, getRoutines } from '@/db/queries'
 import type { DraftSet, ExerciseMetric, QueueItem, WeightMode } from '@/db/types'
+import { MUSCLE_GROUPS, MUSCLE_GROUP_ORDER } from '@/db/types'
 import { EmptyState, fireConfetti, toast } from '@/components/ui'
 import { Screen } from '@/components/shell/ScreenHeader'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
@@ -17,11 +18,12 @@ import type { PlanUsage } from '@/db/catalog'
 import { shouldSuggestRemoval } from '@/domain/skipStreak'
 import { SkipStreakSheet } from '@/components/workout/SkipStreakSheet'
 import { prHeadline } from '@/domain/prs'
-import { formatRepRange, formatSetShort } from '@/domain/units'
+import { formatKg, formatRepRange, formatSetShort } from '@/domain/units'
 import { distinguisher, duplicateNames } from '@/domain/naming'
 import type { ExerciseSessionSummary } from '@/domain/recommendation'
 import { useAudioCue } from '@/hooks/useAudioCue'
 import { useWakeLock } from '@/hooks/useWakeLock'
+import { ExerciseThumb } from '@/components/media/ExerciseThumb'
 import { ElapsedClock } from '@/components/workout/ElapsedClock'
 import { ExerciseCard } from '@/components/workout/ExerciseCard'
 import { QueueRow } from '@/components/workout/QueueRow'
@@ -101,6 +103,7 @@ function ModeChip({
 }
 
 export function WorkoutScreen(): JSX.Element | null {
+  const navigate = useNavigate()
   const workout = useWorkout((s) => s.workout)
   const exercisesById = useWorkout((s) => s.exercisesById)
   // שני תרגילים בקטלוג נושאים בכוונה אותו שם — בתור הם חייבים להיראות שונים
@@ -370,6 +373,12 @@ export function WorkoutScreen(): JSX.Element | null {
     .map((b) => b.name)
   const subtitle = [routine?.subtitle, ...blockNames].filter(Boolean).join(' · ')
 
+  /*
+    אימון בלי תוכנית. `routineId === null` הוא בדיוק זה — אין כאן דגל חדש,
+    ו-`start(null, [])` כבר מייצר את המצב הזה מאז ומתמיד.
+  */
+  const freestyle = workout.routineId === null
+
   const total = workout.queue.length
   // דילוג מפורש נחשב "טופל" — פס ההתקדמות מודד כמה נשאר להחליט עליו, לא כמה בוצע
   const done = workout.queue.filter((q) => q.status === 'done' || q.status === 'skipped').length
@@ -396,6 +405,61 @@ export function WorkoutScreen(): JSX.Element | null {
           targetReps: formatRepRange(nextItem.targetReps, nextExercise.metric),
         }
       : null
+
+  /*
+    ── המונה של אימון חופשי ──
+
+    "תרגיל" נספר כשהוא *נסגר* ולא כשהוא נפתח — שורה שעוד עובדים בה אינה
+    הישג. הסטים נספרים כולם, כולל אלה שבתרגיל הפעיל, כי הם כן.
+  */
+  const doneExercises = workout.queue.filter((q) => q.status === 'done').length
+  const loggedSets = Object.values(workout.setsByKey).reduce((n, list) => n + list.length, 0)
+
+  /*
+    "נשארו" — קבוצות השרירים שלא נגעת בהן באימון הזה.
+
+    נגזר מהתצלום שבזיכרון בלבד ובלי שאילתה: זו שורת מטא בכותרת, והיא לא שווה
+    סריקה של ארבעה חודשי היסטוריה בכל רינדור של מסך שמתעדכן אחרי כל סט.
+  */
+  const freshLine = ((): string => {
+    if (!freestyle) return ''
+    const touched = new Set(
+      workout.queue.map((q) => exercisesById[q.exerciseId]?.muscleGroup).filter(Boolean)
+    )
+    const left = MUSCLE_GROUP_ORDER.filter((g) => !touched.has(g))
+    if (left.length === 0) return 'עברת על כל השרירים'
+    return `נשארו: ${left.map((g) => MUSCLE_GROUPS[g].short).join(' · ')}`
+  })()
+
+  /*
+    התרגילים שנסגרו, לרשימת "מה עשית עד עכשיו".
+
+    ‏"3 × 45 ק״ג" ולא רשימת הסטים: מספר הסטים והמשקל הכבד הם מה שמסכם תרגיל
+    שכבר מאחוריך, וכל השאר נמצא בגיליון של השורה עצמה.
+  */
+  const doneRows = workout.queue
+    .filter((q) => q.status === 'done' && exercisesById[q.exerciseId])
+    .map((q) => {
+      const exercise = exercisesById[q.exerciseId]
+      const sets = (workout.setsByKey[q.key] ?? []).filter((x) => x.type === 'work')
+      const timed = exercise.metric === 'seconds'
+      const heaviest = sets.length
+        ? sets.reduce((best, x) =>
+            timed ? (x.reps > best.reps ? x : best) : x.weightKg > best.weightKg ? x : best
+          )
+        : null
+      return {
+        item: q,
+        exercise,
+        count: sets.length,
+        top: !heaviest
+          ? '—'
+          : timed || exercise.weightMode === 'bodyweight'
+            ? formatSetShort(heaviest.weightKg, heaviest.reps, exercise.weightMode, exercise.metric)
+            : `${formatKg(heaviest.weightKg)} ק״ג`,
+      }
+    })
+
 
   /**
    * כל מה שאינו הכרטיס הפעיל, עם התרגיל והסטים שלו.
@@ -510,15 +574,20 @@ export function WorkoutScreen(): JSX.Element | null {
             ההוספה יושבת בכותרת ולא במזח, ובכוונה רחוק מהכתום של "סיים סט":
             היא הפעולה שהופכת את המסך הזה לבנייה ולא רק לתיעוד, אבל היא
             לעולם לא מתחרה על האגודל מול היעד היחיד של אזור התחתון.
+
+            באימון חופשי היא יורדת מכאן: שם *כל* המסך הוא בנייה, וההוספה יושבת
+            ליד רשימת מה־שנעשה — במקום שבו מסתכלים אחרי שתרגיל נסגר.
           */}
-          <button
-            type="button"
-            aria-label="הוסף תרגיל לאימון"
-            onClick={() => setSheet('add')}
-            className="relative flex size-[34px] shrink-0 items-center justify-center rounded-[11px] border border-ink-700 bg-ink-900 text-bone-500 after:absolute after:-inset-[5px] after:content-[''] active:bg-ink-800"
-          >
-            <Plus size={18} />
-          </button>
+          {!freestyle && (
+            <button
+              type="button"
+              aria-label="הוסף תרגיל לאימון"
+              onClick={() => setSheet('add')}
+              className="relative flex size-[34px] shrink-0 items-center justify-center rounded-[11px] border border-ink-700 bg-ink-900 text-bone-500 after:absolute after:-inset-[5px] after:content-[''] active:bg-ink-800"
+            >
+              <Plus size={18} />
+            </button>
+          )}
         </div>
 
         {/*
@@ -530,27 +599,56 @@ export function WorkoutScreen(): JSX.Element | null {
           שטח הלחיצה נשאר 44 דרך הפסאודו שמסביבם.
         */}
         <div className="mt-2.5 flex items-center gap-2">
-          <div
-            className="flex h-[5px] min-w-0 flex-1 gap-1"
-            role="img"
-            aria-label={`${done} מתוך ${total} תרגילים`}
-          >
-            {workout.queue.map((q) => (
-              <span
-                key={q.key}
-                className={`flex-1 rounded-[3px] ${
-                  q.status === 'done' || q.status === 'skipped'
-                    ? 'bg-pr-400/50'
-                    : q.key === workout.currentKey
-                      ? 'bg-linear-to-l from-flame-500 to-flame-300'
-                      : 'bg-ink-800'
-                }`}
-              />
-            ))}
-          </div>
-          <span className="shrink-0 text-[0.625rem] leading-none font-bold tracking-[0.04em] whitespace-nowrap text-bone-500">
-            {activeIndex >= 0 ? `תרגיל ${activeIndex + 1} מתוך ${total}` : `${total} תרגילים`}
-          </span>
+          {freestyle ? (
+            /*
+              מונה שמצטבר, לא פס התקדמות.
+
+              פס דורש מכנה, ובאימון חופשי אין מכנה — לא ידוע כמה תרגילים יהיו,
+              וזו כל הנקודה. פס שמתמלא מול יעד מדומיין היה משקר בשני הכיוונים.
+            */
+            <>
+              <span className="shrink-0 text-[0.6875rem] leading-none font-extrabold tracking-[0.04em] whitespace-nowrap text-bone-300">
+                {/*
+                  "0 תרגילים · 2 סטים" הוא משפט שקורא את עצמו כשגיאה: תרגיל
+                  נספר כשהוא נסגר, ועד אז יש רק סטים. לפני הסט הראשון אין גם
+                  אותם, ואז המונה מתאר את מה שקורה במקום למנות אפסים.
+                */}
+                {loggedSets === 0
+                  ? 'התרגיל הראשון'
+                  : doneExercises === 0
+                    ? `${loggedSets} סטים`
+                    : `${doneExercises === 1 ? 'תרגיל אחד' : `${doneExercises} תרגילים`} · ${loggedSets} סטים`}
+              </span>
+              <span className="h-px flex-1 bg-ink-800" aria-hidden="true" />
+              <span className="max-w-[170px] shrink truncate text-[0.625rem] leading-none font-semibold text-bone-500">
+                {freshLine}
+              </span>
+            </>
+          ) : (
+            <>
+              <div
+                className="flex h-[5px] min-w-0 flex-1 gap-1"
+                role="img"
+                aria-label={`${done} מתוך ${total} תרגילים`}
+              >
+                {workout.queue.map((q) => (
+                  <span
+                    key={q.key}
+                    className={`flex-1 rounded-[3px] ${
+                      q.status === 'done' || q.status === 'skipped'
+                        ? 'bg-pr-400/50'
+                        : q.key === workout.currentKey
+                          ? 'bg-linear-to-l from-flame-500 to-flame-300'
+                          : 'bg-ink-800'
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="shrink-0 text-[0.625rem] leading-none font-bold tracking-[0.04em] whitespace-nowrap text-bone-500">
+                {activeIndex >= 0 ? `תרגיל ${activeIndex + 1} מתוך ${total}` : `${total} תרגילים`}
+              </span>
+            </>
+          )}
           <ModeChip
             on={settings.restTimerEnabled}
             icon={<Timer size={11} />}
@@ -625,6 +723,8 @@ export function WorkoutScreen(): JSX.Element | null {
                 onAdjustRest={(delta) => void adjustRest(delta)}
                 onStopRest={() => void stopRest()}
                 nextUp={nextUp}
+                freestyle={freestyle}
+                onPickMuscle={() => navigate('/freestyle')}
               />
             </div>
           )}
@@ -637,7 +737,60 @@ export function WorkoutScreen(): JSX.Element | null {
             כותרת הספירה היא כפתור, כי סידור מחדש של התור עדיין חי בגיליון
             ואין לו דלת אחרת מאז שהאייקון ירד מהכותרת.
           */}
-          {queueRows.length > 0 && (
+          {freestyle ? (
+            /*
+              "מה עשית עד עכשיו" ולא "הבאים בתור" — אין תור. הרשימה גדלה
+              לאחור, וההוספה יושבת בכותרת שלה: זה המקום שמסתכלים בו אחרי
+              שתרגיל נסגר, ולכן זה המקום שממנו בוחרים את הבא.
+            */
+            <>
+              <div className="mt-3.5 flex items-center justify-between gap-2 px-1">
+                <span className="text-[0.625rem] leading-none font-bold tracking-[0.12em] text-bone-500">
+                  מה עשית עד עכשיו
+                </span>
+                <button
+                  type="button"
+                  onClick={() => navigate('/freestyle')}
+                  className="relative text-[0.6875rem] leading-none font-bold text-flame-300 after:absolute after:-inset-x-2.5 after:-inset-y-3.5 after:content-['']"
+                >
+                  הוסף תרגיל
+                </button>
+              </div>
+
+              <div className="mt-2.5 flex flex-col gap-1.5">
+                {doneRows.length === 0 ? (
+                  /*
+                    התשובה ל"מה קורה אם אפסיק באמצע", בדיוק במקום שבו החשש
+                    מתעורר. והיא נכונה גם טכנית: `logSet` כותב ל-Dexie מיד.
+                  */
+                  <p className="flex h-[46px] items-center rounded-[14px] border border-dashed border-ink-700 px-3 text-[0.71875rem] leading-snug font-semibold text-pretty text-bone-500">
+                    התרגיל הראשון בעבודה. כל סט נשמר ברגע שלחצת — אפשר לצאת ולחזור.
+                  </p>
+                ) : (
+                  doneRows.map(({ item, exercise, top, count }) => (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => void setCurrent(item.key)}
+                      className="flex h-[46px] items-center gap-2.5 rounded-[14px] border border-pr-400/20 bg-pr-400/5 px-[11px] text-start active:bg-pr-400/10"
+                    >
+                      <ExerciseThumb
+                        exerciseId={exercise.id}
+                        libraryId={exercise.libraryId}
+                        size="row"
+                      />
+                      <span className="min-w-0 flex-1 truncate text-[0.78125rem] font-bold text-bone-300">
+                        {exercise.name}
+                      </span>
+                      <span dir="ltr" className="tnum shrink-0 text-[0.6875rem] font-bold text-bone-500">
+                        {count} × {top}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </>
+          ) : queueRows.length > 0 ? (
             <>
               <div className="mt-3.5 flex items-center justify-between gap-2 px-1">
                 <span className="text-[0.625rem] leading-none font-bold tracking-[0.12em] text-bone-500">
@@ -668,7 +821,7 @@ export function WorkoutScreen(): JSX.Element | null {
                 ))}
               </div>
             </>
-          )}
+          ) : null}
 
           {workout.currentKey === null && (
             <p className="card mt-2.5 px-4 py-5 text-center text-sm font-semibold text-bone-400">

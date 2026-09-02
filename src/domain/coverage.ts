@@ -312,3 +312,25 @@ export function coverageText(row: MuscleCoverage): string {
   const exercises = row.exercises === 1 ? 'תרגיל אחד' : `${row.exercises} תרגילים`
   return `${exercises} · ${row.sets} סטים`
 }
+
+/**
+ * מצב ההתאוששות של קבוצה — הצורה שבה רשת בחירת השריר קוראת את אותה שורה.
+ *
+ * ‏`uncovered` קודם לכל השאר, וזו ההבחנה היחידה שאפשר לטעות בה: הוא אומר
+ * שאין ולו סט ישיר אחד *בחלון*, ולכן `daysSince` שלו — אם בכלל קיים — מתאר
+ * סט מלפני שבועות. שריר כזה הוא טרי, לא "עייף מאתמול".
+ */
+export type Recovery = 'fresh' | 'rested' | 'tired'
+
+export function recoveryOf(row: MuscleCoverage): Recovery {
+  if (row.uncovered) return 'fresh'
+  return (row.daysSince ?? Infinity) <= 1 ? 'tired' : 'rested'
+}
+
+/** "לא נגעת" · "נח 3 ימים" · "אתמול · עדיין עייף" */
+export function recoveryText(row: MuscleCoverage): string {
+  const state = recoveryOf(row)
+  if (state === 'fresh') return coverageText(row)
+  if (state === 'tired') return `${row.daysSince === 0 ? 'היום' : 'אתמול'} · עדיין עייף`
+  return `נח ${row.daysSince} ימים`
+}

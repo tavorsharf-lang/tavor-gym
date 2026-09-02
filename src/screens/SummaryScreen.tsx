@@ -17,6 +17,12 @@ import {
   Trophy,
 } from 'lucide-react'
 import { getSettings } from '@/db/db'
+import {
+  dismissOffer,
+  offerDismissed,
+  routineNameFor,
+  saveSessionAsRoutine,
+} from '@/db/routineFromSession'
 import { ensurePersisted } from '@/hooks/useStorageStatus'
 import { backupNow, STALE_BACKUP_DAYS, URGENT_BACKUP_DAYS } from '@/db/backup'
 import {
@@ -314,6 +320,8 @@ export function SummaryScreen(): JSX.Element {
   const navigate = useNavigate()
 
   const [confettiEnabled, setConfettiEnabled] = useState(false)
+  const [offerHidden, setOfferHidden] = useState(false)
+  const [savingRoutine, setSavingRoutine] = useState(false)
   const firedRef = useRef(false)
 
   const data = useLiveQuery<SummaryData | null>(async () => {
@@ -419,6 +427,34 @@ export function SummaryScreen(): JSX.Element {
   const ordered = [...new Set([...session.actualOrder, ...setsByExercise.keys()])].filter((id) =>
     setsByExercise.has(id)
   )
+
+  /*
+    ההצעה מוצגת רק כשהיא באמת הצעה: אימון חופשי, שני תרגילים לפחות (תרגיל
+    בודד אינו תוכנית), ולא הרכב שכבר נדחה פעם אחת.
+  */
+  const offerRoutine =
+    session.routineId === null && ordered.length >= 2 && !offerHidden && !offerDismissed(ordered)
+  const offerName = offerRoutine ? routineNameFor(sets, exercises) : ''
+
+  const saveRoutine = async (): Promise<void> => {
+    if (savingRoutine) return
+    setSavingRoutine(true)
+    try {
+      const settings = await getSettings()
+      const routine = await saveSessionAsRoutine(
+        sets,
+        exercises,
+        session.actualOrder,
+        settings.defaultReps
+      )
+      setOfferHidden(true)
+      toast(`"${routine.name}" נשמרה — היא תחכה לך במסך הראשי`, { tone: 'success' })
+    } catch {
+      toast('לא הצלחתי לשמור את התוכנית', { tone: 'warn' })
+    } finally {
+      setSavingRoutine(false)
+    }
+  }
 
   const totals = summarize(sets, modeOf)
   const pacing = pacingSummary(sets)
@@ -709,6 +745,44 @@ export function SummaryScreen(): JSX.Element {
             <p className="min-w-0 flex-1 text-sm leading-relaxed whitespace-pre-wrap text-bone-200">
               {session.notes.trim()}
             </p>
+          </div>
+        </section>
+      ) : null}
+
+      {/*
+        ── לשמור את זה כתוכנית? ──
+
+        רק אחרי אימון חופשי, ורק כשיש ממה לבנות. זו התשובה ל"שוכח מה עשיתי
+        פעם קודמת": ההרכב שאילתרת היום הופך למשהו שמחכה לך במסך הראשי, עם
+        המשקלים שהרמת בפועל כנקודת פתיחה.
+      */}
+      {offerRoutine ? (
+        <section className="mt-6 rounded-[18px] border border-flame-500/30 bg-flame-500/[0.06] p-3.5">
+          <p className="text-[0.84375rem] leading-snug font-extrabold text-balance text-bone-50">
+            לשמור את זה כתוכנית &quot;{offerName}&quot;?
+          </p>
+          <p className="mt-1.5 text-[0.71875rem] leading-relaxed text-bone-500">
+            בפעם הבאה זה יופיע במסך הראשי כאימון מוכן, עם המשקלים שרשמת היום כנקודת פתיחה.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              disabled={savingRoutine}
+              onClick={() => void saveRoutine()}
+              className="btn-flame flex h-12 flex-1 items-center justify-center rounded-[15px] text-sm disabled:opacity-50"
+            >
+              שמור כתוכנית
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                dismissOffer(ordered)
+                setOfferHidden(true)
+              }}
+              className="btn-ghost flex h-12 w-[110px] shrink-0 items-center justify-center rounded-[15px] text-[0.8125rem] font-bold"
+            >
+              לא צריך
+            </button>
           </div>
         </section>
       ) : null}

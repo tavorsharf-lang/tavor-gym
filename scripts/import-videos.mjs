@@ -3,9 +3,9 @@
  * ייבוא ודחיסה של סרטוני ההדגמה.
  *
  * שני מקורות:
- *   א. "תוכנית אימונים (Workout Program)" — הדגמות לתרגילי התוכנית, לפי המיפוי למטה.
+ *   א. "תוכנית אימונים (workout-program)" — הדגמות לתרגילי התוכנית, לפי המיפוי למטה.
  *      כל הסרטונים נכנסים, ויוצאים ל-videoManifest.ts.
- *   ב. "מאגר תרגילים (Exercise Library)" — מאגר לימודי של 62 תרגילים.
+ *   ב. "מאגר תרגילים (exercise-library)" — מאגר לימודי של 62 תרגילים.
  *      נכנסים רק LIB_MAX הראשונים בכל תרגיל, ויוצאים ל-libraryManifest.ts.
  *
  * מה זה עושה לכל סרטון:
@@ -27,8 +27,8 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const SOURCE = '/Users/tavorsharf/projects/תוכנית אימונים (Workout Program)'
-const LIB_SOURCE = '/Users/tavorsharf/projects/מאגר תרגילים (Exercise Library)'
+const SOURCE = '/Users/tavorsharf/projects/תוכנית אימונים (workout-program)'
+const LIB_SOURCE = '/Users/tavorsharf/projects/מאגר תרגילים (exercise-library)'
 const OUT_DIR = join(ROOT, 'public', 'videos')
 const LIB_OUT_DIR = join(OUT_DIR, 'lib')
 const MANIFEST = join(ROOT, 'src', 'db', 'videoManifest.ts')

@@ -15,6 +15,7 @@
     ]
   },
   "ignorePatterns": [
-    "design_handoff_workout_flow/**"
+    "design_handoff_workout_flow/**",
+    "design_handoff_freestyle/**"
   ]
 }

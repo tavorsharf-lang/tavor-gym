@@ -1,0 +1,1854 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&display=swap"><script src="./image-slot.js"></script><style>
+body{margin:0;background:#0c0a09;font-family:Rubik,system-ui,sans-serif;direction:rtl}
+a{color:#ff8a2b}a:hover{color:#ffb066}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(255,255,255,.07);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 8px}
+.dv-tid{font:800 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#ff6a00;color:#0c0a09;border-radius:4px;text-decoration:none}
+.dv-tname{font:700 14px/1.2 Rubik,sans-serif;color:#f0ebe6}
+.dv-lead{max-width:760px;margin:0 0 26px;font:400 13px/1.65 Rubik,sans-serif;color:#a89f98;text-wrap:pretty}
+.dv-opts{display:flex;flex-wrap:wrap;gap:34px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px;max-width:430px}
+.dv-oid{font:800 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:#221c19;color:#e0d9d3;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:600 12px/1.35 Rubik,sans-serif;color:#c5bcb4}
+.dv-onote{margin:0;font:400 11.5px/1.55 Rubik,sans-serif;color:#8d8279;text-wrap:pretty}
+.dv-opt:target .dv-oid{background:#ff6a00;color:#0c0a09}
+.dv-next{margin:26px 0 0;font:400 12px/1.6 Rubik,sans-serif;color:#8d8279}
+@keyframes heatPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,106,0,0)}50%{box-shadow:0 0 26px 2px rgba(255,106,0,.45)}}
+@keyframes riseIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></helmet>
+
+<section class="dv-turn" id="t4">
+<div class="dv-thd"><a class="dv-tid" href="#t4">4</a><span class="dv-tname">אימון ללא תוכנית — הבחירה קורית בזמן המנוחה</span></div>
+<p class="dv-lead">אתה מחליט ביום עצמו, ויש לך פחות מ־10 אימונים מתועדים. זה משנה הכל: אין "פעם קודמת" להסתמך עליה, ואין מספיק היסטוריה כדי לזהות מגמה. לכן הזרימה הזאת בנויה על שלוש הכרעות. <b>①</b> נקודת הפתיחה היא <b>שריר, לא תוכנית</b> — שמונה אריחים מסודרים לפי מה שנח, והטרי ראשון; לחיצה → תרגיל → אתה מתעד. אין בונה תוכניות בדרך. <b>②</b> <b>"מה הלאה" קורה בתוך המנוחה</b> ולא אחריה: כשהטיימר רץ הפאנל מציע את התרגיל הבא, וכשהוא נגמר אתה כבר מכוון. הזמן המת נהפך לזמן ההחלטה. <b>③</b> בלי היסטוריה, הסט הראשון <b>מכייל</b>: אחרי הסט אתה נשאל "היה קל / נכון / כבד" והמשקל מתקן את עצמו באותו אימון — במקום לחכות לאימון הבא כדי לדעת. שני מבנים שאין להם מקום כאן: פס התקדמות (אין מכנה — אין תוכנית) ורשימת "הבאים בתור" (אין תור). במקומם מונה שמצטבר ורשימת "מה עשית עד עכשיו".</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="4a">
+<div class="dv-olabel"><a class="dv-oid" href="#4a">4a</a>אימון חופשי — הזרימה המלאה <span style="color:#8d8279">· אינטראקטיבי</span></div>
+<p class="dv-onote">בחר שריר → תרגיל → תעד סטים. אחרי הסט האחרון המנוחה מציעה את הבא. "הוסף תרגיל" חוזר לשרירים בכל רגע.</p>
+<div style="position:relative;width:418px;height:874px;padding:14px;border-radius:54px;background:linear-gradient(160deg,#2e2622,#131010);box-shadow:0 30px 70px -30px rgba(0,0,0,.9),inset 0 0 0 1px rgba(255,255,255,.06)">
+<div style="position:relative;width:390px;height:846px;overflow:hidden;border-radius:42px;background:#0c0a09;color:#e0d9d3;direction:rtl">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 26px 4px;font:700 12.5px/1 Rubik;color:#f0ebe6"><span dir="ltr">17:17</span><span style="width:86px;height:21px;border-radius:999px;background:#000"></span><span style="font-size:11px;color:#8d8279">45%</span></div>
+
+  <sc-if value="{{ fPick }}" hint-placeholder-val="{{ true }}">
+    <div style="padding:8px 16px 0">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="font:800 22px/1.1 Rubik;color:#fbf9f7;letter-spacing:-.02em">אימון חופשי</div>
+        <div onClick="{{ fBack }}" style="font:600 13px/1 Rubik;color:#8d8279;padding:8px 4px;cursor:pointer">ביטול</div>
+      </div>
+      <div style="margin-top:6px;font:400 12px/1.5 Rubik;color:#8d8279;text-wrap:pretty">אין תוכנית להיום. בחר שריר, והתור ייבנה תוך כדי.</div>
+      <div style="margin-top:14px;display:flex;align-items:center;gap:7px">
+        <div style="font:700 10px/1 Rubik;color:#8d8279;letter-spacing:.12em">מסודר לפי התאוששות</div>
+        <div style="flex:1;height:1px;background:#221c19"></div>
+        <div style="display:flex;align-items:center;gap:5px;font:700 10px/1 Rubik;color:#4ade80"><span style="width:5px;height:5px;border-radius:50%;background:#4ade80"></span>טרי</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:11px 14px 0">
+      <sc-for list="{{ fGroups }}" as="g" hint-placeholder-count="8">
+        <div onClick="{{ g.open }}" style="display:flex;align-items:center;gap:10px;height:84px;padding:0 10px;border-radius:18px;background:linear-gradient(180deg,#1a1514,#131010);border:1px solid {{ g.bd }};cursor:pointer;user-select:none" style-hover="border-color:#3d332d">
+          <div role="img" style="width:52px;height:52px;flex:none;border-radius:13px;background-color:#fbf9f7;background-image:url({{ g.img }});background-size:contain;background-position:center;background-repeat:no-repeat"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font:800 15px/1.1 Rubik;color:#f0ebe6">{{ g.n }}</div>
+            <div style="margin-top:5px;display:flex;align-items:center;gap:5px"><span style="width:5px;height:5px;flex:none;border-radius:50%;background:{{ g.c }}"></span><span style="font:600 10.5px/1.2 Rubik;color:{{ g.c }}">{{ g.rec }}</span></div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="margin:14px 14px 0;padding:12px 13px;border-radius:16px;border:1px dashed #2e2622">
+      <div style="font:700 12px/1 Rubik;color:#c5bcb4">אין לך מושג מה לעשות?</div>
+      <div style="margin-top:6px;font:400 11.5px/1.5 Rubik;color:#8d8279;text-wrap:pretty">"בנה לי אימון" בוחר 4 תרגילים לשרירים הטריים לפי הזמן שיש לך — ואפשר לשנות כל אחד מהם.</div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ fList }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 16px 0">
+      <div onClick="{{ fToPick }}" style="width:34px;height:34px;border-radius:11px;background:#131010;border:1px solid #2e2622;display:grid;place-items:center;font:700 16px/1 Rubik;color:#c5bcb4;cursor:pointer">›</div>
+      <div style="flex:1;font:800 20px/1.1 Rubik;color:#fbf9f7;letter-spacing:-.02em">{{ fGrpName }}</div>
+      <div style="font:600 11.5px/1 Rubik;color:#8d8279">חיפוש</div>
+    </div>
+    <sc-if value="{{ fEmpty }}" hint-placeholder-val="{{ false }}">
+      <div style="margin:18px 14px 0;padding:20px 16px;border-radius:20px;border:1px dashed #2e2622;text-align:center">
+        <div style="font:800 14px/1.3 Rubik;color:#c5bcb4;text-wrap:balance">אין תרגילים לשריר הזה בספרייה שלך</div>
+        <div style="margin-top:8px;font:400 12px/1.5 Rubik;color:#8d8279;text-wrap:pretty">אפשר להוסיף מהקטלוג, או לבחור שריר אחר.</div>
+        <div style="margin-top:14px;display:flex;gap:8px">
+          <div style="flex:1;height:46px;border-radius:14px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:800 13.5px/1 Rubik;color:#160b03">הוסף מהקטלוג</div>
+          <div onClick="{{ fToPick }}" style="flex:1;height:46px;border-radius:14px;background:#221c19;border:1px solid #2e2622;display:grid;place-items:center;font:700 13.5px/1 Rubik;color:#c5bcb4;cursor:pointer">שריר אחר</div>
+        </div>
+      </div>
+    </sc-if>
+    <div style="display:flex;flex-direction:column;gap:7px;padding:13px 14px 0">
+      <sc-for list="{{ fRows }}" as="r" hint-placeholder-count="4">
+        <div onClick="{{ r.pick }}" style="display:flex;align-items:center;gap:11px;height:70px;padding:0 12px;border-radius:16px;background:linear-gradient(180deg,#1a1514,#131010);border:1px solid #221c19;cursor:pointer;user-select:none" style-hover="border-color:#3d332d">
+          <div role="img" style="width:46px;height:46px;flex:none;border-radius:12px;background-color:#221c19;background-image:url({{ r.img }});background-size:cover;background-position:center"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font:800 14.5px/1.15 Rubik;color:#f0ebe6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.n }}</div>
+            <div style="margin-top:5px;display:flex;align-items:center;gap:6px;white-space:nowrap">
+              <span style="font:500 10.5px/1 Rubik;color:#8d8279">{{ r.g }}</span>
+              <span style="color:#3d332d">|</span>
+              <span style="font:700 11px/1 Rubik;color:{{ r.lastC }};font-variant-numeric:tabular-nums">{{ r.last }}</span>
+            </div>
+          </div>
+          <sc-if value="{{ r.tipShow }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:none;padding:6px 9px;border-radius:9px;background:rgba(255,106,0,.12);border:1px solid #b13c00;font:800 10.5px/1 Rubik;color:#ffb066;white-space:nowrap">{{ r.tip }}</div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ fWork }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 14px 0">
+      <div onClick="{{ fReset }}" style="font:600 13.5px/1 Rubik;color:#8d8279;padding:8px 6px;cursor:pointer">סיים</div>
+      <div style="flex:1;min-width:0;text-align:center"><div style="font:800 14.5px/1 Rubik;color:#f0ebe6">אימון חופשי</div></div>
+      <div style="display:flex;align-items:center;gap:5px;padding:6px 11px;border-radius:999px;background:#131010;border:1px solid #2e2622;font:700 12.5px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums"><span style="width:5px;height:5px;border-radius:50%;background:#4ade80"></span><span dir="ltr">24:10</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:9px;padding:11px 18px 0">
+      <div style="font:800 11px/1 Rubik;color:#c5bcb4;letter-spacing:.04em">{{ fDoneLine }}</div>
+      <div style="flex:1;height:1px;background:#221c19"></div>
+      <div style="font:600 10px/1 Rubik;color:#8d8279;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px">{{ fFreshLine }}</div>
+    </div>
+
+    <div style="margin:11px 14px 0;padding:12px;border-radius:20px;position:relative;background:radial-gradient(90% 120% at 100% 0%,rgba(255,106,0,.10),transparent 55%),linear-gradient(180deg,#221c19,#1a1514);border:1px solid rgba(255,106,0,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 8px 32px -8px rgba(255,106,0,.25)">
+      <div style="position:absolute;inset-block:16px;inset-inline-start:-1px;width:3px;border-radius:999px;background:linear-gradient(180deg,#ff8a2b,#e35100);box-shadow:0 0 12px rgba(255,106,0,.6)"></div>
+      <div style="display:flex;align-items:center;gap:11px">
+        <div role="img" style="width:46px;height:46px;flex:none;border-radius:13px;background-color:#131010;background-image:url({{ fImg }});background-size:cover;background-position:center;border:1px solid #2e2622"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font:800 17px/1.15 Rubik;color:#fbf9f7;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ fName }}</div>
+          <div style="margin-top:4px;font:500 10.5px/1 Rubik;color:#8d8279;letter-spacing:.03em">{{ fSub }}</div>
+        </div>
+        <div style="width:34px;height:34px;flex:none;border-radius:11px;background:#131010;border:1px solid #2e2622;display:grid;place-items:center;font:800 15px/1 Rubik;color:#8d8279;cursor:pointer">⋯</div>
+      </div>
+
+      <div style="margin-top:11px;display:flex;align-items:center;gap:9px">
+        <div style="display:flex;gap:4px;flex:1;height:6px"><sc-for list="{{ fSegs }}" as="seg" hint-placeholder-count="3"><div style="flex:1;border-radius:3px;background:{{ seg.bg }}"></div></sc-for></div>
+        <div style="font:800 12px/1 Rubik;color:#ff8a2b;white-space:nowrap;font-variant-numeric:tabular-nums">{{ fSetLine }}</div>
+        <div style="display:flex;gap:2px;margin:-8px -4px">
+          <div onClick="{{ fSetsMinus }}" style="padding:8px 4px;cursor:pointer;user-select:none"><div style="width:30px;height:28px;border-radius:9px;background:#131010;border:1px solid #2e2622;display:grid;place-items:center;font:700 14px/1 Rubik;color:#c5bcb4">−</div></div>
+          <div onClick="{{ fSetsPlus }}" style="padding:8px 4px;cursor:pointer;user-select:none"><div style="width:30px;height:28px;border-radius:9px;background:#131010;border:1px solid #2e2622;display:grid;place-items:center;font:700 14px/1 Rubik;color:#c5bcb4">+</div></div>
+        </div>
+      </div>
+
+      <sc-if value="{{ fHasLog }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:9px;display:flex;align-items:center;gap:9px;height:30px;padding:0 10px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid #221c19">
+          <div style="font:700 9.5px/1 Rubik;color:#8d8279;letter-spacing:.1em">תועד</div>
+          <div dir="ltr" style="font:700 12.5px/1 Rubik;color:#e0d9d3;font-variant-numeric:tabular-nums">{{ fLogText }}</div>
+          <div style="margin-inline-start:auto;font:600 10.5px/1 Rubik;color:#8d8279">ערוך</div>
+        </div>
+      </sc-if>
+
+      <div style="margin-top:10px;height:196px;position:relative">
+        <sc-if value="{{ fWorking }}" hint-placeholder-val="{{ true }}">
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;gap:8px;height:78px">
+              <sc-if value="{{ fHasWeight }}" hint-placeholder-val="{{ true }}">
+                <div style="flex:1.08;display:flex;align-items:center;justify-content:space-between;padding:0 6px;border-radius:16px;background:#131010;border:1px solid rgba(255,106,0,.45);box-shadow:0 0 0 3px rgba(255,106,0,.07)">
+                  <div onClick="{{ fWMinus }}" style="width:42px;height:42px;border-radius:12px;background:#221c19;display:grid;place-items:center;font:600 22px/1 Rubik;color:#c5bcb4;cursor:pointer;user-select:none">−</div>
+                  <div style="flex:1;text-align:center"><div dir="ltr" style="font:800 27px/1 Rubik;color:#fbf9f7;letter-spacing:-.045em;font-variant-numeric:tabular-nums">{{ fW }}</div><div style="margin-top:4px;font:600 9.5px/1 Rubik;color:#8d8279">ק״ג</div></div>
+                  <div onClick="{{ fWPlus }}" style="width:42px;height:42px;border-radius:12px;background:#221c19;display:grid;place-items:center;font:600 22px/1 Rubik;color:#c5bcb4;cursor:pointer;user-select:none">+</div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ fBw }}" hint-placeholder-val="{{ false }}">
+                <div style="flex:1.08;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border-radius:16px;background:#131010;border:1px dashed #2e2622">
+                  <div style="font:800 13px/1 Rubik;color:#c5bcb4">משקל גוף</div>
+                  <div style="font:500 10px/1 Rubik;color:#8d8279">אין מה להעמיס</div>
+                </div>
+              </sc-if>
+              <div style="flex:1;display:flex;align-items:center;justify-content:space-between;padding:0 6px;border-radius:16px;background:#131010;border:1px solid #2e2622">
+                <div onClick="{{ fRMinus }}" style="width:42px;height:42px;border-radius:12px;background:#221c19;display:grid;place-items:center;font:600 22px/1 Rubik;color:#c5bcb4;cursor:pointer;user-select:none">−</div>
+                <div style="flex:1;text-align:center"><div dir="ltr" style="font:800 27px/1 Rubik;color:#fbf9f7;letter-spacing:-.045em;font-variant-numeric:tabular-nums">{{ fR }}</div><div style="margin-top:4px;font:600 9.5px/1 Rubik;color:#8d8279">חזרות</div></div>
+                <div onClick="{{ fRPlus }}" style="width:42px;height:42px;border-radius:12px;background:#221c19;display:grid;place-items:center;font:600 22px/1 Rubik;color:#c5bcb4;cursor:pointer;user-select:none">+</div>
+              </div>
+            </div>
+            <div style="height:38px;overflow:hidden">
+              <sc-if value="{{ fChipsRow }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;gap:7px;height:38px">
+                  <sc-for list="{{ fChips }}" as="c" hint-placeholder-count="3">
+                    <div onClick="{{ c.pick }}" style="display:flex;align-items:center;height:38px;padding:0 11px;border-radius:12px;border:1px solid {{ c.bd }};background:{{ c.bg }};color:{{ c.fg }};font:700 12px/1.25 Rubik;cursor:pointer;user-select:none;font-variant-numeric:tabular-nums;text-wrap:pretty">{{ c.label }}</div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ fHint }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;height:38px;padding:0 12px;border-radius:12px;background:rgba(255,106,0,.07);border:1px solid rgba(255,106,0,.25);font:600 11.5px/1.3 Rubik;color:#ffb066;text-wrap:pretty">בסיס: משקל שאתה בטוח בו ל־6 חזרות. נכייל אחרי הסט.</div>
+              </sc-if>
+            </div>
+            <div onClick="{{ fPrimary }}" style="flex:1;border-radius:18px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:900 22px/1 Rubik;color:#160b03;cursor:pointer;user-select:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 10px 28px -8px rgba(255,106,0,.55)" style-active="filter:brightness(.92)">{{ fCta }}</div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ fResting }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;padding:12px;border-radius:18px;background:radial-gradient(120% 100% at 50% 0%,rgba(255,106,0,.14),transparent 70%),#131010;border:1px solid rgba(255,106,0,.3);display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div dir="ltr" style="font:800 30px/1 Rubik;color:#fbf9f7;letter-spacing:-.045em;font-variant-numeric:tabular-nums">{{ fRestLabel }}</div>
+              <div style="flex:1;height:5px;border-radius:3px;background:#2e2622;overflow:hidden"><div style="height:100%;width:{{ fRestPct }};border-radius:3px;background:linear-gradient(90deg,#ff6a00,#ffb066)"></div></div>
+              <div onClick="{{ fPlus30 }}" style="flex:none;height:30px;padding:0 11px;border-radius:10px;background:#221c19;border:1px solid #2e2622;display:grid;place-items:center;font:700 11.5px/1 Rubik;color:#e0d9d3;cursor:pointer;user-select:none">+30</div>
+            </div>
+            <sc-if value="{{ fNextSet }}" hint-placeholder-val="{{ true }}">
+              <div style="margin-top:11px;flex:1;display:flex;flex-direction:column;justify-content:space-between">
+                <div style="display:flex;align-items:baseline;gap:8px">
+                  <div style="font:700 9.5px/1 Rubik;color:#8d8279;letter-spacing:.1em">הסט הבא</div>
+                  <div dir="ltr" style="font:800 15px/1 Rubik;color:#ffb066;font-variant-numeric:tabular-nums">{{ fNextLine }}</div>
+                </div>
+                <div onClick="{{ fPrimary }}" style="height:54px;border-radius:16px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:800 16px/1 Rubik;color:#160b03;cursor:pointer;user-select:none">אני מוכן</div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ fChoose }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+                <sc-for list="{{ fSugg }}" as="s" hint-placeholder-count="2">
+                  <div onClick="{{ s.pick }}" style="display:flex;align-items:center;gap:9px;height:40px;flex:none;padding:0 9px;border-radius:13px;background:#1a1514;border:1px solid #2e2622;cursor:pointer;user-select:none" style-hover="border-color:#b13c00">
+                    <div role="img" style="width:28px;height:28px;flex:none;border-radius:8px;background-color:#221c19;background-image:url({{ s.img }});background-size:cover;background-position:center"></div>
+                    <div style="flex:1;min-width:0">
+                      <div style="font:700 12px/1.1 Rubik;color:#f0ebe6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.n }}</div>
+                      <div style="margin-top:2px;font:600 9.5px/1 Rubik;color:{{ s.c }}">{{ s.why }}</div>
+                    </div>
+                    <div dir="ltr" style="font:700 10.5px/1 Rubik;color:#8d8279;flex:none;font-variant-numeric:tabular-nums">{{ s.meta }}</div>
+                  </div>
+                </sc-for>
+                <div onClick="{{ fToPick }}" style="height:40px;flex:none;border-radius:13px;border:1px dashed #3d332d;display:grid;place-items:center;font:700 12px/1 Rubik;color:#c5bcb4;cursor:pointer;user-select:none">בחר שריר אחר</div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px 0">
+      <div style="font:700 10px/1 Rubik;color:#8d8279;letter-spacing:.12em">מה עשית עד עכשיו</div>
+      <div onClick="{{ fToPick }}" style="padding:14px 10px;margin:-14px -10px;cursor:pointer;user-select:none;font:700 11px/1 Rubik;color:#ffb066">הוסף תרגיל</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;padding:9px 14px 0">
+      <sc-if value="{{ fNoDone }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:center;gap:9px;height:46px;padding:0 12px;border-radius:14px;border:1px dashed #2e2622">
+          <div style="font:600 11.5px/1.4 Rubik;color:#8d8279;text-wrap:pretty">התרגיל הראשון בעבודה. כל סט נשמר ברגע שלחצת — אפשר לצאת ולחזור.</div>
+        </div>
+      </sc-if>
+      <sc-for list="{{ fDone }}" as="d" hint-placeholder-count="1">
+        <div style="display:flex;align-items:center;gap:10px;height:46px;padding:0 11px;border-radius:14px;background:rgba(74,222,128,.05);border:1px solid rgba(74,222,128,.2)">
+          <div role="img" style="width:30px;height:30px;flex:none;border-radius:9px;background-color:#221c19;background-image:url({{ d.img }});background-size:cover;background-position:center"></div>
+          <div style="flex:1;min-width:0;font:700 12.5px/1 Rubik;color:#c5bcb4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ d.name }}</div>
+          <div dir="ltr" style="font:700 11px/1 Rubik;color:#8d8279;flex:none;font-variant-numeric:tabular-nums">{{ d.sets }} × {{ d.best }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="4b">
+<div class="dv-olabel"><a class="dv-oid" href="#4b">4b</a>כיול — כשאין פעם קודמת</div>
+<p class="dv-onote">פחות מ־10 אימונים = רוב התרגילים בלי היסטוריה. במקום לבקש ממך לנחש משקל ולחכות שבוע כדי לדעת אם טעית, הסט הראשון מכייל את עצמו באותו אימון.</p>
+<div style="display:flex;flex-direction:column;gap:16px;width:430px">
+  <div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="width:20px;height:20px;border-radius:50%;background:#ff6a00;color:#160b03;display:grid;place-items:center;font:800 11px/1 Rubik">1</div><div style="font:700 12px/1 Rubik;color:#c5bcb4">לפני הסט הראשון — בקשה אחת, לא טופס</div></div>
+    <div style="padding:12px;border-radius:20px;background:linear-gradient(180deg,#221c19,#1a1514);border:1px solid rgba(255,106,0,.35);direction:rtl">
+      <div style="display:flex;align-items:center;gap:11px">
+        <div role="img" style="width:46px;height:46px;flex:none;border-radius:13px;background-color:#221c19;background-image:url(./img/t-ex-pulldown.png);background-size:cover;background-position:center"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font:800 17px/1.15 Rubik;color:#fbf9f7;letter-spacing:-.02em">משיכת פולי עליון</div>
+          <div style="margin-top:4px;font:500 10.5px/1 Rubik;color:#8d8279">גב · כבל · סט 1 מתוך 3</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px;height:78px">
+        <div style="flex:1.08;display:flex;align-items:center;justify-content:space-between;padding:0 6px;border-radius:16px;background:#131010;border:1px solid rgba(255,106,0,.45)">
+          <div style="width:42px;height:42px;border-radius:12px;background:#221c19;display:grid;place-items:center;font:600 22px/1 Rubik;color:#c5bcb4">−</div>
+          <div style="text-align:center"><div dir="ltr" style="font:800 27px/1 Rubik;color:#fbf9f7;letter-spacing:-.045em">45</div><div style="margin-top:4px;font:600 9.5px/1 Rubik;color:#8d8279">ק״ג</div></div>
+          <div style="width:42px;height:42px;border-radius:12px;background:#221c19;display:grid;place-items:center;font:600 22px/1 Rubik;color:#c5bcb4">+</div>
+        </div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:space-between;padding:0 6px;border-radius:16px;background:#131010;border:1px solid #2e2622">
+          <div style="width:42px;height:42px;border-radius:12px;background:#221c19;display:grid;place-items:center;font:600 22px/1 Rubik;color:#c5bcb4">−</div>
+          <div style="text-align:center"><div dir="ltr" style="font:800 27px/1 Rubik;color:#fbf9f7;letter-spacing:-.045em">6</div><div style="margin-top:4px;font:600 9.5px/1 Rubik;color:#8d8279">חזרות</div></div>
+          <div style="width:42px;height:42px;border-radius:12px;background:#221c19;display:grid;place-items:center;font:600 22px/1 Rubik;color:#c5bcb4">+</div>
+        </div>
+      </div>
+      <div style="margin-top:8px;height:38px;display:flex;align-items:center;padding:0 12px;border-radius:12px;background:rgba(255,106,0,.07);border:1px solid rgba(255,106,0,.25);font:600 11.5px/1 Rubik;color:#ffb066">בסיס: משקל שאתה בטוח בו ל־6 חזרות. נכייל אחרי הסט.</div>
+      <div style="margin-top:8px;height:64px;border-radius:18px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:900 22px/1 Rubik;color:#160b03">סיים סט</div>
+    </div>
+  </div>
+  <div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="width:20px;height:20px;border-radius:50%;background:#ff6a00;color:#160b03;display:grid;place-items:center;font:800 11px/1 Rubik">2</div><div style="font:700 12px/1 Rubik;color:#c5bcb4">אחרי הסט — שלוש מילים, והמשקל מתקן את עצמו</div></div>
+    <div style="padding:12px;border-radius:20px;background:linear-gradient(180deg,#221c19,#1a1514);border:1px solid rgba(255,106,0,.35);direction:rtl">
+      <div style="display:flex;align-items:center;gap:9px;height:30px;padding:0 10px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid #221c19">
+        <div style="font:700 9.5px/1 Rubik;color:#8d8279;letter-spacing:.1em">תועד</div>
+        <div dir="ltr" style="font:700 12.5px/1 Rubik;color:#e0d9d3;font-variant-numeric:tabular-nums">45 × 6</div>
+        <div style="margin-inline-start:auto;font:800 9.5px/1 Rubik;color:#4ade80;letter-spacing:.06em">בסיס נקבע</div>
+      </div>
+      <div style="margin-top:9px;display:flex;gap:7px;height:38px">
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;border-radius:12px;background:#131010;border:1px solid #2e2622;font:700 12px/1 Rubik;color:#c5bcb4">היה כבד → 40</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;border-radius:12px;background:rgba(255,106,0,.14);border:1px solid #b13c00;font:700 12px/1 Rubik;color:#ffb066">היה נכון → 45</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;border-radius:12px;background:#131010;border:1px solid #2e2622;font:700 12px/1 Rubik;color:#c5bcb4">היה קל → 50</div>
+      </div>
+      <p style="margin:11px 2px 0;font:400 11.5px/1.6 Rubik;color:#8d8279;text-wrap:pretty">הבחירה מעדכנת את הסט הבא <b style="color:#c5bcb4">ואת המשקל שיוצע בפעם הבאה</b>. שלושה סטים מכיילים בשלוש לחיצות, בלי לחכות לאימון הבא ובלי גרפים. אחרי שני אימונים מתועדים השורה הזאת נעלמת מעצמה — כי אז יש "פעם קודמת" ו־RIR, וההצעה מגיעה מהם.</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="dv-opt" id="4c">
+<div class="dv-olabel"><a class="dv-oid" href="#4c">4c</a>הסיום שבונה את התוכנית</div>
+<p class="dv-onote">אתה לא בונה תוכניות — אז שהאימון יבנה אותן. אימון חופשי שנגמר הוא הצעה מוכנה לתוכנית, בלחיצה אחת.</p>
+<div style="width:430px;padding:16px;border-radius:24px;background:linear-gradient(180deg,#1a1514,#131010);border:1px solid #221c19;direction:rtl">
+  <div style="font:700 10px/1 Rubik;color:#8d8279;letter-spacing:.14em">האימון נשמר</div>
+  <div style="margin-top:8px;display:flex;align-items:baseline;gap:10px">
+    <div style="font:800 26px/1 Rubik;color:#fbf9f7;letter-spacing:-.03em">3 תרגילים · 9 סטים</div>
+    <div dir="ltr" style="font:700 13px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums">41:20</div>
+  </div>
+  <div style="margin-top:14px;display:flex;flex-direction:column;gap:7px">
+    <div style="display:flex;align-items:center;gap:10px;height:44px;padding:0 11px;border-radius:13px;background:rgba(74,222,128,.05);border:1px solid rgba(74,222,128,.2)">
+      <div role="img" style="width:30px;height:30px;flex:none;border-radius:9px;background-color:#221c19;background-image:url(./img/t-ex-pulldown.png);background-size:cover;background-position:center"></div>
+      <div style="flex:1;font:700 12.5px/1 Rubik;color:#c5bcb4">משיכת פולי עליון</div>
+      <div dir="ltr" style="font:700 11px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums">3 × 50 ק״ג</div>
+      <div style="font:800 9.5px/1 Rubik;color:#4ade80;letter-spacing:.06em">בסיס</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;height:44px;padding:0 11px;border-radius:13px;background:rgba(74,222,128,.05);border:1px solid rgba(74,222,128,.2)">
+      <div role="img" style="width:30px;height:30px;flex:none;border-radius:9px;background-color:#221c19;background-image:url(./img/t-ex-row.png);background-size:cover;background-position:center"></div>
+      <div style="flex:1;font:700 12.5px/1 Rubik;color:#c5bcb4">חתירה בכבל בישיבה</div>
+      <div dir="ltr" style="font:700 11px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums">3 × 40 ק״ג</div>
+      <div style="font:800 9.5px/1 Rubik;color:#4ade80;letter-spacing:.06em">בסיס</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;height:44px;padding:0 11px;border-radius:13px;background:rgba(74,222,128,.05);border:1px solid rgba(74,222,128,.2)">
+      <div role="img" style="width:30px;height:30px;flex:none;border-radius:9px;background-color:#221c19;background-image:url(./img/t-ex-shpress.png);background-size:cover;background-position:center"></div>
+      <div style="flex:1;font:700 12.5px/1 Rubik;color:#c5bcb4">לחיצת כתפיים במכונה</div>
+      <div dir="ltr" style="font:700 11px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums">3 × 30 ק״ג</div>
+      <div style="font:800 9.5px/1 Rubik;color:#4ade80;letter-spacing:.06em">בסיס</div>
+    </div>
+  </div>
+  <div style="margin-top:14px;padding:13px;border-radius:18px;background:rgba(255,106,0,.06);border:1px solid rgba(255,106,0,.3)">
+    <div style="font:800 13.5px/1.3 Rubik;color:#fbf9f7;text-wrap:balance">לשמור את זה כתוכנית "גב וכתפיים"?</div>
+    <div style="margin-top:7px;font:400 11.5px/1.5 Rubik;color:#8d8279;text-wrap:pretty">בפעם הבאה זה יופיע במסך הראשי כאימון מוכן, עם המשקלים שרשמת היום כנקודת פתיחה.</div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <div style="flex:1;height:48px;border-radius:15px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:800 14px/1 Rubik;color:#160b03">שמור כתוכנית</div>
+      <div style="width:110px;height:48px;border-radius:15px;background:#221c19;border:1px solid #2e2622;display:grid;place-items:center;font:700 13px/1 Rubik;color:#c5bcb4">לא צריך</div>
+    </div>
+  </div>
+  <p style="margin:13px 2px 0;font:400 11.5px/1.6 Rubik;color:#8d8279;text-wrap:pretty">זה גם התשובה ל"שוכח מה עשיתי פעם קודמת": ככל שתתעד יותר אימונים חופשיים, כך יותר תרגילים יפסיקו להציג "ראשון" ויתחילו להציג מספר. אחרי שלושה־ארבעה אימונים המסך הראשי כבר לא ריק.</p>
+</div>
+</div>
+
+</div>
+<p class="dv-next">נסה לכתוב: "בנה את 'בנה לי אימון' מ־<a class="dv-oid" href="#4a">4a</a>" · "תראה איך <a class="dv-oid" href="#4a">4a</a> נראה עם 40 אימונים בהיסטוריה" · "הוסף לבחירה סינון לפי ציוד פנוי"</p>
+</section>
+
+<section class="dv-turn" id="t3">
+<div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">האימון כרשימה — התרגיל הפעיל נכנס במסך אחד</span></div>
+<p class="dv-lead">הכרטיס הפעיל היה שני מסכים וחצי כי הוא נשא 11 מקטעים בו־זמנית. הרעיון: לפרק לפי <b>זמן</b> ולא לפי רשימה. בזמן סט צריך שלושה דברים — מה אני עושה, מה אני רושם, וכפתור אחד. כל השאר קדם־סט (דגשים, הערה, חימום, כוונון) או אחרי־סט (מנוחה, דירוג), ולכן הם מתקפלים לפס אחד או עולים בגיליון. חמישה כללי זרימה שהמסכים למטה מיישמים: <b>①</b> דגשי ביצוע סגורים כברירת מחדל — בפס אחד עם מונה, כי בסט השני כבר לא קוראים אותם. <b>②</b> המשקל והחזרות בשורה אחת של שני אריחים, ומתחתיהם שורת שבבים <i>מתחלפת</i> שמשרתת את השדה שנגעת בו — במקום שני סטפרים, שני רמזים ושתי שורות שבבים. <b>③</b> "פעם קודמת" מפסיקה להיות מקטע והופכת לשבב אחד; כשאין היסטוריה אין שורה בכלל. <b>④</b> המנוחה לא לוקחת מסך חדש — היא מחליפה את אזור ההזנה באותו גובה בדיוק, כך שהרשימה והכרטיס לא זזים. <b>⑤</b> בסט האחרון הכפתור אומר את זה, ובלחיצה הכרטיס נסגר לשורה והתרגיל הבא נפתח באותו מקום — מסירה אחת, בלי לחזור לרשימה.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="3a">
+<div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a>רשימה חיה — הכל במסך אחד <span style="color:#8d8279">· אינטראקטיבי</span></div>
+<p class="dv-onote">גע במספר כדי להעביר אליו את שורת השבבים · "סיים סט" מפעיל את המנוחה במקום · בסט האחרון הכרטיס נסגר והתרגיל הבא נפתח מתחת לאותה אצבע.</p>
+<div style="position:relative;width:418px;height:874px;padding:14px;border-radius:54px;background:linear-gradient(160deg,#2e2622,#131010);box-shadow:0 30px 70px -30px rgba(0,0,0,.9),inset 0 0 0 1px rgba(255,255,255,.06)">
+<div style="position:relative;width:390px;height:846px;overflow:hidden;border-radius:42px;background:#0c0a09;color:#e0d9d3;direction:rtl">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 26px 4px;font:700 12.5px/1 Rubik;color:#f0ebe6"><span dir="ltr">17:17</span><span style="width:86px;height:21px;border-radius:999px;background:#000"></span><span style="font-size:11px;color:#8d8279">45%</span></div>
+  <div style="display:flex;align-items:center;gap:10px;padding:6px 14px 0">
+    <div style="font:600 13.5px/1 Rubik;color:#8d8279;padding:8px 6px;cursor:pointer">סיים</div>
+    <div style="flex:1;min-width:0;text-align:center"><div style="font:800 14.5px/1 Rubik;color:#f0ebe6">אימון A · חזה</div></div>
+    <div style="display:flex;align-items:center;gap:5px;padding:6px 11px;border-radius:999px;background:#131010;border:1px solid #2e2622;font:700 12.5px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums"><span style="width:5px;height:5px;border-radius:50%;background:#4ade80"></span><span dir="ltr">12:40</span></div>
+    <div style="width:34px;height:34px;border-radius:11px;background:#131010;border:1px solid #2e2622;display:grid;place-items:center;font:800 14px/1 Rubik;color:#8d8279">+</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;padding:10px 14px 0">
+    <div style="flex:1;display:flex;gap:4px;height:5px"><sc-for list="{{ nWo }}" as="w" hint-placeholder-count="5"><div style="flex:1;border-radius:3px;background:{{ w.bg }}"></div></sc-for></div>
+    <div style="font:700 10px/1 Rubik;color:#8d8279;white-space:nowrap;letter-spacing:.04em">{{ nWoLabel }}</div>
+    <div onClick="{{ nToggleRest }}" style="display:flex;align-items:center;height:28px;padding:0 10px;border-radius:999px;border:1px solid {{ nRestChip.bd }};background:{{ nRestChip.bg }};color:{{ nRestChip.fg }};font:800 10px/1 Rubik;cursor:pointer;user-select:none;white-space:nowrap">{{ nRestChip.label }}</div>
+    <div onClick="{{ nToggleRate }}" style="display:flex;align-items:center;height:28px;padding:0 10px;border-radius:999px;border:1px solid {{ nRateChip.bd }};background:{{ nRateChip.bg }};color:{{ nRateChip.fg }};font:800 10px/1 Rubik;cursor:pointer;user-select:none;white-space:nowrap">{{ nRateChip.label }}</div>
+  </div>
+
+  <div style="margin:11px 14px 0;padding:12px;border-radius:20px;position:relative;background:radial-gradient(90% 120% at 100% 0%,rgba(255,106,0,.10),transparent 55%),linear-gradient(180deg,#221c19,#1a1514);border:1px solid rgba(255,106,0,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 8px 32px -8px rgba(255,106,0,.25)">
+    <div style="position:absolute;inset-block:16px;inset-inline-start:-1px;width:3px;border-radius:999px;background:linear-gradient(180deg,#ff8a2b,#e35100);box-shadow:0 0 12px rgba(255,106,0,.6)"></div>
+    <div style="display:flex;align-items:center;gap:11px">
+      <div style="width:46px;height:46px;flex:none;border-radius:13px;overflow:hidden;background:#131010;border:1px solid #2e2622"><div role="img" style="width:100%;height:100%;background-image:url({{ nImg }});background-size:cover;background-position:center"></div></div>
+      <div style="flex:1;min-width:0">
+        <div style="font:800 17px/1.15 Rubik;color:#fbf9f7;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ nName }}</div>
+        <div style="margin-top:4px;font:500 10.5px/1 Rubik;color:#8d8279;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ nSub }}</div>
+      </div>
+      <div style="width:34px;height:34px;flex:none;border-radius:11px;background:#131010;border:1px solid #2e2622;display:grid;place-items:center;font:800 15px/1 Rubik;color:#8d8279;cursor:pointer">⋯</div>
+    </div>
+
+    <div style="margin-top:11px;display:flex;align-items:center;gap:9px">
+      <div style="display:flex;gap:4px;flex:1;height:6px"><sc-for list="{{ nSegs }}" as="seg" hint-placeholder-count="2"><div style="flex:1;border-radius:3px;background:{{ seg.bg }}"></div></sc-for></div>
+      <div onClick="{{ nToggleTune }}" style="display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:3px 0">
+        <div style="font:800 12px/1 Rubik;color:#ff8a2b;white-space:nowrap;font-variant-numeric:tabular-nums;border-bottom:1px dashed rgba(255,138,43,.5)">{{ nSetLine }}</div>
+        <div style="font:700 9px/1 Rubik;color:#8d8279">{{ nTuneCaret }}</div>
+      </div>
+      <div dir="ltr" style="font:700 12px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums">{{ nRange }}</div>
+    </div>
+
+
+
+    <sc-if value="{{ nHasLog }}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top:9px;display:flex;align-items:center;gap:9px;height:30px;padding:0 10px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid #221c19">
+        <div style="font:700 9.5px/1 Rubik;color:#8d8279;letter-spacing:.1em">תועד</div>
+        <div dir="ltr" style="font:700 12.5px/1 Rubik;color:#e0d9d3;font-variant-numeric:tabular-nums">{{ nLogText }}</div>
+        <div style="margin-inline-start:auto;font:600 10.5px/1 Rubik;color:#8d8279">ערוך</div>
+      </div>
+    </sc-if>
+
+    <div style="margin-top:10px;height:196px;position:relative">
+      <sc-if value="{{ nWorking }}" hint-placeholder-val="{{ true }}">
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;gap:8px;height:78px">
+            <div style="flex:1.08;display:flex">
+              <sc-if value="{{ nHasWeight }}" hint-placeholder-val="{{ true }}">
+                <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:0 6px;border-radius:16px;background:#131010;border:1px solid {{ nWBd }};box-shadow:{{ nWGlow }}">
+                  <div style="display:flex;align-items:center;justify-content:space-between">
+                    <div onClick="{{ nWMinus }}" style="width:42px;height:42px;border-radius:12px;background:#221c19;display:grid;place-items:center;font:600 22px/1 Rubik;color:#c5bcb4;cursor:pointer;user-select:none" style-active="background:#2e2622">−</div>
+                    <div onClick="{{ nFocusW }}" style="flex:1;text-align:center;cursor:pointer"><div dir="ltr" style="font:800 27px/1 Rubik;color:#fbf9f7;letter-spacing:-.045em;font-variant-numeric:tabular-nums">{{ nW }}</div><div style="margin-top:4px;font:600 9.5px/1 Rubik;color:#8d8279">{{ nWUnit }}</div></div>
+                    <div onClick="{{ nWPlus }}" style="width:42px;height:42px;border-radius:12px;background:#221c19;display:grid;place-items:center;font:600 22px/1 Rubik;color:#c5bcb4;cursor:pointer;user-select:none" style-active="background:#2e2622">+</div>
+                  </div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ nBodyweight }}" hint-placeholder-val="{{ false }}">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border-radius:16px;background:#131010;border:1px dashed #2e2622">
+                  <div style="font:800 13px/1 Rubik;color:#c5bcb4">משקל גוף</div>
+                  <div style="font:500 10px/1 Rubik;color:#8d8279">אין מה להעמיס</div>
+                </div>
+              </sc-if>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:0 6px;border-radius:16px;background:#131010;border:1px solid {{ nRBd }};box-shadow:{{ nRGlow }}">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div onClick="{{ nRMinus }}" style="width:42px;height:42px;border-radius:12px;background:#221c19;display:grid;place-items:center;font:600 22px/1 Rubik;color:#c5bcb4;cursor:pointer;user-select:none" style-active="background:#2e2622">−</div>
+                <div onClick="{{ nFocusR }}" style="flex:1;text-align:center;cursor:pointer"><div dir="ltr" style="font:800 27px/1 Rubik;color:#fbf9f7;letter-spacing:-.045em;font-variant-numeric:tabular-nums">{{ nR }}</div><div style="margin-top:4px;font:600 9.5px/1 Rubik;color:#8d8279">חזרות</div></div>
+                <div onClick="{{ nRPlus }}" style="width:42px;height:42px;border-radius:12px;background:#221c19;display:grid;place-items:center;font:600 22px/1 Rubik;color:#c5bcb4;cursor:pointer;user-select:none" style-active="background:#2e2622">+</div>
+              </div>
+            </div>
+          </div>
+          <div style="height:38px;overflow:hidden">
+            <sc-if value="{{ nChipsRow }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;gap:7px;height:38px">
+                <sc-for list="{{ nChips }}" as="chip" hint-placeholder-count="4">
+                  <div onClick="{{ chip.pick }}" style="display:flex;align-items:center;height:38px;padding:0 12px;border-radius:12px;border:1px solid {{ chip.bd }};background:{{ chip.bg }};color:{{ chip.fg }};font:700 13px/1 Rubik;white-space:nowrap;cursor:pointer;user-select:none;font-variant-numeric:tabular-nums">{{ chip.label }}</div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ nTuneRow }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:6px;height:38px">
+                <div style="font:700 9.5px/1.2 Rubik;color:#8d8279;letter-spacing:.06em;width:56px;flex:none">כמה סטים<br>היום</div>
+                <sc-for list="{{ nSetOpts }}" as="o" hint-placeholder-count="5">
+                  <div onClick="{{ o.pick }}" style="flex:1;height:38px;border-radius:11px;border:1px solid {{ o.bd }};background:{{ o.bg }};color:{{ o.fg }};opacity:{{ o.dim }};display:grid;place-items:center;font:800 14px/1 Rubik;cursor:pointer;user-select:none;font-variant-numeric:tabular-nums">{{ o.label }}</div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+          <div onClick="{{ nPrimary }}" style="flex:1;border-radius:18px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:900 22px/1 Rubik;color:#160b03;cursor:pointer;user-select:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 10px 28px -8px rgba(255,106,0,.55)" style-active="filter:brightness(.92)">{{ nPrimaryLabel }}</div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ nResting }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;padding:13px 14px;border-radius:18px;background:radial-gradient(120% 100% at 50% 0%,rgba(255,106,0,.14),transparent 70%),#131010;border:1px solid rgba(255,106,0,.3);display:flex;flex-direction:column;justify-content:space-between">
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px">
+            <div onClick="{{ nOpenFull }}" style="cursor:pointer;user-select:none">
+              <div style="font:700 9.5px/1 Rubik;color:#8d8279;letter-spacing:.14em">מנוחה · גע למסך מלא</div>
+              <div dir="ltr" style="margin-top:8px;font:800 46px/1 Rubik;color:#fbf9f7;letter-spacing:-.05em;font-variant-numeric:tabular-nums;border-bottom:1px dashed #3d332d;display:inline-block">{{ nRestLabel }}</div>
+            </div>
+            <div style="text-align:end;min-width:0">
+              <div style="font:700 9.5px/1 Rubik;color:#8d8279;letter-spacing:.1em">{{ nNextTitle }}</div>
+              <div style="margin-top:6px;font:800 14px/1.2 Rubik;color:#ffb066;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ nNextName }}</div>
+              <div dir="ltr" style="margin-top:4px;font:700 12px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums">{{ nNextLine }}</div>
+            </div>
+          </div>
+          <div style="height:6px;border-radius:3px;background:#2e2622;overflow:hidden"><div style="height:100%;width:{{ nRestPct }};border-radius:3px;background:linear-gradient(90deg,#ff6a00,#ffb066)"></div></div>
+          <div style="display:flex;gap:8px">
+            <div onClick="{{ nPlus30 }}" style="flex:1;height:50px;border-radius:15px;background:#221c19;border:1px solid #2e2622;display:grid;place-items:center;font:700 13.5px/1 Rubik;color:#e0d9d3;cursor:pointer;user-select:none" style-active="background:#2e2622">+30 שניות</div>
+            <div onClick="{{ nPrimary }}" style="flex:1.2;height:50px;border-radius:15px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:800 14.5px/1 Rubik;color:#160b03;cursor:pointer;user-select:none;box-shadow:0 8px 22px -8px rgba(255,106,0,.55)" style-active="filter:brightness(.92)">אני מוכן — לסט הבא</div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ nRatingStage }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;padding:12px;border-radius:18px;background:#131010;border:1px solid #2e2622;display:flex;flex-direction:column;justify-content:space-between">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+            <div style="font:800 14px/1 Rubik;color:#fbf9f7">איך היה?</div>
+            <div style="font:500 10.5px/1 Rubik;color:#8d8279;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ nRatedName }} · התרגיל הושלם</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <sc-for list="{{ nRateOpts }}" as="o" hint-placeholder-count="5">
+              <div onClick="{{ o.pick }}" style="flex:1;height:104px;border-radius:14px;border:1px solid {{ o.bd }};background:{{ o.bg }};color:{{ o.fg }};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:0 4px;cursor:pointer;user-select:none" style-active="filter:brightness(1.15)">
+                <div style="font:800 22px/1 Rubik;font-variant-numeric:tabular-nums">{{ o.num }}</div>
+                <div style="font:700 10px/1.2 Rubik;text-align:center;text-wrap:balance">{{ o.label }}</div>
+                <div style="width:26px;height:3px;border-radius:2px;background:currentColor;opacity:.25"><div style="height:100%;width:{{ o.w }};border-radius:2px;background:currentColor"></div></div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="font:400 10px/1 Rubik;color:#8d8279;text-align:center">נשמר על התרגיל · אפשר לכבות "קושי" בראש המסך</div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ nRirStage }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;padding:12px;border-radius:18px;background:#131010;border:1px solid #2e2622;display:flex;flex-direction:column;justify-content:space-between">
+          <div>
+            <div style="font:800 14px/1 Rubik;color:#fbf9f7">רוצה לדייק? כמה חזרות נשארו לך</div>
+            <div style="margin-top:5px;font:500 10.5px/1 Rubik;color:#8d8279">אופציונלי — "דלג" שומר את הדירוג כמו שהוא</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <sc-for list="{{ nRirOpts }}" as="o" hint-placeholder-count="5">
+              <div onClick="{{ o.pick }}" dir="ltr" style="flex:1;height:56px;border-radius:14px;border:1px solid #2e2622;background:#1a1514;color:#e0d9d3;display:grid;place-items:center;font:800 15px/1 Rubik;cursor:pointer;user-select:none;font-variant-numeric:tabular-nums" style-active="border-color:#ff6a00">{{ o.label }}</div>
+            </sc-for>
+          </div>
+          <div onClick="{{ nSkipRir }}" style="height:44px;border-radius:14px;background:#221c19;border:1px solid #2e2622;display:grid;place-items:center;font:700 13px/1 Rubik;color:#c5bcb4;cursor:pointer;user-select:none">דלג</div>
+        </div>
+      </sc-if>
+    </div>
+
+    <div style="margin-top:9px;display:flex;gap:8px">
+      <div onClick="{{ nToggleCues }}" style="flex:1;display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 12px;border-radius:13px;background:#131010;border:1px solid #221c19;cursor:pointer;user-select:none" style-hover="border-color:#3d332d">
+        <div style="font:700 12.5px/1 Rubik;color:#c5bcb4">דגשי ביצוע · {{ nCueCount }}</div>
+        <div style="font:600 11px/1 Rubik;color:#8d8279">{{ nCuesLabel }}</div>
+      </div>
+      <div style="width:96px;display:flex;align-items:center;justify-content:center;height:40px;border-radius:13px;border:1px dashed #2e2622;font:600 11.5px/1 Rubik;color:#8d8279;cursor:pointer">הערה</div>
+      <div style="width:52px;display:flex;align-items:center;justify-content:center;height:40px;border-radius:13px;background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.28);font:800 11px/1 Rubik;color:#38bdf8;cursor:pointer">חימום</div>
+    </div>
+    <sc-if value="{{ nCues }}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top:9px;display:flex;flex-direction:column;gap:8px;padding:0 3px">
+        <sc-for list="{{ nCueList }}" as="cue" hint-placeholder-count="3">
+          <div style="display:flex;gap:9px;align-items:flex-start"><div style="width:5px;height:5px;margin-top:6px;border-radius:50%;background:#ff6a00;flex:none"></div><div style="font:400 12.5px/1.45 Rubik;color:#a89f98">{{ cue }}</div></div>
+        </sc-for>
+      </div>
+    </sc-if>
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px 0">
+    <div style="font:700 10px/1 Rubik;color:#8d8279;letter-spacing:.12em">הבאים בתור</div>
+    <div style="font:600 10.5px/1 Rubik;color:#8d8279">{{ nDoneLabel }}</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:6px;padding:9px 14px 0">
+    <sc-for list="{{ nNext }}" as="row" hint-placeholder-count="4">
+      <div style="display:flex;align-items:center;gap:11px;height:48px;padding:0 11px;border-radius:14px;background:linear-gradient(180deg,#1a1514,#131010);border:1px solid #221c19;cursor:pointer" style-hover="border-color:#2e2622">
+        <div style="width:34px;height:34px;flex:none;border-radius:9px;overflow:hidden;background:#221c19"><div role="img" style="width:100%;height:100%;background-image:url({{ row.img }});background-size:cover;background-position:center"></div></div>
+        <div style="flex:1;min-width:0">
+          <div style="font:700 13px/1.15 Rubik;color:#e0d9d3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ row.name }}</div>
+          <div style="margin-top:3px;font:500 10px/1 Rubik;color:#8d8279;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ row.meta }}</div>
+        </div>
+        <div dir="ltr" style="font:700 11.5px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums;flex:none">{{ row.sets }}</div>
+        <div style="width:22px;height:22px;flex:none;border-radius:50%;border:1px solid #2e2622"></div>
+      </div>
+    </sc-for>
+  </div>
+
+  <sc-if value="{{ nFull }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;z-index:9;display:flex;flex-direction:column;background:radial-gradient(90% 55% at 50% 42%,rgba(255,106,0,.14),transparent 70%),rgba(12,10,9,.97);backdrop-filter:blur(14px)">
+      <div style="display:flex;align-items:center;gap:8px;padding:44px 16px 0">
+        <div dir="ltr" style="font:800 15px/1 Rubik;color:#e0d9d3;font-variant-numeric:tabular-nums">12:40</div>
+        <div style="font:500 10px/1 Rubik;color:#8d8279;letter-spacing:.08em">מתחילת האימון</div>
+        <div style="flex:1"></div>
+        <div onClick="{{ nToggleRest }}" style="width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font:700 13px/1 Rubik;color:#a89f98;cursor:pointer">כבה</div>
+        <div onClick="{{ nCloseFull }}" style="width:36px;height:36px;border-radius:50%;background:#221c19;display:grid;place-items:center;font:700 15px/1 Rubik;color:#c5bcb4;cursor:pointer">✕</div>
+      </div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;min-height:0;padding:6px 0">
+        <div style="position:relative;width:236px;height:236px;border-radius:50%;padding:5px;background:{{ nRingBg }}">
+          <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;background:#fbf9f7"><div role="img" style="width:100%;height:100%;background-image:url({{ nImg }});background-size:contain;background-position:center;background-repeat:no-repeat"></div></div>
+          <div dir="ltr" style="position:absolute;inset-block-end:-16px;left:50%;transform:translateX(-50%);padding:6px 16px;border-radius:999px;background:rgba(12,10,9,.95);border:1px solid #2e2622;font:800 30px/1 Rubik;color:#fbf9f7;letter-spacing:-.045em;font-variant-numeric:tabular-nums">{{ nRestLabel }}</div>
+        </div>
+      </div>
+      <div style="padding:22px 16px 0;text-align:center;font:800 20px/1.15 Rubik;color:#fbf9f7">{{ nName }}</div>
+      <div style="margin:10px 16px 0;padding:12px;border-radius:18px;background:linear-gradient(180deg,#1a1514,#131010);border:1px solid #2e2622">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
+          <div style="font:600 11.5px/1 Rubik;color:#a89f98">{{ nFullSetsLine }}</div>
+          <div style="font:800 11.5px/1 Rubik;color:#ff8a2b">{{ nFullRemain }}</div>
+        </div>
+        <div style="margin-top:9px;display:flex;gap:4px;height:6px"><sc-for list="{{ nSegs }}" as="seg" hint-placeholder-count="2"><div style="flex:1;border-radius:3px;background:{{ seg.bg }}"></div></sc-for></div>
+      </div>
+      <div style="margin:8px 16px 0;display:flex;align-items:center;gap:10px;padding:10px;border-radius:18px;background:rgba(255,106,0,.05);border:1px solid rgba(255,106,0,.35)">
+        <div style="width:38px;height:38px;flex:none;border-radius:10px;overflow:hidden;background:#221c19"><div role="img" style="width:100%;height:100%;background-image:url({{ nNextImg }});background-size:cover;background-position:center"></div></div>
+        <div style="flex:1;min-width:0">
+          <div style="font:700 9.5px/1 Rubik;color:#8d8279;letter-spacing:.1em">התרגיל הבא</div>
+          <div style="margin-top:4px;font:800 13.5px/1 Rubik;color:#fbf9f7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ nNextExName }}</div>
+        </div>
+        <div style="font:700 11px/1 Rubik;color:#a89f98;flex:none">{{ nNextExSets }}</div>
+      </div>
+      <div style="margin:12px 16px 0">
+        <div style="font:800 11px/1 Rubik;color:#e0d9d3;margin-bottom:7px">מפת השרירים בתרגיל הזה</div>
+        <div style="display:flex;gap:7px">
+          <sc-for list="{{ nShares }}" as="sh" hint-placeholder-count="3">
+            <div style="flex:1;padding:7px 4px;border-radius:13px;background:rgba(255,255,255,.03);border:1px solid #2e2622;text-align:center">
+              <div role="img" style="height:36px;border-radius:8px;margin-bottom:5px;background-color:#fbf9f7;background-image:url({{ sh.img }});background-size:contain;background-position:center;background-repeat:no-repeat"></div>
+              <div style="font:700 9.5px/1.15 Rubik;color:#e0d9d3;text-wrap:balance">{{ sh.name }}</div>
+              <div style="margin-top:3px;font:800 10px/1 Rubik;color:{{ sh.c }};font-variant-numeric:tabular-nums">{{ sh.pct }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div dir="ltr" style="display:flex;gap:9px;padding:14px 16px 20px;margin-top:auto">
+        <div onClick="{{ nMinus30 }}" style="width:68px;height:58px;flex:none;border-radius:18px;background:#221c19;border:1px solid #2e2622;display:grid;place-items:center;font:800 15px/1 Rubik;color:#e0d9d3;cursor:pointer;user-select:none">−30</div>
+        <div onClick="{{ nPrimary }}" dir="rtl" style="flex:1;height:58px;border-radius:18px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:900 18px/1 Rubik;color:#160b03;cursor:pointer;user-select:none;box-shadow:0 10px 28px -8px rgba(255,106,0,.55)">{{ nFullCta }}</div>
+        <div onClick="{{ nPlus30 }}" style="width:68px;height:58px;flex:none;border-radius:18px;background:#221c19;border:1px solid #2e2622;display:grid;place-items:center;font:800 15px/1 Rubik;color:#e0d9d3;cursor:pointer;user-select:none">+30</div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="3b">
+<div class="dv-olabel"><a class="dv-oid" href="#3b">3b</a>מד יחיד — החזרות בלחיצה אחת</div>
+<p class="dv-onote">אותה פריסה, פחות פקדים: המשקל הוא המספר היחיד עם ±, והחזרות נבחרות בלחיצה אחת מתוך הטווח — כי בסוף סט אתה <i>יודע</i> כמה יצאו, אתה לא מטייל למספר. "פעם קודמת" ירדה לשורת המטא של הכותרת. מרוויח חמש שורות רשימה במסך.</p>
+<div style="position:relative;width:418px;height:874px;padding:14px;border-radius:54px;background:linear-gradient(160deg,#2e2622,#131010);box-shadow:0 30px 70px -30px rgba(0,0,0,.9),inset 0 0 0 1px rgba(255,255,255,.06)">
+<div style="position:relative;width:390px;height:846px;overflow:hidden;border-radius:42px;background:#0c0a09;color:#e0d9d3;direction:rtl">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 26px 4px;font:700 12.5px/1 Rubik;color:#f0ebe6"><span dir="ltr">17:17</span><span style="width:86px;height:21px;border-radius:999px;background:#000"></span><span style="font-size:11px;color:#8d8279">45%</span></div>
+  <div style="display:flex;align-items:center;gap:10px;padding:6px 14px 0">
+    <div style="font:600 13.5px/1 Rubik;color:#8d8279;padding:8px 6px">סיים</div>
+    <div style="flex:1;min-width:0;text-align:center"><div style="font:800 14.5px/1 Rubik;color:#f0ebe6">אימון A · חזה</div></div>
+    <div style="display:flex;align-items:center;gap:5px;padding:6px 11px;border-radius:999px;background:#131010;border:1px solid #2e2622;font:700 12.5px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums"><span style="width:5px;height:5px;border-radius:50%;background:#4ade80"></span><span dir="ltr">18:02</span></div>
+    <div style="width:34px;height:34px;border-radius:11px;background:#131010;border:1px solid #2e2622;display:grid;place-items:center;font:800 14px/1 Rubik;color:#8d8279">+</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:9px;padding:11px 16px 0">
+    <div style="flex:1;display:flex;gap:4px;height:5px">
+      <div style="flex:1;border-radius:3px;background:#4ade80;opacity:.55"></div>
+      <div style="flex:1;border-radius:3px;background:linear-gradient(90deg,#ff6a00,#ffb066)"></div>
+      <div style="flex:1;border-radius:3px;background:#221c19"></div>
+      <div style="flex:1;border-radius:3px;background:#221c19"></div>
+      <div style="flex:1;border-radius:3px;background:#221c19"></div>
+    </div>
+    <div style="font:700 10.5px/1 Rubik;color:#8d8279;white-space:nowrap;letter-spacing:.04em">תרגיל 2 מתוך 5</div>
+  </div>
+
+  <div style="margin:11px 14px 0;padding:12px;border-radius:20px;position:relative;background:radial-gradient(90% 120% at 100% 0%,rgba(255,106,0,.10),transparent 55%),linear-gradient(180deg,#221c19,#1a1514);border:1px solid rgba(255,106,0,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 8px 32px -8px rgba(255,106,0,.25)">
+    <div style="position:absolute;inset-block:16px;inset-inline-start:-1px;width:3px;border-radius:999px;background:linear-gradient(180deg,#ff8a2b,#e35100);box-shadow:0 0 12px rgba(255,106,0,.6)"></div>
+    <div style="display:flex;align-items:center;gap:11px">
+      <div style="width:46px;height:46px;flex:none;border-radius:13px;overflow:hidden;background:#131010;border:1px solid #2e2622"><img src="./img/t-ex-bench.png" alt="לחיצת חזה במוט" style="width:100%;height:100%;object-fit:cover"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font:800 17px/1.15 Rubik;color:#fbf9f7;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">לחיצת חזה במוט</div>
+        <div style="margin-top:4px;display:flex;align-items:center;gap:6px;font:500 10.5px/1 Rubik;color:#8d8279;white-space:nowrap"><span>חזה אמצעי · מוט</span><span style="color:#3d332d">|</span><span dir="ltr" style="font-weight:700;color:#a89f98;font-variant-numeric:tabular-nums">קודם 60 × 10</span></div>
+      </div>
+      <div style="width:34px;height:34px;flex:none;border-radius:11px;background:#131010;border:1px solid #2e2622;display:grid;place-items:center;font:800 15px/1 Rubik;color:#8d8279">⋯</div>
+    </div>
+
+    <div style="margin-top:11px;display:flex;align-items:center;gap:9px">
+      <div style="display:flex;gap:4px;flex:1;height:6px">
+        <div style="flex:1;border-radius:3px;background:linear-gradient(90deg,#ff6a00,#ffb066);box-shadow:0 0 10px rgba(255,106,0,.5)"></div>
+        <div style="flex:1;border-radius:3px;background:#2e2622"></div>
+      </div>
+      <div style="font:800 12px/1 Rubik;color:#ff8a2b;white-space:nowrap;font-variant-numeric:tabular-nums">סט 2 מתוך 2</div>
+      <div dir="ltr" style="font:700 12px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums">8–12</div>
+    </div>
+
+    <div style="margin-top:9px;display:flex;align-items:center;gap:9px;height:30px;padding:0 10px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid #221c19">
+      <div style="font:700 9.5px/1 Rubik;color:#8d8279;letter-spacing:.1em">תועד</div>
+      <div dir="ltr" style="font:700 12.5px/1 Rubik;color:#e0d9d3;font-variant-numeric:tabular-nums">62.5 × 11</div>
+      <div style="margin-inline-start:auto;font:800 9.5px/1 Rubik;color:#4ade80;letter-spacing:.06em">שיא</div>
+    </div>
+
+    <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;height:74px;padding:0 8px;border-radius:16px;background:#131010;border:1px solid rgba(255,106,0,.4);box-shadow:0 0 0 3px rgba(255,106,0,.07)">
+      <div style="width:46px;height:46px;border-radius:13px;background:#221c19;display:grid;place-items:center;font:600 24px/1 Rubik;color:#c5bcb4">−</div>
+      <div style="text-align:center"><div dir="ltr" style="font:800 40px/1 Rubik;color:#fbf9f7;letter-spacing:-.05em;font-variant-numeric:tabular-nums">62.5</div><div style="margin-top:3px;font:600 10px/1 Rubik;color:#8d8279">ק״ג · מוט 20 + 2×21.25</div></div>
+      <div style="width:46px;height:46px;border-radius:13px;background:#221c19;display:grid;place-items:center;font:600 24px/1 Rubik;color:#c5bcb4">+</div>
+    </div>
+
+    <div style="margin-top:10px;display:flex;align-items:baseline;justify-content:space-between;padding:0 3px">
+      <div style="font:700 9.5px/1 Rubik;color:#8d8279;letter-spacing:.12em">כמה חזרות יצאו</div>
+      <div style="font:500 10px/1 Rubik;color:#8d8279">היעד 8–12</div>
+    </div>
+    <div style="margin-top:7px;display:flex;gap:6px">
+      <div style="flex:1;height:46px;border-radius:13px;background:#131010;border:1px solid #221c19;display:grid;place-items:center;font:700 15px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums">8</div>
+      <div style="flex:1;height:46px;border-radius:13px;background:#131010;border:1px solid #221c19;display:grid;place-items:center;font:700 15px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums">9</div>
+      <div style="flex:1.25;height:46px;border-radius:13px;background:rgba(255,106,0,.16);border:1px solid #ff6a00;display:grid;place-items:center;font:800 19px/1 Rubik;color:#fbf9f7;font-variant-numeric:tabular-nums">10</div>
+      <div style="flex:1;height:46px;border-radius:13px;background:#131010;border:1px solid #221c19;display:grid;place-items:center;font:700 15px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums">11</div>
+      <div style="flex:1;height:46px;border-radius:13px;background:#131010;border:1px solid #221c19;display:grid;place-items:center;font:700 15px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums">12</div>
+      <div style="width:46px;height:46px;border-radius:13px;border:1px dashed #2e2622;display:grid;place-items:center;font:700 13px/1 Rubik;color:#8d8279">›20</div>
+    </div>
+
+    <div style="margin-top:11px;height:64px;border-radius:18px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:900 22px/1 Rubik;color:#160b03;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 10px 28px -8px rgba(255,106,0,.55)">סיים סט אחרון</div>
+
+    <div style="margin-top:9px;display:flex;gap:8px">
+      <div style="flex:1;display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 12px;border-radius:13px;background:#131010;border:1px solid #221c19"><div style="font:700 12.5px/1 Rubik;color:#c5bcb4">דגשי ביצוע · 3</div><div style="font:600 11px/1 Rubik;color:#8d8279">פתח</div></div>
+      <div style="width:96px;display:flex;align-items:center;justify-content:center;height:40px;border-radius:13px;border:1px dashed #2e2622;font:600 11.5px/1 Rubik;color:#8d8279">הערה</div>
+      <div style="width:52px;display:flex;align-items:center;justify-content:center;height:40px;border-radius:13px;background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.28);font:800 11px/1 Rubik;color:#38bdf8">חימום</div>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 18px 0">
+    <div style="font:700 10px/1 Rubik;color:#8d8279;letter-spacing:.12em">הבאים בתור</div>
+    <div style="font:600 10.5px/1 Rubik;color:#8d8279">1 הושלם · נשארו 3</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:6px;padding:9px 14px 0">
+    <div style="display:flex;align-items:center;gap:11px;height:46px;padding:0 11px;border-radius:14px;background:linear-gradient(180deg,#1a1514,#131010);border:1px solid #221c19">
+      <div style="width:32px;height:32px;flex:none;border-radius:9px;overflow:hidden;background:#221c19"><img src="./img/t-ex-machine.png" alt="" style="width:100%;height:100%;object-fit:cover"></div>
+      <div style="flex:1;min-width:0"><div style="font:700 13px/1.15 Rubik;color:#e0d9d3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">לחיצת חזה במכונה</div><div style="margin-top:3px;font:500 10px/1 Rubik;color:#8d8279">חזה אמצעי · מכונה</div></div>
+      <div dir="ltr" style="font:700 11.5px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums">2×8–12</div>
+      <div style="width:22px;height:22px;flex:none;border-radius:50%;border:1px solid #2e2622"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:11px;height:46px;padding:0 11px;border-radius:14px;background:linear-gradient(180deg,#1a1514,#131010);border:1px solid #221c19">
+      <div style="width:32px;height:32px;flex:none;border-radius:9px;overflow:hidden;background:#221c19"><img src="./img/t-ex-dip.png" alt="" style="width:100%;height:100%;object-fit:cover"></div>
+      <div style="flex:1;min-width:0"><div style="font:700 13px/1.15 Rubik;color:#e0d9d3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">מקבילים במכונה</div><div style="margin-top:3px;font:500 10px/1 Rubik;color:#8d8279">חזה תחתון · מכונה</div></div>
+      <div dir="ltr" style="font:700 11.5px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums">2×8–12</div>
+      <div style="width:22px;height:22px;flex:none;border-radius:50%;border:1px solid #2e2622"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:11px;height:46px;padding:0 11px;border-radius:14px;background:linear-gradient(180deg,#1a1514,#131010);border:1px solid #221c19">
+      <div style="width:32px;height:32px;flex:none;border-radius:9px;overflow:hidden;background:#221c19"><img src="./img/t-ex-fly.png" alt="" style="width:100%;height:100%;object-fit:cover"></div>
+      <div style="flex:1;min-width:0"><div style="font:700 13px/1.15 Rubik;color:#e0d9d3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">פרפר במכונה בשיפוע</div><div style="margin-top:3px;font:500 10px/1 Rubik;color:#8d8279">חזה · מכונה</div></div>
+      <div dir="ltr" style="font:700 11.5px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums">2×10–15</div>
+      <div style="width:22px;height:22px;flex:none;border-radius:50%;border:1px solid #2e2622"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;height:44px;padding:0 11px;border-radius:14px;border:1px dashed #2e2622">
+      <div style="width:32px;height:32px;flex:none;border-radius:9px;background:rgba(74,222,128,.1);display:grid;place-items:center;font:700 14px/1 Rubik;color:#4ade80">✓</div>
+      <div style="flex:1;font:600 12.5px/1 Rubik;color:#8d8279">שכיבות סמיכה · הושלם</div>
+      <div dir="ltr" style="font:700 11px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums">2 סטים</div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="3c">
+<div class="dv-olabel"><a class="dv-oid" href="#3c">3c</a>הזרימה — שלושה רגעים באותו מקום</div>
+<p class="dv-onote">אזור ההזנה הוא במה בגובה קבוע, ושלושת הרגעים מתחלפים בתוכה: סט → מנוחה → מסירה. שום שלב לא פותח מסך חדש ושום דבר סביבו לא זז, כדי שהעין תדע לאן להסתכל גם כשהיא מטושטשת מהמאמץ.</p>
+<div style="display:flex;flex-direction:column;gap:18px;width:430px">
+
+  <div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="width:20px;height:20px;border-radius:50%;background:#ff6a00;color:#160b03;display:grid;place-items:center;font:800 11px/1 Rubik">1</div><div style="font:700 12px/1 Rubik;color:#c5bcb4">בזמן סט — שלושה דברים ומספר גדול</div></div>
+    <div style="padding:12px;border-radius:20px;background:linear-gradient(180deg,#221c19,#1a1514);border:1px solid rgba(255,106,0,.35);direction:rtl">
+      <div style="display:flex;align-items:center;gap:9px">
+        <div style="display:flex;gap:4px;flex:1;height:6px"><div style="flex:1;border-radius:3px;background:linear-gradient(90deg,#ff6a00,#ffb066)"></div><div style="flex:1;border-radius:3px;background:#2e2622"></div></div>
+        <div style="font:800 12px/1 Rubik;color:#ff8a2b;white-space:nowrap">סט 2 מתוך 2</div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px;height:78px">
+        <div style="flex:1.08;display:flex;align-items:center;justify-content:space-between;padding:0 6px;border-radius:16px;background:#131010;border:1px solid rgba(255,106,0,.4)">
+          <div style="width:42px;height:42px;border-radius:12px;background:#221c19;display:grid;place-items:center;font:600 22px/1 Rubik;color:#c5bcb4">−</div>
+          <div style="text-align:center"><div dir="ltr" style="font:800 27px/1 Rubik;color:#fbf9f7;letter-spacing:-.045em">62.5</div><div style="margin-top:4px;font:600 9.5px/1 Rubik;color:#8d8279">ק״ג</div></div>
+          <div style="width:42px;height:42px;border-radius:12px;background:#221c19;display:grid;place-items:center;font:600 22px/1 Rubik;color:#c5bcb4">+</div>
+        </div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:space-between;padding:0 6px;border-radius:16px;background:#131010;border:1px solid #2e2622">
+          <div style="width:42px;height:42px;border-radius:12px;background:#221c19;display:grid;place-items:center;font:600 22px/1 Rubik;color:#c5bcb4">−</div>
+          <div style="text-align:center"><div dir="ltr" style="font:800 27px/1 Rubik;color:#fbf9f7;letter-spacing:-.045em">10</div><div style="margin-top:4px;font:600 9.5px/1 Rubik;color:#8d8279">חזרות</div></div>
+          <div style="width:42px;height:42px;border-radius:12px;background:#221c19;display:grid;place-items:center;font:600 22px/1 Rubik;color:#c5bcb4">+</div>
+        </div>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:7px;height:38px">
+        <div style="display:flex;align-items:center;padding:0 12px;border-radius:12px;background:rgba(255,106,0,.14);border:1px solid #b13c00;font:700 13px/1 Rubik;color:#ffb066">המלצה 62.5</div>
+        <div dir="ltr" style="display:flex;align-items:center;padding:0 12px;border-radius:12px;background:#131010;border:1px solid #2e2622;font:700 13px/1 Rubik;color:#c5bcb4">קודם 60 × 10</div>
+        <div style="display:flex;align-items:center;padding:0 12px;border-radius:12px;background:#131010;border:1px solid #2e2622;font:700 13px/1 Rubik;color:#c5bcb4">65</div>
+      </div>
+      <div style="margin-top:8px;height:64px;border-radius:18px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:900 22px/1 Rubik;color:#160b03">סיים סט אחרון</div>
+    </div>
+  </div>
+
+  <div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="width:20px;height:20px;border-radius:50%;background:#ff6a00;color:#160b03;display:grid;place-items:center;font:800 11px/1 Rubik">2</div><div style="font:700 12px/1 Rubik;color:#c5bcb4">מנוחה — אותו גובה בדיוק, בלי מסך חדש</div></div>
+    <div style="padding:12px;border-radius:20px;background:linear-gradient(180deg,#221c19,#1a1514);border:1px solid rgba(255,106,0,.35);direction:rtl">
+      <div style="display:flex;align-items:center;gap:9px">
+        <div style="display:flex;gap:4px;flex:1;height:6px"><div style="flex:1;border-radius:3px;background:linear-gradient(90deg,#ff6a00,#ffb066)"></div><div style="flex:1;border-radius:3px;background:linear-gradient(90deg,#ff6a00,#ffb066)"></div></div>
+        <div style="font:800 12px/1 Rubik;color:#4ade80;white-space:nowrap">התרגיל הושלם</div>
+      </div>
+      <div style="margin-top:10px;height:196px;padding:13px 14px;border-radius:18px;background:radial-gradient(120% 100% at 50% 0%,rgba(255,106,0,.14),transparent 70%),#131010;border:1px solid rgba(255,106,0,.3);display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px">
+          <div><div style="font:700 9.5px/1 Rubik;color:#8d8279;letter-spacing:.14em">מנוחה</div><div dir="ltr" style="margin-top:8px;font:800 46px/1 Rubik;color:#fbf9f7;letter-spacing:-.05em">1:47</div></div>
+          <div style="text-align:end"><div style="font:700 9.5px/1 Rubik;color:#8d8279;letter-spacing:.1em">התרגיל הבא</div><div style="margin-top:6px;font:800 14px/1.2 Rubik;color:#ffb066">לחיצת חזה במכונה</div><div dir="ltr" style="margin-top:4px;font:700 12px/1 Rubik;color:#8d8279">45 ק״ג × 10</div></div>
+        </div>
+        <div style="height:6px;border-radius:3px;background:#2e2622;overflow:hidden"><div style="height:100%;width:34%;border-radius:3px;background:linear-gradient(90deg,#ff6a00,#ffb066)"></div></div>
+        <div style="display:flex;gap:8px">
+          <div style="flex:1;height:50px;border-radius:15px;background:#221c19;border:1px solid #2e2622;display:grid;place-items:center;font:700 13.5px/1 Rubik;color:#e0d9d3">+30 שניות</div>
+          <div style="flex:1.2;height:50px;border-radius:15px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:800 14.5px/1 Rubik;color:#160b03">אני מוכן — לסט הבא</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="width:20px;height:20px;border-radius:50%;background:#ff6a00;color:#160b03;display:grid;place-items:center;font:800 11px/1 Rubik">3</div><div style="font:700 12px/1 Rubik;color:#c5bcb4">מסירה — נסגר לשורה, הבא נפתח באותו מקום</div></div>
+    <div style="display:flex;flex-direction:column;gap:8px;direction:rtl">
+      <div style="display:flex;align-items:center;gap:11px;height:52px;padding:0 12px;border-radius:14px;background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.25)">
+        <div style="width:26px;height:26px;flex:none;border-radius:50%;background:rgba(74,222,128,.14);display:grid;place-items:center;font:800 13px/1 Rubik;color:#4ade80">✓</div>
+        <div style="flex:1;min-width:0"><div style="font:700 13.5px/1 Rubik;color:#c5bcb4">לחיצת חזה במוט</div></div>
+        <div dir="ltr" style="font:700 12px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums">62.5 × 11 · 62.5 × 10</div>
+      </div>
+      <div style="padding:12px;border-radius:20px;background:radial-gradient(90% 120% at 100% 0%,rgba(255,106,0,.10),transparent 55%),linear-gradient(180deg,#221c19,#1a1514);border:1px solid rgba(255,106,0,.35);animation:riseIn .45s cubic-bezier(.2,0,0,1) both">
+        <div style="display:flex;align-items:center;gap:11px">
+          <div style="width:46px;height:46px;flex:none;border-radius:13px;overflow:hidden;background:#131010;border:1px solid #2e2622"><img src="./img/t-ex-machine.png" alt="לחיצת חזה במכונה" style="width:100%;height:100%;object-fit:cover"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font:800 17px/1.15 Rubik;color:#fbf9f7;letter-spacing:-.02em">לחיצת חזה במכונה</div>
+            <div style="margin-top:4px;font:500 10.5px/1 Rubik;color:#8d8279">חזה אמצעי · מכונה · סט 1 מתוך 2</div>
+          </div>
+        </div>
+        <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;height:44px;padding:0 13px;border-radius:14px;background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.28)">
+          <div style="font:800 11.5px/1 Rubik;color:#38bdf8;letter-spacing:.04em">סט חימום מוצע</div>
+          <div dir="ltr" style="font:700 13px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums">25 × 8</div>
+        </div>
+        <div style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 12px;border-radius:13px;background:#131010;border:1px solid #221c19">
+          <div style="font:700 12.5px/1 Rubik;color:#c5bcb4">דגשי ביצוע · 3</div>
+          <div style="font:600 11px/1 Rubik;color:#8d8279">פתח</div>
+        </div>
+      </div>
+    </div>
+    <p style="margin:10px 2px 0;font:400 11.5px/1.6 Rubik;color:#8d8279;text-wrap:pretty">בתרגיל חדש, ורק בו, החימום מוצע מעל הדגשים — זה הרגע היחיד שבו הוא רלוונטי. הדגשים נשארים סגורים גם כאן; המונה מספר שהם קיימים.</p>
+  </div>
+
+</div>
+</div>
+
+</div>
+<p class="dv-next">נסה לכתוב: "קח את <a class="dv-oid" href="#3a">3a</a> עם מד החזרות של <a class="dv-oid" href="#3b">3b</a>" · "הכנס את הכוונון (סטים ומנוחה) לגיליון של ⋯" · "החלף את שורת השבבים בהקלדה ישירה"</p>
+</section>
+
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">שילוב שני סוגי התמונות — הדגמה + אחוזים מול אנטומיה</span></div>
+<p class="dv-lead">הכלל: תמונת השריר מזוהה כצורה ולכן היא של חצי השנייה; תמונת ההדגמה היא מסמך ולכן היא של ההפסקה. האחוזים יוצאים מהתמונה והופכים לנתון נטיבי — כך הם קריאים, מכבדים RTL, ואפשר לחשב איתם. התמונה נשארת ההוכחה מאחורי הנתון.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="2a">
+<div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>מסך תרגיל — איך · כמה · איפה</div>
+<p class="dv-onote">שלוש שכבות אחת מעל השנייה: תמונת ההדגמה ברוחב מלא (איך), פסי עומס נטיביים (כמה), ותמונת שריר קטנה נוגעת בכל פס (איפה). האחוזים כאן הם נתון, לא פיקסלים — מהם נבנית גם מפת העומס השבועית.</p>
+<div class="dv-card" style="position:relative;width:390px;height:812px;overflow:hidden;border-radius:28px;background:#0c0a09;border:1px solid #221c19;color:#e0d9d3;direction:rtl">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #221c19">
+    <div style="font:600 15px/1 Rubik;color:#8d8279">ספרייה</div>
+    <div style="font:700 15px/1 Rubik;color:#f0ebe6">תרגיל</div>
+    <div style="font:600 15px/1 Rubik;color:#ff8a2b">ערוך</div>
+  </div>
+  <div style="position:relative;height:252px;background:#131010;border-bottom:1px solid #221c19">
+    <image-slot id="g-demo" shape="rect" fit="contain" placeholder="תמונת הדגמה + אחוזים"></image-slot>
+    <div style="position:absolute;inset-block-end:11px;inset-inline-end:11px;display:flex;gap:7px;pointer-events:none">
+      <div style="padding:7px 12px;border-radius:999px;background:rgba(6,5,5,.78);border:1px solid #3d332d;font:600 11px/1 Rubik;color:#e0d9d3">הגדל</div>
+      <div style="padding:7px 12px;border-radius:999px;background:rgba(6,5,5,.78);border:1px solid #3d332d;font:600 11px/1 Rubik;color:#e0d9d3">סרטון</div>
+    </div>
+  </div>
+  <div style="padding:15px 16px 0">
+    <div style="font:800 24px/1.1 Rubik;color:#fbf9f7;letter-spacing:-0.03em">חתירה במכונה מלמעלה</div>
+    <div style="margin-top:6px;font:600 13px/1 Rubik;color:#8d8279" dir="ltr">Seated Plate-Loaded Machine Row</div>
+    <div style="margin-top:11px;display:flex;gap:7px">
+      <div style="padding:7px 11px;border-radius:999px;background:#1a1514;border:1px solid #2e2622;font:600 11px/1 Rubik;color:#c5bcb4">מכונה</div>
+      <div style="padding:7px 11px;border-radius:999px;background:#1a1514;border:1px solid #2e2622;font:600 11px/1 Rubik;color:#c5bcb4">לכל צד</div>
+      <div style="padding:7px 11px;border-radius:999px;background:rgba(74,222,128,.09);border:1px solid rgba(74,222,128,.3);font:700 11px/1 Rubik;color:#4ade80">שיא 52.5</div>
+    </div>
+  </div>
+  <div style="margin-top:18px;padding:0 16px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="font:800 10.5px/1 Rubik;color:#8d8279;letter-spacing:.1em">מפת עומס</div>
+      <div style="flex:1;height:1px;background:repeating-linear-gradient(90deg,#3d332d 0 2px,transparent 2px 5px)"></div>
+      <div style="font:600 10.5px/1 Rubik;color:#8d8279">מהתמונה, כנתון</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <div style="display:flex;align-items:center;gap:11px">
+        <image-slot id="g-l1" style="width:40px;height:40px;flex:none" shape="rounded" radius="9" placeholder="רחב גבי"></image-slot>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:baseline;justify-content:space-between"><div style="font:700 13px/1 Rubik;color:#f0ebe6">רחב גבי</div><div style="font:800 13px/1 Rubik;color:#ff8a2b;font-variant-numeric:tabular-nums" dir="ltr">50%</div></div>
+          <div style="margin-top:6px;height:7px;border-radius:4px;background:#1a1514;overflow:hidden"><div style="width:50%;height:100%;border-radius:4px;background:linear-gradient(90deg,#e35100,#ff8a2b);box-shadow:0 0 14px -3px rgba(255,106,0,.8)"></div></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:11px">
+        <image-slot id="g-l2" style="width:40px;height:40px;flex:none" shape="rounded" radius="9" placeholder="אמצע גב"></image-slot>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:baseline;justify-content:space-between"><div style="font:700 13px/1 Rubik;color:#f0ebe6">אמצע גב</div><div style="font:700 13px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">25%</div></div>
+          <div style="margin-top:6px;height:7px;border-radius:4px;background:#1a1514;overflow:hidden"><div style="width:25%;height:100%;border-radius:4px;background:linear-gradient(90deg,#b13c00,#e35100)"></div></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:11px">
+        <image-slot id="g-l3" style="width:40px;height:40px;flex:none" shape="rounded" radius="9" placeholder="יד קדמית"></image-slot>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:baseline;justify-content:space-between"><div style="font:700 13px/1 Rubik;color:#c5bcb4">יד קדמית</div><div style="font:700 13px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums" dir="ltr">15%</div></div>
+          <div style="margin-top:6px;height:7px;border-radius:4px;background:#1a1514;overflow:hidden"><div style="width:15%;height:100%;border-radius:4px;background:#71665b"></div></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:11px">
+        <image-slot id="g-l4" style="width:40px;height:40px;flex:none" shape="rounded" radius="9" placeholder="אחורי כתף"></image-slot>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:baseline;justify-content:space-between"><div style="font:700 13px/1 Rubik;color:#c5bcb4">אחורי כתף</div><div style="font:700 13px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums" dir="ltr">10%</div></div>
+          <div style="margin-top:6px;height:7px;border-radius:4px;background:#1a1514;overflow:hidden"><div style="width:10%;height:100%;border-radius:4px;background:#71665b"></div></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:17px;padding:12px 14px;border-radius:14px;background:#131010;border:1px solid #221c19;display:flex;align-items:center;gap:11px">
+      <div style="font:600 11px/1 Rubik;color:#8d8279;letter-spacing:.07em">3 אימונים אחרונים</div>
+      <div style="margin-inline-start:auto;font:700 13px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">50×11 · 50×10 · 47.5×12</div>
+    </div>
+  </div>
+  <div style="position:absolute;inset-block-end:0;inset-inline:0;padding:12px 14px 20px;background:linear-gradient(180deg,rgba(6,5,5,.72),#060505 36%);border-top:1px solid #2e2622">
+    <div style="height:72px;border-radius:20px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:900 24px/1 Rubik;color:#160b03;box-shadow:0 10px 30px -8px rgba(255,106,0,.55)">הוסף לאימון</div>
+  </div>
+</div>
+</div>
+
+<div class="dv-opt" id="2b">
+<div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>בכרטיס הפעיל — פס "איך עושים"</div>
+<p class="dv-onote">תמונת ההדגמה לא נכנסת לכרטיס כתמונה ממוזערת. היא מגיעה כפס מקופל אחד שמופיע רק לפני הסט הראשון, ונסגר לבד אחריו. תמונת השריר לעומת זאת יושבת בפס־עכשיו בקביעות ובגודל שנקרא בזווית.</p>
+<div class="dv-card" style="position:relative;width:390px;height:812px;overflow:hidden;border-radius:28px;background:#0c0a09;border:1px solid #221c19;color:#e0d9d3;direction:rtl">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #221c19">
+    <div style="font:600 15px/1 Rubik;color:#8d8279">סיים</div>
+    <div style="font:700 15px/1 Rubik;color:#f0ebe6">אימון חופשי</div>
+    <div style="padding:5px 11px;border:1px solid #2e2622;border-radius:999px;font:700 14px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">22:36</div>
+  </div>
+  <div style="padding:16px 16px 15px;background:linear-gradient(180deg,#1d0e05,#131010);border-bottom:1px solid #b13c00">
+    <div style="display:flex;gap:13px;align-items:flex-start">
+      <image-slot id="h2-muscle" style="width:82px;height:82px;flex:none" shape="rounded" radius="15" placeholder="שריר · גב"></image-slot>
+      <div style="flex:1;min-width:0">
+        <div style="font:800 27px/1.06 Rubik;color:#fbf9f7;letter-spacing:-0.03em">חתירה במכונה מלמעלה</div>
+        <div style="margin-top:7px;font:700 11.5px/1 Rubik;color:#ffb066;letter-spacing:.07em">רחב גבי 50% · אמצע גב 25%</div>
+      </div>
+    </div>
+    <div style="margin-top:15px;display:flex;align-items:center;gap:11px">
+      <div style="flex:1;display:flex;gap:5px;height:13px">
+        <div style="flex:1;border-radius:3px;background:#2e2622"></div>
+        <div style="flex:1;border-radius:3px;background:#2e2622"></div>
+        <div style="flex:1;border-radius:3px;background:#2e2622"></div>
+      </div>
+      <div style="font:800 13px/1 Rubik;color:#ff8a2b;white-space:nowrap">סט 1 מתוך 3</div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:12px;padding:14px 16px 0">
+    <div style="border-radius:16px;background:linear-gradient(180deg,#241206,#150c07);border:1px solid #b13c00;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:12px;min-height:56px;padding:9px 14px">
+        <div style="width:44px;height:44px;flex:none;border-radius:11px;overflow:hidden;background:#0c0a09"><image-slot id="h2-demo-t" shape="rect" fit="cover" placeholder="הדגמה"></image-slot></div>
+        <div style="flex:1;min-width:0"><div style="font:800 14px/1.2 Rubik;color:#fbf9f7">איך עושים</div><div style="margin-top:3px;font:500 11px/1 Rubik;color:#ffb066">מופיע לפני הסט הראשון בלבד</div></div>
+        <div style="font:700 12px/1 Rubik;color:#ff8a2b">פתח</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:0 15px;border-radius:14px;background:linear-gradient(180deg,#1a1514,#131010);border:1px solid #221c19"><div style="font:700 14px/1 Rubik;color:#e0d9d3">דגשי ביצוע</div><div style="font:600 12px/1 Rubik;color:#8d8279">3 · פתח</div></div>
+    <div style="display:flex;align-items:center;min-height:48px;padding:0 15px;border-radius:14px;border:1px dashed #2e2622;font:500 13px/1 Rubik;color:#8d8279">הערה למכונה</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:2px"><div style="font:600 11px/1 Rubik;color:#8d8279;letter-spacing:.08em">פעם קודמת</div><div style="font:700 14px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">50 × 11</div></div>
+    <div style="display:flex;align-items:center;gap:9px;min-height:44px;padding:0 15px;border-radius:14px;background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.28)"><div style="font:800 11px/1 Rubik;color:#38bdf8;letter-spacing:.06em">חימום</div><div style="font:700 13px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">35 × 8</div><div style="margin-inline-start:auto;font:500 11px/1 Rubik;color:#8d8279">לא נספר</div></div>
+  </div>
+  <div style="position:absolute;inset-block-end:0;inset-inline:0;padding:12px 14px 20px;background:linear-gradient(180deg,rgba(6,5,5,.72),#060505 36%);border-top:1px solid #2e2622">
+    <div style="display:flex;gap:10px;margin-bottom:10px">
+      <div style="flex:1;display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-radius:14px;background:#131010;border:1px solid #2e2622"><div style="width:40px;height:40px;border-radius:11px;background:#221c19;display:grid;place-items:center;font:600 21px/1 Rubik;color:#c5bcb4">−</div><div style="text-align:center"><div style="font:800 27px/1 Rubik;color:#fbf9f7;letter-spacing:-0.045em;font-variant-numeric:tabular-nums">50</div><div style="font:600 9.5px/1 Rubik;color:#8d8279">ק״ג לכל צד</div></div><div style="width:40px;height:40px;border-radius:11px;background:#221c19;display:grid;place-items:center;font:600 21px/1 Rubik;color:#c5bcb4">+</div></div>
+      <div style="flex:.78;display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-radius:14px;background:#131010;border:1px solid #2e2622"><div style="width:36px;height:40px;border-radius:11px;background:#221c19;display:grid;place-items:center;font:600 21px/1 Rubik;color:#c5bcb4">−</div><div style="text-align:center"><div style="font:800 27px/1 Rubik;color:#fbf9f7;letter-spacing:-0.045em;font-variant-numeric:tabular-nums">10</div><div style="font:600 9.5px/1 Rubik;color:#8d8279">חזרות</div></div><div style="width:36px;height:40px;border-radius:11px;background:#221c19;display:grid;place-items:center;font:600 21px/1 Rubik;color:#c5bcb4">+</div></div>
+    </div>
+    <div style="height:72px;border-radius:20px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:900 25px/1 Rubik;color:#160b03;box-shadow:0 10px 30px -8px rgba(255,106,0,.55)">סיים סט</div>
+  </div>
+</div>
+</div>
+
+<div class="dv-opt" id="2c">
+<div class="dv-olabel"><a class="dv-oid" href="#2c">2c</a>הפס נפתח — גיליון הדגמה</div>
+<p class="dv-onote">בלחיצה על הפס מ־<a class="dv-oid" href="#2b">2b</a> התמונה מגיעה ברוחב מלא, על רקע מוחשך, עם האחוזים כנתון מתחתיה. סגירה אחת גדולה — 72px, אותה יד. אחרי הסט הראשון הפס נעלם עד התרגיל הבא.</p>
+<div class="dv-card" style="position:relative;width:390px;height:812px;overflow:hidden;border-radius:28px;background:#0c0a09;border:1px solid #221c19;color:#e0d9d3;direction:rtl">
+  <div style="position:absolute;inset:0;background:#0c0a09;opacity:.55"></div>
+  <div style="position:absolute;inset-block-start:16px;inset-inline:16px;padding:14px;border-radius:18px;background:#0c0a09;border:1px solid #2e2622;opacity:.4">
+    <div style="font:800 22px/1.06 Rubik;color:#8d8279">חתירה במכונה מלמעלה</div>
+  </div>
+  <div style="position:absolute;inset-block-end:0;inset-inline:0;border-radius:26px 26px 0 0;background:linear-gradient(180deg,#1a1514,#0c0a09 42%);border-top:1px solid #3d332d;padding:0 0 20px;box-shadow:0 -30px 60px -20px rgba(0,0,0,.85)">
+    <div style="display:flex;justify-content:center;padding:10px 0 4px"><div style="width:52px;height:5px;border-radius:3px;background:repeating-linear-gradient(90deg,#3d332d 0 2px,#221c19 2px 5px)"></div></div>
+    <div style="padding:6px 16px 0;display:flex;align-items:baseline;gap:9px">
+      <div style="font:800 19px/1.15 Rubik;color:#fbf9f7">איך עושים</div>
+      <div style="font:500 12px/1 Rubik;color:#8d8279">חתירה במכונה מלמעלה</div>
+    </div>
+    <div style="margin:13px 16px 0;height:296px;border-radius:16px;overflow:hidden;background:#131010;border:1px solid #221c19"><image-slot id="i-demo" shape="rect" fit="contain" placeholder="תמונת הדגמה + אחוזים — רוחב מלא"></image-slot></div>
+    <div style="margin:12px 16px 0;display:flex;gap:8px">
+      <div style="flex:1;display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:12px;background:#131010;border:1px solid #221c19"><image-slot id="i-l1" style="width:30px;height:30px;flex:none" shape="rounded" radius="7" placeholder="גב"></image-slot><div><div style="font:700 11.5px/1 Rubik;color:#f0ebe6">רחב גבי</div><div style="margin-top:3px;font:800 11px/1 Rubik;color:#ff8a2b;font-variant-numeric:tabular-nums" dir="ltr">50%</div></div></div>
+      <div style="flex:1;display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:12px;background:#131010;border:1px solid #221c19"><image-slot id="i-l2" style="width:30px;height:30px;flex:none" shape="rounded" radius="7" placeholder="אמצע"></image-slot><div><div style="font:700 11.5px/1 Rubik;color:#f0ebe6">אמצע גב</div><div style="margin-top:3px;font:700 11px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">25%</div></div></div>
+      <div style="flex:1;display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:12px;background:#131010;border:1px solid #221c19"><image-slot id="i-l3" style="width:30px;height:30px;flex:none" shape="rounded" radius="7" placeholder="יד"></image-slot><div><div style="font:700 11.5px/1 Rubik;color:#c5bcb4">יד קדמית</div><div style="margin-top:3px;font:700 11px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums" dir="ltr">15%</div></div></div>
+    </div>
+    <div style="margin:14px 16px 0;height:72px;border-radius:20px;background:#221c19;border:1px solid #3d332d;display:grid;place-items:center;font:800 21px/1 Rubik;color:#e0d9d3">הבנתי, סגור</div>
+  </div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">נסה לכתוב: "הכנס את פס איך־עושים מ־<a class="dv-oid" href="#2b">2b</a> לפרוטוטייפ <a class="dv-oid" href="#1h">1h</a>" · "הראה את מפת העומס של <a class="dv-oid" href="#2a">2a</a> כמסך שבועי" · "תמונת ההדגמה גם במסך המנוחה"</p>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">ארבעה כיוונים לכרטיס האימון · דפוס הגדרות · מצבים ריקים · חומריות</span></div>
+<p class="dv-lead">הנחות עבודה: הסדר בעשרת המקטעים לא זז, כפתור כתום מלא אחד למסך, הירוק רק לשיאים, הכחול רק לחימום. ארבע הבעיות שציינת מתורגמות לארבע החלטות: (1) גלילה עד הכפתור → מזח פעולה קבוע בתחתית שנושא גם את הזנת המשקל; (2) "מה אני עושה עכשיו" → פס־עכשיו בראש המסך עם שם התרגיל ב־29px ותמונת השריר; (3) כמה נשאר → מד פלטות במקום טקסט; (4) אין נשימה → שלוש דרגות משטח בלבד, ומקטעים 2–4 מתקפלים בזמן סט. הבקשה שלך על השרירים היא הציר של <a class="dv-oid" href="#1c">1c</a> ושל <a class="dv-oid" href="#1d">1d</a>. משבצות התמונה ריקות — גרור לתוכן את כרטיסי האנטומיה שלך והן נשמרות.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>מסך אחד — הבטוח</div>
+<p class="dv-onote">אותם מקטעים, שני שינויים בלבד: פס־עכשיו בראש ומזח פעולה קבוע בתחתית. הכפתור לעולם לא מחוץ למסך.</p>
+<div class="dv-card" style="position:relative;width:390px;height:812px;overflow:hidden;border-radius:28px;background:#0c0a09;border:1px solid #221c19;color:#e0d9d3;direction:rtl">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#0c0a09;border-bottom:1px solid #221c19">
+    <div style="font:600 15px/1 Rubik;color:#8d8279">סיים</div>
+    <div style="font:700 15px/1 Rubik;color:#f0ebe6">אימון חופשי</div>
+    <div style="padding:5px 11px;border:1px solid #2e2622;border-radius:999px;font:700 14px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">22:36</div>
+  </div>
+  <div style="padding:16px 16px 15px;background:linear-gradient(180deg,#1d0e05 0%,#131010 100%);border-bottom:1px solid #b13c00">
+    <div style="display:flex;gap:13px;align-items:flex-start">
+      <image-slot id="a-muscle" style="width:78px;height:78px;flex:none" shape="rounded" radius="14" placeholder="כרטיס גב"></image-slot>
+      <div style="flex:1;min-width:0">
+        <div style="font:700 29px/1.05 Rubik;color:#fbf9f7;letter-spacing:-0.025em">חתירה במכונה</div>
+        <div style="margin-top:6px;font:500 12.5px/1 Rubik;color:#8d8279;letter-spacing:.03em">לטיסימוס · גב · מכונה</div>
+      </div>
+    </div>
+    <div style="margin-top:15px;display:flex;align-items:center;gap:11px">
+      <div style="flex:1;display:flex;gap:5px;height:13px">
+        <div style="flex:1;border-radius:3px;background:linear-gradient(180deg,#ff8a2b,#e35100)"></div>
+        <div style="flex:1;border-radius:3px;background:#2e2622"></div>
+        <div style="flex:1;border-radius:3px;background:#2e2622"></div>
+      </div>
+      <div style="font:800 13px/1 Rubik;color:#ff8a2b;white-space:nowrap">נשארו 2</div>
+    </div>
+    <div style="margin-top:10px;display:flex;align-items:baseline;gap:9px">
+      <div style="font:800 18px/1 Rubik;color:#fbf9f7;font-variant-numeric:tabular-nums">סט 1 <span style="color:#8d8279;font-weight:600">מתוך 3</span></div>
+      <div style="font:700 16px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">10–12</div>
+      <div style="font:500 12.5px/1 Rubik;color:#8d8279">חזרות</div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:12px;padding:14px 16px 0">
+    <div style="display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:0 15px;border-radius:14px;background:linear-gradient(180deg,#1a1514,#131010);border:1px solid #221c19">
+      <div style="font:700 14px/1 Rubik;color:#e0d9d3">דגשי ביצוע</div>
+      <div style="font:600 12px/1 Rubik;color:#8d8279">3 · פתח</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 15px;border-radius:14px;border:1px dashed #2e2622">
+      <div style="font:500 13px/1 Rubik;color:#8d8279">הערה למכונה — גובה מושב, מה כאב</div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:2px 2px">
+      <div style="font:600 11px/1 Rubik;color:#8d8279;letter-spacing:.08em">פעם קודמת</div>
+      <div style="font:700 14px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">50 × 11, 50 × 10</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;padding:13px 15px;border-radius:14px;background:#131010;border:1px solid #2e2622">
+      <div style="padding:4px 9px;border-radius:999px;background:rgba(255,106,0,.14);border:1px solid #b13c00;font:800 10.5px/1 Rubik;color:#ffb066;letter-spacing:.06em">המלצה</div>
+      <div style="font:800 19px/1 Rubik;color:#fbf9f7;font-variant-numeric:tabular-nums" dir="ltr">52.5</div>
+      <div style="font:500 12px/1 Rubik;color:#8d8279">ק״ג לכל צד · 10 חזרות</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:9px;min-height:48px;padding:0 15px;border-radius:14px;background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.28)">
+      <div style="font:800 11px/1 Rubik;color:#38bdf8;letter-spacing:.06em">חימום</div>
+      <div style="font:600 13px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">35 × 8</div>
+      <div style="margin-inline-start:auto;font:500 11px/1 Rubik;color:#8d8279">לא נספר</div>
+    </div>
+  </div>
+  <div style="position:absolute;inset-block-end:0;inset-inline:0;padding:12px 14px 20px;background:linear-gradient(180deg,rgba(6,5,5,.72),#060505 34%);border-top:1px solid #2e2622;backdrop-filter:blur(14px)">
+    <div style="display:flex;gap:10px">
+      <div style="flex:1.35;display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:16px;background:#131010;border:1px solid #2e2622">
+        <div style="width:44px;height:44px;border-radius:12px;background:#221c19;color:#c5bcb4;display:grid;place-items:center;font:600 22px/1 Rubik">−</div>
+        <div style="text-align:center"><div style="font:800 30px/1 Rubik;color:#fbf9f7;font-variant-numeric:tabular-nums;letter-spacing:-0.045em">50</div><div style="margin-top:3px;font:600 10px/1 Rubik;color:#8d8279">ק״ג לכל צד</div></div>
+        <div style="width:44px;height:44px;border-radius:12px;background:#221c19;color:#c5bcb4;display:grid;place-items:center;font:600 22px/1 Rubik">+</div>
+      </div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:16px;background:#131010;border:1px solid #2e2622">
+        <div style="width:40px;height:44px;border-radius:12px;background:#221c19;color:#c5bcb4;display:grid;place-items:center;font:600 22px/1 Rubik">−</div>
+        <div style="text-align:center"><div style="font:800 30px/1 Rubik;color:#fbf9f7;font-variant-numeric:tabular-nums;letter-spacing:-0.045em">10</div><div style="margin-top:3px;font:600 10px/1 Rubik;color:#8d8279">חזרות</div></div>
+        <div style="width:40px;height:44px;border-radius:12px;background:#221c19;color:#c5bcb4;display:grid;place-items:center;font:600 22px/1 Rubik">+</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;height:72px;border-radius:20px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:900 25px/1 Rubik;color:#160b03;letter-spacing:-0.01em;box-shadow:0 10px 30px -8px rgba(255,106,0,.55)">סיים סט</div>
+  </div>
+</div>
+</div>
+
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>פלטות — הנשארים כחומר</div>
+<p class="dv-onote">מד הסטים הוא הגרפיקה הדומינטית: מחסנית פלטות אנכית שנדלקת. אין צורך לקרוא מספר כדי לדעת כמה נשאר. אנטומיה כסימן מים מעל הכרטיס.</p>
+<div class="dv-card" style="position:relative;width:390px;height:812px;overflow:hidden;border-radius:28px;background:#0c0a09;border:1px solid #221c19;color:#e0d9d3;direction:rtl">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #221c19">
+    <div style="font:600 15px/1 Rubik;color:#8d8279">סיים</div>
+    <div style="font:700 15px/1 Rubik;color:#f0ebe6">גב · יום 2</div>
+    <div style="padding:5px 11px;border:1px solid #2e2622;border-radius:999px;font:700 14px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">22:36</div>
+  </div>
+  <div style="position:relative;padding:18px 16px 16px;background:radial-gradient(120% 90% at 88% 0%,#241206 0%,#131010 62%,#0c0a09 100%);border-bottom:1px solid #2e2622;overflow:hidden">
+    <div style="position:absolute;inset-block-start:-14px;inset-inline-start:-30px;width:210px;height:210px;opacity:.13;pointer-events:none;filter:grayscale(1) contrast(1.2)"><image-slot id="b-water" shape="rect" placeholder="שריר"></image-slot></div>
+    <div style="position:relative;display:flex;gap:14px;align-items:stretch">
+      <div style="flex:none;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;width:52px;padding-block-end:2px">
+        <div style="height:15px;border-radius:4px;background:#241c17;border:1px solid #2e2622"></div>
+        <div style="height:19px;border-radius:4px;background:#241c17;border:1px solid #2e2622"></div>
+        <div style="height:23px;border-radius:5px;background:linear-gradient(180deg,#ffb066,#e35100);box-shadow:0 0 20px -2px rgba(255,106,0,.6)"></div>
+        <div style="height:8px;border-radius:2px;background:repeating-linear-gradient(90deg,#3d332d 0 1.5px,#221c19 1.5px 3px)"></div>
+      </div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end">
+        <div style="font:600 11px/1 Rubik;color:#8d8279;letter-spacing:.09em">עכשיו</div>
+        <div style="margin-top:8px;font:800 31px/1.02 Rubik;color:#fbf9f7;letter-spacing:-0.03em">חתירה במכונה מלמעלה</div>
+        <div style="margin-top:9px;display:flex;align-items:baseline;gap:8px">
+          <div style="font:900 22px/1 Rubik;color:#ff8a2b;font-variant-numeric:tabular-nums">1</div>
+          <div style="font:600 13px/1 Rubik;color:#8d8279">מתוך 3 · נשארו 2</div>
+          <div style="margin-inline-start:auto;font:700 15px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">10–12</div>
+        </div>
+      </div>
+    </div>
+    <div style="position:relative;margin-top:16px;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:rgba(12,10,9,.66);border:1px solid #2e2622">
+      <image-slot id="b-thumb" style="width:44px;height:44px;flex:none" shape="rounded" radius="10" placeholder="גב"></image-slot>
+      <div style="min-width:0">
+        <div style="font:700 13px/1.2 Rubik;color:#e0d9d3">לטיסימוס · רחב גבי</div>
+        <div style="margin-top:3px;font:500 11px/1 Rubik;color:#8d8279">65% מהעומס · מכונה</div>
+      </div>
+      <div style="margin-inline-start:auto;font:600 11px/1 Rubik;color:#ff8a2b">כרטיס שריר</div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:0;padding:6px 16px 0">
+    <div style="display:flex;align-items:center;justify-content:space-between;min-height:52px"><div style="font:700 14px/1 Rubik;color:#e0d9d3">דגשי ביצוע</div><div style="font:600 12px/1 Rubik;color:#8d8279">3</div></div>
+    <div style="height:1px;background:repeating-linear-gradient(90deg,#3d332d 0 2px,transparent 2px 5px)"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;min-height:52px"><div style="font:500 13px/1 Rubik;color:#8d8279">הערה למכונה</div><div style="font:600 12px/1 Rubik;color:#8d8279">הוסף</div></div>
+    <div style="height:1px;background:repeating-linear-gradient(90deg,#3d332d 0 2px,transparent 2px 5px)"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;min-height:52px"><div style="font:600 13px/1 Rubik;color:#8d8279">פעם קודמת</div><div style="font:700 14px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">50 × 11</div></div>
+    <div style="height:1px;background:repeating-linear-gradient(90deg,#3d332d 0 2px,transparent 2px 5px)"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;min-height:52px"><div style="font:800 11px/1 Rubik;color:#38bdf8;letter-spacing:.06em">חימום · לא נספר</div><div style="font:700 14px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">35 × 8</div></div>
+  </div>
+  <div style="position:absolute;inset-block-end:0;inset-inline:0;padding:0 0 20px;background:#060505;border-top:1px solid #2e2622">
+    <div style="height:9px;background:repeating-linear-gradient(90deg,#3d332d 0 2px,#160f0c 2px 5px)"></div>
+    <div style="display:flex;gap:1px;margin:14px 14px 0;border-radius:16px;overflow:hidden;border:1px solid #2e2622">
+      <div style="flex:1.3;padding:10px 12px;background:#131010"><div style="font:600 10px/1 Rubik;color:#8d8279">משקל · לכל צד</div><div style="margin-top:5px;display:flex;align-items:baseline;gap:6px"><div style="font:800 32px/1 Rubik;color:#fbf9f7;letter-spacing:-0.045em;font-variant-numeric:tabular-nums">52.5</div><div style="font:600 12px/1 Rubik;color:#8d8279">ק״ג</div></div></div>
+      <div style="flex:1;padding:10px 12px;background:#131010"><div style="font:600 10px/1 Rubik;color:#8d8279">חזרות</div><div style="margin-top:5px;font:800 32px/1 Rubik;color:#fbf9f7;letter-spacing:-0.045em;font-variant-numeric:tabular-nums">10</div></div>
+    </div>
+    <div style="margin:12px 14px 0;height:72px;border-radius:20px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:900 25px/1 Rubik;color:#160b03;box-shadow:0 10px 30px -8px rgba(255,106,0,.55)">סיים סט</div>
+  </div>
+</div>
+</div>
+
+<div class="dv-opt" id="1c">
+<div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>אנטומי — השריר הוא הכותרת</div>
+<p class="dv-onote">התמונות שיצרת הופכות לגיבור המסך: כרטיס האנטומיה בליד מלא בראש, שם התרגיל מונח עליו, וחום כתום שנוגע רק באזור העובד. הכי רדיקלי, והכי קרוב למה שביקשת.</p>
+<div class="dv-card" style="position:relative;width:390px;height:812px;overflow:hidden;border-radius:28px;background:#0c0a09;border:1px solid #221c19;color:#e0d9d3;direction:rtl">
+  <div style="position:relative;height:288px;overflow:hidden">
+    <image-slot id="c-hero" shape="rect" placeholder="כרטיס אנטומיה — גב"></image-slot>
+    <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(12,10,9,.86) 0%,rgba(12,10,9,.12) 32%,rgba(12,10,9,.72) 72%,#0c0a09 100%)"></div>
+    <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(48% 34% at 50% 46%,rgba(255,106,0,.34) 0%,transparent 70%);mix-blend-mode:screen"></div>
+    <div style="position:absolute;inset-block-start:0;inset-inline:0;display:flex;align-items:center;justify-content:space-between;padding:12px 16px">
+      <div style="font:600 15px/1 Rubik;color:#c5bcb4">סיים</div>
+      <div style="padding:5px 11px;border-radius:999px;background:rgba(12,10,9,.6);border:1px solid #2e2622;font:700 14px/1 Rubik;color:#e0d9d3;font-variant-numeric:tabular-nums" dir="ltr">22:36</div>
+    </div>
+    <div style="position:absolute;inset-block-end:0;inset-inline:0;padding:0 16px 14px">
+      <div style="display:flex;gap:5px;height:12px;margin-bottom:12px">
+        <div style="flex:1;border-radius:3px;background:linear-gradient(180deg,#ffb066,#e35100)"></div>
+        <div style="flex:1;border-radius:3px;background:rgba(255,255,255,.14)"></div>
+        <div style="flex:1;border-radius:3px;background:rgba(255,255,255,.14)"></div>
+      </div>
+      <div style="font:800 11px/1 Rubik;color:#ffb066;letter-spacing:.1em">רחב גבי · לטיסימוס</div>
+      <div style="margin-top:7px;font:800 33px/1.02 Rubik;color:#fbf9f7;letter-spacing:-0.035em;text-shadow:0 2px 18px rgba(12,10,9,.8)">חתירה במכונה מלמעלה</div>
+      <div style="margin-top:9px;display:flex;align-items:baseline;gap:9px">
+        <div style="font:800 17px/1 Rubik;color:#fbf9f7;font-variant-numeric:tabular-nums">סט 1 <span style="font-weight:600;color:#a89f98">מתוך 3</span></div>
+        <div style="font:700 15px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">10–12</div>
+        <div style="margin-inline-start:auto;padding:4px 10px;border-radius:999px;background:rgba(12,10,9,.66);border:1px solid #3d332d;font:600 11px/1 Rubik;color:#c5bcb4">סרטון</div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:11px;padding:14px 16px 0">
+    <div style="display:flex;gap:8px">
+      <div style="flex:1;padding:11px 13px;border-radius:14px;background:linear-gradient(180deg,#1a1514,#131010);border:1px solid #221c19"><div style="font:600 10px/1 Rubik;color:#8d8279">פעם קודמת</div><div style="margin-top:6px;font:700 15px/1 Rubik;color:#e0d9d3;font-variant-numeric:tabular-nums" dir="ltr">50 × 11</div></div>
+      <div style="flex:1;padding:11px 13px;border-radius:14px;background:linear-gradient(180deg,#241206,#150c07);border:1px solid #b13c00"><div style="font:600 10px/1 Rubik;color:#ffb066">המלצה היום</div><div style="margin-top:6px;font:800 15px/1 Rubik;color:#fbf9f7;font-variant-numeric:tabular-nums" dir="ltr">52.5 × 10</div></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:0 14px;border-radius:14px;background:#131010;border:1px solid #221c19"><div style="font:700 13.5px/1 Rubik;color:#e0d9d3">דגשי ביצוע · 3</div><div style="font:600 12px/1 Rubik;color:#8d8279">פתח</div></div>
+    <div style="display:flex;align-items:center;min-height:48px;padding:0 14px;border-radius:14px;border:1px dashed #2e2622;font:500 12.5px/1 Rubik;color:#8d8279">הערה למכונה</div>
+    <div style="display:flex;align-items:center;gap:9px;min-height:44px;padding:0 14px;border-radius:14px;background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.28)"><div style="font:800 11px/1 Rubik;color:#38bdf8;letter-spacing:.06em">חימום</div><div style="font:700 13px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">35 × 8</div><div style="margin-inline-start:auto;font:500 11px/1 Rubik;color:#8d8279">לא נספר</div></div>
+  </div>
+  <div style="position:absolute;inset-block-end:0;inset-inline:0;padding:12px 14px 20px;background:linear-gradient(180deg,rgba(6,5,5,.7),#060505 36%);border-top:1px solid #2e2622;backdrop-filter:blur(14px)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="flex:1;display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-radius:14px;background:#131010;border:1px solid #2e2622"><div style="width:40px;height:40px;border-radius:11px;background:#221c19;display:grid;place-items:center;font:600 21px/1 Rubik;color:#c5bcb4">−</div><div style="text-align:center"><div style="font:800 27px/1 Rubik;color:#fbf9f7;letter-spacing:-0.045em;font-variant-numeric:tabular-nums">52.5</div><div style="font:600 9.5px/1 Rubik;color:#8d8279">ק״ג לכל צד</div></div><div style="width:40px;height:40px;border-radius:11px;background:#221c19;display:grid;place-items:center;font:600 21px/1 Rubik;color:#c5bcb4">+</div></div>
+      <div style="flex:.78;display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-radius:14px;background:#131010;border:1px solid #2e2622"><div style="width:36px;height:40px;border-radius:11px;background:#221c19;display:grid;place-items:center;font:600 21px/1 Rubik;color:#c5bcb4">−</div><div style="text-align:center"><div style="font:800 27px/1 Rubik;color:#fbf9f7;letter-spacing:-0.045em;font-variant-numeric:tabular-nums">10</div><div style="font:600 9.5px/1 Rubik;color:#8d8279">חזרות</div></div><div style="width:36px;height:40px;border-radius:11px;background:#221c19;display:grid;place-items:center;font:600 21px/1 Rubik;color:#c5bcb4">+</div></div>
+    </div>
+    <div style="height:72px;border-radius:20px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:900 25px/1 Rubik;color:#160b03;box-shadow:0 10px 30px -8px rgba(255,106,0,.55)">סיים סט</div>
+  </div>
+</div>
+</div>
+
+<div class="dv-opt" id="1d">
+<div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>מסך המנוחה = מסך האנטומיה</div>
+<p class="dv-onote">הרעיון שאני הכי מאמין בו: המנוחה היא הזמן היחיד שבו אפשר להסתכל. במקום טיימר על רקע ריק — הטיימר הופך לטבעת סביב כרטיס השריר, וכל שאר המסך הוא התמונות שיצרת. אפס תוכן חדש, רק ניצול זמן מת.</p>
+<div class="dv-card" style="position:relative;width:390px;height:812px;overflow:hidden;border-radius:28px;background:#0c0a09;border:1px solid #221c19;color:#e0d9d3;direction:rtl">
+  <div style="position:absolute;inset:0;background:radial-gradient(90% 55% at 50% 22%,#1d0e05 0%,#0c0a09 70%)"></div>
+  <div style="position:relative;padding:14px 16px 0;text-align:center">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font:600 14px/1 Rubik;color:#8d8279">סיים</div>
+      <div style="display:flex;align-items:center;gap:7px;padding:6px 12px;border:1px solid #2e2622;border-radius:999px"><div style="font:600 10px/1 Rubik;color:#8d8279">מתחילת האימון</div><div style="font:700 14px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">22:36</div></div>
+    </div>
+    <div style="font:800 11px/1 Rubik;color:#8d8279;letter-spacing:.14em">מנוחה</div>
+    <div style="margin-top:10px;position:relative;width:172px;height:172px;margin-inline:auto;border-radius:50%;padding:8px;background:conic-gradient(#ff6a00 0 62%,#221c19 62% 100%);animation:heatPulse 3s ease-in-out infinite">
+      <div style="position:relative;width:100%;height:100%;border-radius:50%;overflow:hidden;background:#131010"><image-slot id="d-ring" shape="circle" placeholder="כרטיס תרגיל"></image-slot></div>
+      <div style="position:absolute;inset-block-end:-8px;left:50%;right:auto;transform:translateX(-50%);white-space:nowrap;padding:6px 16px;border-radius:999px;background:#0c0a09;border:1px solid #b13c00;font:800 27px/1 Rubik;color:#fbf9f7;font-variant-numeric:tabular-nums;letter-spacing:-0.045em" dir="ltr">0:46</div>
+    </div>
+    <div style="margin-top:22px;font:800 20px/1.1 Rubik;color:#fbf9f7">פולי עליון עבד עכשיו</div>
+    <div style="margin-top:6px;font:500 12.5px/1.45 Rubik;color:#8d8279">הסט הבא — 52.5 ק״ג לכל צד, 10 חזרות</div>
+  </div>
+  <div style="position:relative;margin-top:18px;padding:0 16px;display:flex;flex-direction:column;gap:9px">
+    <div style="padding:12px 14px;border-radius:14px;background:#131010;border:1px solid #221c19">
+      <div style="display:flex;align-items:center;gap:11px">
+        <div style="flex:1;display:flex;gap:5px;height:12px">
+          <div style="flex:1;border-radius:3px;background:linear-gradient(180deg,#ffb066,#e35100)"></div>
+          <div style="flex:1;border-radius:3px;background:#2e2622"></div>
+          <div style="flex:1;border-radius:3px;background:#2e2622"></div>
+        </div>
+        <div style="font:800 12px/1 Rubik;color:#ff8a2b;white-space:nowrap">נשארו 2</div>
+      </div>
+      <div style="margin-top:9px;font:700 13px/1 Rubik;color:#e0d9d3;font-variant-numeric:tabular-nums">סט 1 הושלם <span style="font-weight:500;color:#8d8279">· עוד 2 בתרגיל הזה</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:14px;background:linear-gradient(180deg,#241206,#150c07);border:1px solid #b13c00">
+      <div style="width:46px;height:46px;flex:none;border-radius:11px;overflow:hidden;background:#0c0a09"><image-slot id="d-next" shape="rect" fit="cover" placeholder="הדגמה"></image-slot></div>
+      <div style="flex:1;min-width:0;text-align:start">
+        <div style="font:600 10px/1 Rubik;color:#ffb066;letter-spacing:.08em">כשזה הסט האחרון — התרגיל הבא</div>
+        <div style="margin-top:5px;font:800 14px/1.2 Rubik;color:#fbf9f7">כפיפת מרפקים בכבל</div>
+      </div>
+      <div style="font:600 11px/1 Rubik;color:#8d8279;white-space:nowrap">3 סטים</div>
+    </div>
+  </div>
+  <div style="position:relative;margin-top:14px;padding:0 16px">
+    <div style="font:800 10.5px/1 Rubik;color:#8d8279;letter-spacing:.1em;margin-bottom:9px">מפת ראשי השרירים בתרגיל הזה</div>
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">
+      <div style="min-width:0;text-align:center"><image-slot id="d-m1" style="width:100%;height:48px" shape="rounded" radius="10" placeholder="רחב גבי"></image-slot><div style="margin-top:6px;font:700 10px/1 Rubik;color:#ff8a2b">רחב גבי</div></div>
+      <div style="min-width:0;text-align:center"><image-slot id="d-m2" style="width:100%;height:48px" shape="rounded" radius="10" placeholder="מקרב השכמות"></image-slot><div style="margin-top:6px;font:700 10px/1 Rubik;color:#ffb066">מקרב השכמות</div></div>
+      <div style="min-width:0;text-align:center"><image-slot id="d-m3" style="width:100%;height:48px" shape="rounded" radius="10" placeholder="טרפז אמצעי"></image-slot><div style="margin-top:6px;font:600 10px/1 Rubik;color:#c5bcb4">טרפז אמצעי</div></div>
+      <div style="min-width:0;text-align:center;opacity:.5"><image-slot id="d-m4" style="width:100%;height:48px" shape="rounded" radius="10" placeholder="אחורי כתף"></image-slot><div style="margin-top:6px;font:600 10px/1 Rubik;color:#8d8279">אחורי כתף</div></div>
+    </div>
+  </div>
+  <div style="position:absolute;inset-block-end:0;inset-inline:0;padding:12px 14px 20px;background:linear-gradient(180deg,rgba(6,5,5,.7),#060505 36%);border-top:1px solid #2e2622">
+    <div style="height:72px;border-radius:20px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:900 25px/1 Rubik;color:#160b03;box-shadow:0 10px 30px -8px rgba(255,106,0,.55)">התחל סט 2</div>
+    <div style="margin-top:10px;display:flex;gap:9px"><div style="flex:1;height:48px;border-radius:14px;background:#221c19;border:1px solid #2e2622;display:grid;place-items:center;font:600 13px/1 Rubik;color:#c5bcb4">+30 שנ׳</div><div style="flex:1;height:48px;border-radius:14px;background:#221c19;border:1px solid #2e2622;display:grid;place-items:center;font:600 13px/1 Rubik;color:#c5bcb4">דלג</div></div>
+  </div>
+</div>
+</div>
+
+<div class="dv-opt" id="1e">
+<div class="dv-olabel"><a class="dv-oid" href="#1e">1e</a>דפוס למסך הגדרות צפוף</div>
+<p class="dv-onote">חוק אחד לכל חמישה המסכים: כותרת דביקה עם חיפוש → קבוצות בעלות שם עם מפריד חריצים → שורות 56px עם תמונה מימין, מצב מיושר לשמאל → פעולות מסוכנות בקבוצה משלהן בתחתית. כאן אין לחץ זמן, ולכן מותר עשיר יותר: תמונות ממוזערות אמיתיות במקום אייקונים.</p>
+<div class="dv-card" style="position:relative;width:390px;height:812px;overflow:hidden;border-radius:28px;background:#0c0a09;border:1px solid #221c19;color:#e0d9d3;direction:rtl">
+  <div style="padding:14px 16px 12px;background:linear-gradient(180deg,#131010,#0c0a09);border-bottom:1px solid #221c19">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font:600 14px/1 Rubik;color:#8d8279">הגדרות</div>
+      <div style="font:800 17px/1 Rubik;color:#fbf9f7">מדיה</div>
+      <div style="font:600 14px/1 Rubik;color:#ff8a2b">בחר</div>
+    </div>
+    <div style="margin-top:12px;display:flex;align-items:center;gap:8px;min-height:44px;padding:0 13px;border-radius:14px;background:#131010;border:1px solid #2e2622;font:400 15px/1 Rubik;color:#8d8279">חיפוש ב־89 תרגילים</div>
+    <div style="margin-top:11px;display:flex;gap:7px">
+      <div style="padding:8px 13px;border-radius:999px;background:#ff6a00;font:700 12px/1 Rubik;color:#0c0a09">חסרה מדיה · 12</div>
+      <div style="padding:8px 13px;border-radius:999px;background:#1a1514;border:1px solid #2e2622;font:600 12px/1 Rubik;color:#c5bcb4">סרטון</div>
+      <div style="padding:8px 13px;border-radius:999px;background:#1a1514;border:1px solid #2e2622;font:600 12px/1 Rubik;color:#c5bcb4">אנטומיה</div>
+    </div>
+  </div>
+  <div style="padding:16px 16px 0">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
+      <div style="font:800 10.5px/1 Rubik;color:#8d8279;letter-spacing:.1em">גב · 8 תרגילים</div>
+      <div style="flex:1;height:1px;background:repeating-linear-gradient(90deg,#3d332d 0 2px,transparent 2px 5px)"></div>
+      <div style="font:600 10.5px/1 Rubik;color:#8d8279">2 חסרים</div>
+    </div>
+    <div style="border-radius:16px;overflow:hidden;border:1px solid #221c19;background:#131010">
+      <div style="display:flex;align-items:center;gap:12px;min-height:56px;padding:9px 13px">
+        <image-slot id="e-1" style="width:46px;height:46px;flex:none" shape="rounded" radius="10" placeholder="תמונה"></image-slot>
+        <div style="flex:1;min-width:0"><div style="font:700 14px/1.2 Rubik;color:#f0ebe6">חתירה במכונה מלמעלה</div><div style="margin-top:3px;font:500 11px/1 Rubik;color:#8d8279">אנטומיה · סרטון · 2 דגשים</div></div>
+        <div style="font:600 12px/1 Rubik;color:#8d8279">ערוך</div>
+      </div>
+      <div style="height:1px;margin:0 13px;background:#221c19"></div>
+      <div style="display:flex;align-items:center;gap:12px;min-height:56px;padding:9px 13px;background:rgba(255,106,0,.045)">
+        <div style="width:46px;height:46px;flex:none;border-radius:10px;border:1px dashed #b13c00;display:grid;place-items:center;font:700 18px/1 Rubik;color:#ff8a2b">+</div>
+        <div style="flex:1;min-width:0"><div style="font:700 14px/1.2 Rubik;color:#f0ebe6">משיכת פולי עליון</div><div style="margin-top:3px;font:600 11px/1 Rubik;color:#ffb066">חסרה תמונת אנטומיה</div></div>
+        <div style="font:700 12px/1 Rubik;color:#ff8a2b">הוסף</div>
+      </div>
+      <div style="height:1px;margin:0 13px;background:#221c19"></div>
+      <div style="display:flex;align-items:center;gap:12px;min-height:56px;padding:9px 13px">
+        <image-slot id="e-3" style="width:46px;height:46px;flex:none" shape="rounded" radius="10" placeholder="תמונה"></image-slot>
+        <div style="flex:1;min-width:0"><div style="font:700 14px/1.2 Rubik;color:#f0ebe6">חתירה בהרכנה</div><div style="margin-top:3px;font:500 11px/1 Rubik;color:#8d8279">אנטומיה · אין סרטון</div></div>
+        <div style="font:600 12px/1 Rubik;color:#8d8279">ערוך</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin:18px 0 9px">
+      <div style="font:800 10.5px/1 Rubik;color:#8d8279;letter-spacing:.1em">רגליים · 11 תרגילים</div>
+      <div style="flex:1;height:1px;background:repeating-linear-gradient(90deg,#3d332d 0 2px,transparent 2px 5px)"></div>
+    </div>
+    <div style="border-radius:16px;overflow:hidden;border:1px solid #221c19;background:#131010">
+      <div style="display:flex;align-items:center;gap:12px;min-height:56px;padding:9px 13px">
+        <image-slot id="e-4" style="width:46px;height:46px;flex:none" shape="rounded" radius="10" placeholder="תמונה"></image-slot>
+        <div style="flex:1;min-width:0"><div style="font:700 14px/1.2 Rubik;color:#f0ebe6">לחיצת רגליים</div><div style="margin-top:3px;font:500 11px/1 Rubik;color:#8d8279">אנטומיה · סרטון</div></div>
+        <div style="font:600 12px/1 Rubik;color:#8d8279">ערוך</div>
+      </div>
+      <div style="height:1px;margin:0 13px;background:#221c19"></div>
+      <div style="display:flex;align-items:center;gap:12px;min-height:56px;padding:9px 13px">
+        <image-slot id="e-5" style="width:46px;height:46px;flex:none" shape="rounded" radius="10" placeholder="תמונה"></image-slot>
+        <div style="flex:1;min-width:0"><div style="font:700 14px/1.2 Rubik;color:#f0ebe6">סקוואט במכונה</div><div style="margin-top:3px;font:500 11px/1 Rubik;color:#8d8279">אנטומיה · סרטון</div></div>
+        <div style="font:600 12px/1 Rubik;color:#8d8279">ערוך</div>
+      </div>
+    </div>
+    <div style="margin-top:20px;padding:13px;border-radius:16px;border:1px solid #2e2622;background:#0c0a09">
+      <div style="font:800 10.5px/1 Rubik;color:#8d8279;letter-spacing:.1em;margin-bottom:11px">אחסון</div>
+      <div style="display:flex;align-items:center;gap:10px"><div style="flex:1;height:8px;border-radius:4px;background:#221c19;overflow:hidden"><div style="width:38%;height:100%;background:linear-gradient(90deg,#e35100,#ff8a2b)"></div></div><div style="font:700 12px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">142 MB</div></div>
+      <div style="margin-top:11px;display:flex;gap:9px"><div style="flex:1;min-height:48px;border-radius:13px;background:#221c19;border:1px solid #2e2622;display:grid;place-items:center;font:600 13px/1 Rubik;color:#c5bcb4">ייצא גיבוי</div><div style="flex:1;min-height:48px;border-radius:13px;background:transparent;border:1px solid rgba(251,113,133,.4);display:grid;place-items:center;font:600 13px/1 Rubik;color:#fb7185">מחק מדיה</div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="dv-opt" id="1f">
+<div class="dv-olabel"><a class="dv-oid" href="#1f">1f</a>מצבים ריקים — הוראה, לא התנצלות</div>
+<p class="dv-onote">שלושה ריקים בדפוס אחד: משפט מצב אחד → פעולה אחת בכתום → משפט שמסביר מה יקרה אחר כך. אף אחד מהם לא אומר "אין נתונים" בלבד.</p>
+<div class="dv-card" style="width:390px;overflow:hidden;border-radius:28px;background:#0c0a09;border:1px solid #221c19;color:#e0d9d3;direction:rtl;padding:16px;display:flex;flex-direction:column;gap:14px">
+  <div style="padding:22px 18px;border-radius:20px;background:radial-gradient(120% 80% at 50% 0%,#1d0e05,#131010);border:1px solid #2e2622;text-align:center">
+    <div style="width:78px;height:78px;margin:0 auto 16px;border-radius:20px;background:#0c0a09;border:1px solid #b13c00;display:grid;place-items:center;font:800 30px/1 Rubik;color:#ff8a2b">1</div>
+    <div style="font:800 20px/1.25 Rubik;color:#fbf9f7">האימון הראשון קובע את הבסיס</div>
+    <div style="margin-top:9px;font:400 13px/1.6 Rubik;color:#a89f98;text-wrap:pretty">אין עוד משקלים שמורים. בסט הראשון תזין מה שכתוב על המכונה, ומשם האפליקציה ממליצה לבד.</div>
+    <div style="margin-top:16px;height:60px;border-radius:18px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:900 19px/1 Rubik;color:#160b03">בנה לי אימון ראשון</div>
+    <div style="margin-top:10px;font:500 11.5px/1 Rubik;color:#8d8279">שישה תרגילים · אפשר לשנות הכל אחר כך</div>
+  </div>
+  <div style="padding:18px;border-radius:20px;background:#131010;border:1px solid #221c19">
+    <div style="display:flex;gap:13px;align-items:flex-start">
+      <image-slot id="f-m" style="width:64px;height:64px;flex:none" shape="rounded" radius="13" placeholder="שריר"></image-slot>
+      <div style="flex:1">
+        <div style="font:800 16px/1.25 Rubik;color:#fbf9f7">עוד לא ביצעת חתירה במכונה</div>
+        <div style="margin-top:7px;font:400 12.5px/1.6 Rubik;color:#8d8279;text-wrap:pretty">אין היסטוריה ולכן אין המלצה. קרא את שלושת הדגשים, התחל במשקל שמרגיש 7 מתוך 10, והסט הזה יהיה נקודת הייחוס.</div>
+        <div style="margin-top:13px;display:flex;gap:8px"><div style="min-height:44px;padding:0 16px;border-radius:13px;background:#221c19;border:1px solid #2e2622;display:grid;place-items:center;font:600 12.5px/1 Rubik;color:#e0d9d3">דגשי ביצוע</div><div style="min-height:44px;padding:0 16px;border-radius:13px;background:#221c19;border:1px solid #2e2622;display:grid;place-items:center;font:600 12.5px/1 Rubik;color:#e0d9d3">סרטון</div></div>
+      </div>
+    </div>
+  </div>
+  <div style="padding:18px;border-radius:20px;background:#131010;border:1px solid #221c19">
+    <div style="display:flex;align-items:flex-end;gap:5px;height:64px;margin-bottom:16px">
+      <div style="flex:1;height:26%;border-radius:3px;background:repeating-linear-gradient(135deg,#221c19 0 4px,#1a1514 4px 8px)"></div>
+      <div style="flex:1;height:44%;border-radius:3px;background:repeating-linear-gradient(135deg,#221c19 0 4px,#1a1514 4px 8px)"></div>
+      <div style="flex:1;height:34%;border-radius:3px;background:repeating-linear-gradient(135deg,#221c19 0 4px,#1a1514 4px 8px)"></div>
+      <div style="flex:1;height:58%;border-radius:3px;background:linear-gradient(180deg,#ff8a2b,#e35100)"></div>
+    </div>
+    <div style="font:800 16px/1.25 Rubik;color:#fbf9f7">מגמה נפתחת אחרי שלושה אימונים</div>
+    <div style="margin-top:7px;font:400 12.5px/1.6 Rubik;color:#8d8279;text-wrap:pretty">יש לך אימון אחד. עוד שניים ואפשר יהיה להראות נפח שבועי ולא רק מספר בודד.</div>
+    <div style="margin-top:13px;display:flex;align-items:center;gap:9px"><div style="flex:1;height:6px;border-radius:3px;background:#221c19;overflow:hidden"><div style="width:33%;height:100%;background:#ff6a00"></div></div><div style="font:700 11px/1 Rubik;color:#8d8279;font-variant-numeric:tabular-nums" dir="ltr">1 / 3</div></div>
+  </div>
+</div>
+</div>
+
+<div class="dv-opt" id="1g">
+<div class="dv-olabel"><a class="dv-oid" href="#1g">1g</a>חומריות — "מכון בלילה" עד הסוף</div>
+<p class="dv-onote">חמישה משטחים, כולם מהטוקנים הקיימים חוץ משלושה שאני מבקש להוסיף במפורש (למטה, עם נימוק). כלום כאן לא צובע — הכל מגדיר איך אור נופל.</p>
+<div class="dv-card" style="width:390px;overflow:hidden;border-radius:28px;background:#0c0a09;border:1px solid #221c19;color:#e0d9d3;direction:rtl;padding:16px;display:flex;flex-direction:column;gap:12px">
+  <div style="height:82px;border-radius:16px;border:1px solid #2e2622;background:linear-gradient(180deg,#1a1514,#131010);position:relative;overflow:hidden;display:flex;align-items:flex-end;padding:11px 13px">
+    <div style="position:absolute;inset-block-start:0;inset-inline:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,176,102,.5),transparent)"></div>
+    <div style="position:absolute;inset:0;opacity:.5;background-image:radial-gradient(rgba(255,255,255,.045) .5px,transparent .5px);background-size:3px 3px"></div>
+    <div style="position:relative;font:700 12px/1 Rubik;color:#c5bcb4">יציקה — גרעין 3px + קצה מואר עליון</div>
+  </div>
+  <div style="height:82px;border-radius:16px;border:1px solid #2e2622;background:#131010;position:relative;overflow:hidden;display:flex;align-items:flex-end;padding:11px 13px">
+    <div style="position:absolute;inset-block-start:0;inset-inline:0;height:34px;background:repeating-linear-gradient(90deg,#3d332d 0 2px,#160f0c 2px 5px)"></div>
+    <div style="position:relative;font:700 12px/1 Rubik;color:#c5bcb4">חריצים — צעד 5px, לידיות ומזחים בלבד</div>
+  </div>
+  <div style="height:82px;border-radius:16px;border:1px solid #b13c00;background:linear-gradient(180deg,#241206,#150c07);position:relative;overflow:hidden;display:flex;align-items:flex-end;padding:11px 13px;animation:heatPulse 3s ease-in-out infinite">
+    <div style="position:absolute;inset-block-start:-40px;inset-inline-start:-20px;width:180px;height:120px;background:radial-gradient(closest-side,rgba(255,106,0,.36),transparent);filter:blur(6px)"></div>
+    <div style="position:relative;font:700 12px/1 Rubik;color:#ffb066">חום — flame כאור, לא כמילוי</div>
+  </div>
+  <div style="height:82px;border-radius:16px;border:1px solid #2e2622;background:#0c0a09;position:relative;overflow:hidden;display:flex;align-items:flex-end;padding:11px 13px">
+    <div style="position:absolute;inset-block-start:14px;inset-inline:13px;display:flex;gap:6px;align-items:flex-end;height:30px"><div style="width:34px;height:11px;border-radius:3px;background:#241c17;border:1px solid #2e2622"></div><div style="width:34px;height:17px;border-radius:3px;background:#241c17;border:1px solid #2e2622"></div><div style="width:34px;height:24px;border-radius:4px;background:linear-gradient(180deg,#ffb066,#e35100)"></div></div>
+    <div style="position:relative;font:700 12px/1 Rubik;color:#c5bcb4">פלטות — התקדמות כעובי, לא כאחוז</div>
+  </div>
+  <div style="height:82px;border-radius:16px;border:1px solid #2e2622;background:#060505;position:relative;overflow:hidden;display:flex;align-items:flex-end;padding:11px 13px">
+    <div style="position:absolute;inset-block-start:0;inset-inline:0;height:26px;background:linear-gradient(180deg,rgba(255,255,255,.05),transparent)"></div>
+    <div style="position:relative;font:700 12px/1 Rubik;color:#c5bcb4">מזח — השכבה שמעל הדף (ink-975)</div>
+  </div>
+  <div style="margin-top:4px;padding:15px;border-radius:16px;background:#131010;border:1px solid #2e2622">
+    <div style="font:800 10.5px/1 Rubik;color:#ff8a2b;letter-spacing:.1em">שלושה טוקנים חדשים — בקשה מפורשת</div>
+    <div style="margin-top:13px;display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;gap:11px;align-items:flex-start"><div style="width:34px;height:34px;flex:none;border-radius:9px;background:#060505;border:1px solid #2e2622"></div><div><div style="font:700 12.5px/1 Rubik;color:#f0ebe6" dir="ltr">ink-975 · #060505</div><div style="margin-top:5px;font:400 11.5px/1.55 Rubik;color:#8d8279;text-wrap:pretty">המזח חייב להיות כהה מהדף, אחרת הכפתור נראה חלק מהעמודה ולא שכבה מעליה. אין כרגע ערך מתחת ל־ink-950.</div></div></div>
+      <div style="display:flex;gap:11px;align-items:flex-start"><div style="width:34px;height:34px;flex:none;border-radius:9px;background:#1d0e05;border:1px solid #b13c00"></div><div><div style="font:700 12.5px/1 Rubik;color:#f0ebe6" dir="ltr">flame-ink · #1d0e05</div><div style="margin-top:5px;font:400 11.5px/1.55 Rubik;color:#8d8279;text-wrap:pretty">לא גוון חדש — flame-700 בשקיפות נמוכה על ink-950, מקובע כטוקן. בלעדיו כל "פס עכשיו" הוא ערך שקיפות מאולתר שנסחף בין מסכים.</div></div></div>
+      <div style="display:flex;gap:11px;align-items:flex-start"><div style="width:34px;height:34px;flex:none;border-radius:9px;background:repeating-linear-gradient(90deg,#3d332d 0 2px,#160f0c 2px 5px)"></div><div><div style="font:700 12.5px/1 Rubik;color:#f0ebe6" dir="ltr">--knurl-pitch: 5px</div><div style="margin-top:5px;font:400 11.5px/1.55 Rubik;color:#8d8279;text-wrap:pretty">לא צבע — קבוע. כרגע לכל חריץ באפליקציה צעד אחר, וזה נראה כמו שלוש טקסטורות שונות. צעד אחד הופך את זה לחומר אחד.</div></div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="dv-opt" id="1h">
+<div class="dv-olabel"><a class="dv-oid" href="#1h">1h</a>אינטראקטיבי — <a class="dv-oid" href="#1c">1c</a> חי</div>
+<p class="dv-onote">לחץ "סיים סט" ובדוק את המסלול המלא: תיעוד → מנוחה כטבעת אנטומיה → סט הבא. הסטפרים עובדים, מד הפלטות מתמלא, השיא נדלק בירוק. גע רק ביד אחת.</p>
+<div style="position:relative;width:418px;height:874px;padding:14px;border-radius:54px;background:linear-gradient(160deg,#2e2622,#131010);box-shadow:0 30px 70px -30px rgba(0,0,0,.9),inset 0 0 0 1px rgba(255,255,255,.06)">
+  <div style="position:relative;width:390px;height:846px;overflow:hidden;border-radius:42px;background:#0c0a09;color:#e0d9d3;direction:rtl">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 26px 6px;font:700 13px/1 Rubik;color:#f0ebe6"><span dir="ltr">15:31</span><span style="width:88px;height:22px;border-radius:999px;background:#000"></span><span style="font-size:11px;color:#8d8279">94%</span></div>
+    <div style="position:relative;height:268px;overflow:hidden">
+      <image-slot id="h-hero" shape="rect" placeholder="כרטיס אנטומיה — גב"></image-slot>
+      <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(12,10,9,.8) 0%,rgba(12,10,9,.1) 30%,rgba(12,10,9,.74) 70%,#0c0a09 100%)"></div>
+      <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(46% 32% at 50% 46%,rgba(255,106,0,.32),transparent 70%);mix-blend-mode:screen"></div>
+      <div style="position:absolute;inset-block-start:0;inset-inline:0;display:flex;align-items:center;justify-content:space-between;padding:10px 16px">
+        <div style="font:600 14px/1 Rubik;color:#c5bcb4">סיים</div>
+        <div style="padding:5px 11px;border-radius:999px;background:rgba(12,10,9,.6);border:1px solid #2e2622;font:700 13px/1 Rubik;color:#e0d9d3;font-variant-numeric:tabular-nums" dir="ltr">22:36</div>
+      </div>
+      <div style="position:absolute;inset-block-end:0;inset-inline:0;padding:0 16px 14px">
+        <div style="display:flex;gap:5px;height:12px;margin-bottom:12px">{{ plates }}</div>
+        <div style="font:800 11px/1 Rubik;color:#ffb066;letter-spacing:.1em">רחב גבי · לטיסימוס</div>
+        <div style="margin-top:7px;font:800 31px/1.03 Rubik;color:#fbf9f7;letter-spacing:-0.035em">חתירה במכונה מלמעלה</div>
+        <div style="margin-top:9px;display:flex;align-items:baseline;gap:9px">
+          <div style="font:800 17px/1 Rubik;color:#fbf9f7;font-variant-numeric:tabular-nums">{{ setLabel }}</div>
+          <div style="font:700 15px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">10–12</div>
+          <div style="margin-inline-start:auto;font:700 12px/1 Rubik;color:#ff8a2b">{{ remainLabel }}</div>
+        </div>
+      </div>
+    </div>
+    <sc-if value="{{ resting }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:20px 16px 0;text-align:center">
+        <div style="font:800 11px/1 Rubik;color:#8d8279;letter-spacing:.14em">מנוחה</div>
+        <div style="margin:14px auto 0;position:relative;width:188px;height:188px;border-radius:50%;padding:8px;background:{{ ringBg }};animation:heatPulse 3s ease-in-out infinite">
+          <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;background:#131010"><image-slot id="h-ring" shape="circle" placeholder="שריר"></image-slot></div>
+          <div style="position:absolute;inset-block-end:-9px;left:50%;right:auto;transform:translateX(-50%);white-space:nowrap;padding:6px 15px;border-radius:999px;background:#0c0a09;border:1px solid #b13c00;font:800 24px/1 Rubik;color:#fbf9f7;font-variant-numeric:tabular-nums;letter-spacing:-0.045em" dir="ltr">{{ restLabel }}</div>
+        </div>
+        <div style="margin-top:26px;font:800 18px/1.2 Rubik;color:#fbf9f7">רחב גבי עבד עכשיו</div>
+        <div style="margin-top:7px;font:500 12.5px/1.5 Rubik;color:#8d8279">{{ nextHint }}</div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ working }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:10px;padding:13px 16px 0">
+        <div style="display:flex;gap:8px">
+          <div style="flex:1;padding:10px 12px;border-radius:14px;background:linear-gradient(180deg,#1a1514,#131010);border:1px solid #221c19"><div style="font:600 10px/1 Rubik;color:#8d8279">פעם קודמת</div><div style="margin-top:5px;font:700 14px/1 Rubik;color:#e0d9d3;font-variant-numeric:tabular-nums" dir="ltr">50 × 11</div></div>
+          <div style="flex:1;padding:10px 12px;border-radius:14px;background:linear-gradient(180deg,#241206,#150c07);border:1px solid #b13c00"><div style="font:600 10px/1 Rubik;color:#ffb066">המלצה היום</div><div style="margin-top:5px;font:800 14px/1 Rubik;color:#fbf9f7;font-variant-numeric:tabular-nums" dir="ltr">52.5 × 10</div></div>
+        </div>
+        <div onClick="{{ toggleCues }}" style="border-radius:14px;background:#131010;border:1px solid #221c19;overflow:hidden;cursor:pointer" style-hover="border-color:#3d332d">
+          <div style="display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:0 14px"><div style="font:700 13.5px/1 Rubik;color:#e0d9d3">דגשי ביצוע · 3</div><div style="font:600 12px/1 Rubik;color:#8d8279">{{ cuesLabel }}</div></div>
+          <sc-if value="{{ cues }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:0 14px 13px;display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;gap:9px;align-items:flex-start"><div style="width:5px;height:5px;margin-top:6px;border-radius:50%;background:#ff6a00;flex:none"></div><div style="font:400 13px/1.45 Rubik;color:#c5bcb4">אחיזה או זווית שונה מהחתירה הראשונה</div></div>
+              <div style="display:flex;gap:9px;align-items:flex-start"><div style="width:5px;height:5px;margin-top:6px;border-radius:50%;background:#ff6a00;flex:none"></div><div style="font:400 13px/1.45 Rubik;color:#c5bcb4">טווח מלא — למתוח קדימה בין החזרות</div></div>
+              <div style="display:flex;gap:9px;align-items:flex-start"><div style="width:5px;height:5px;margin-top:6px;border-radius:50%;background:#ff6a00;flex:none"></div><div style="font:400 13px/1.45 Rubik;color:#c5bcb4">קצב איטי יותר, להרגיש את השריר</div></div>
+            </div>
+          </sc-if>
+        </div>
+        <sc-if value="{{ hasLogged }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:7px">{{ loggedRows }}</div>
+        </sc-if>
+        <div style="display:flex;align-items:center;gap:9px;min-height:44px;padding:0 14px;border-radius:14px;background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.28)"><div style="font:800 11px/1 Rubik;color:#38bdf8;letter-spacing:.06em">חימום</div><div style="font:700 13px/1 Rubik;color:#c5bcb4;font-variant-numeric:tabular-nums" dir="ltr">35 × 8</div><div style="margin-inline-start:auto;font:500 11px/1 Rubik;color:#8d8279">לא נספר</div></div>
+      </div>
+    </sc-if>
+    <div style="position:absolute;inset-block-end:0;inset-inline:0;padding:12px 14px 22px;background:linear-gradient(180deg,rgba(6,5,5,.72),#060505 36%);border-top:1px solid #2e2622;backdrop-filter:blur(14px)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="flex:1;display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-radius:14px;background:#131010;border:1px solid #2e2622">
+          <div onClick="{{ wMinus }}" style="width:40px;height:40px;border-radius:11px;background:#221c19;display:grid;place-items:center;font:600 21px/1 Rubik;color:#c5bcb4;cursor:pointer;user-select:none" style-active="background:#2e2622">−</div>
+          <div style="text-align:center"><div style="font:800 27px/1 Rubik;color:#fbf9f7;letter-spacing:-0.045em;font-variant-numeric:tabular-nums" dir="ltr">{{ w }}</div><div style="font:600 9.5px/1 Rubik;color:#8d8279">ק״ג לכל צד</div></div>
+          <div onClick="{{ wPlus }}" style="width:40px;height:40px;border-radius:11px;background:#221c19;display:grid;place-items:center;font:600 21px/1 Rubik;color:#c5bcb4;cursor:pointer;user-select:none" style-active="background:#2e2622">+</div>
+        </div>
+        <div style="flex:.78;display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-radius:14px;background:#131010;border:1px solid #2e2622">
+          <div onClick="{{ rMinus }}" style="width:36px;height:40px;border-radius:11px;background:#221c19;display:grid;place-items:center;font:600 21px/1 Rubik;color:#c5bcb4;cursor:pointer;user-select:none" style-active="background:#2e2622">−</div>
+          <div style="text-align:center"><div style="font:800 27px/1 Rubik;color:#fbf9f7;letter-spacing:-0.045em;font-variant-numeric:tabular-nums" dir="ltr">{{ r }}</div><div style="font:600 9.5px/1 Rubik;color:#8d8279">חזרות</div></div>
+          <div onClick="{{ rPlus }}" style="width:36px;height:40px;border-radius:11px;background:#221c19;display:grid;place-items:center;font:600 21px/1 Rubik;color:#c5bcb4;cursor:pointer;user-select:none" style-active="background:#2e2622">+</div>
+        </div>
+      </div>
+      <div onClick="{{ primary }}" style="height:72px;border-radius:20px;background:linear-gradient(180deg,#ff8a2b,#e35100);display:grid;place-items:center;font:900 25px/1 Rubik;color:#160b03;cursor:pointer;user-select:none;box-shadow:0 10px 30px -8px rgba(255,106,0,.55)" style-active="background:linear-gradient(180deg,#e35100,#b13c00)">{{ primaryLabel }}</div>
+    </div>
+  </div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">נסה לכתוב: "קח את פס־עכשיו מ־<a class="dv-oid" href="#1a">1a</a> עם ההירו של <a class="dv-oid" href="#1c">1c</a>" · "הפוך את <a class="dv-oid" href="#1d">1d</a> למסך המנוחה הרשמי" · "החל את דפוס <a class="dv-oid" href="#1e">1e</a> על עורך התרגילים"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1680,&quot;height&quot;:1100}}">
+class Component extends DCLogic {
+  state = {
+    w: 52.5, r: 10, logged: [], resting: false, rest: 120, cues: false,
+    nidx: 0, nw: 0, nr: 6, nlog: [], nrest: 0, ncues: false, nfield: 'r',
+    ntune: false, nsetsOv: {}, nrestTotal: 120,
+    nstage: 'work', nRestOn: true, nRateOn: true, nRating: 0, nfull: false,
+    fphase: 'pick', fgrp: 'back', fex: null, fw: 0, fr: 6, flog: [], fsets: 3,
+    fstage: 'work', frest: 0, fchoose: false, fdone: [], ffield: 'w'
+  };
+
+  ex3() {
+    return [
+      { n: 'שכיבות סמיכה', s: 'חזה · טריצפס · משקל גוף', img: './img/t-ex-pushup.png', sets: 2, min: 10, max: 20, bw: true, w: 0, st: 0, r: 12,
+        cues: ['כפות ידיים מעט רחבות מרוחב הכתפיים', 'גוף בקו ישר — בטן ועכוז נעולים', 'מרפקים ב-45 מעלות מהגוף, לא מפושקים לצדדים', 'לרדת עד שהחזה כמעט נוגע ברצפה'] },
+      { n: 'לחיצת חזה במוט', s: 'חזה אמצעי · מוט', img: './img/t-ex-bench.png', sets: 2, min: 8, max: 12, bw: false, w: 62.5, st: 2.5, r: 10,
+        cues: ['שכמות נעולות אחורה ולמטה', 'המוט יורד לגובה הפטמות', 'רגליים לוחצות ברצפה כל הסט'] },
+      { n: 'לחיצת חזה במכונה', s: 'חזה אמצעי · מכונה', img: './img/t-ex-machine.png', sets: 2, min: 8, max: 12, bw: false, w: 45, st: 5, r: 10,
+        cues: ['מושב בגובה שהידיות בקו החזה', 'לא לנעול מרפקים בסוף הדחיפה', 'נשיפה בדחיפה, שאיפה בחזרה'] },
+      { n: 'מקבילים במכונה', s: 'חזה תחתון · מכונה', img: './img/t-ex-dip.png', sets: 2, min: 8, max: 12, bw: false, w: 35, st: 5, r: 10,
+        cues: ['להטות את הגוף קדימה — כך החזה עובד ולא הטריצפס', 'מרפקים צמודים לגוף'] },
+      { n: 'פרפר במכונה בשיפוע', s: 'חזה · מכונה', img: './img/t-ex-fly.png', sets: 2, min: 10, max: 15, bw: false, w: 30, st: 5, r: 12,
+        cues: ['מרפקים כפופים קלות וקבועים בזווית', 'לסחוט שנייה בסוף התנועה'] }
+    ];
+  }
+
+  ex4() {
+    return {
+      legs: [
+        { n: 'לחיצת רגליים', g: 'מכונה', img: './img/t-ex-legpress.png', w: 80, st: 10, last: null },
+        { n: 'פשיטת ברכיים בישיבה', g: 'מכונה', img: './img/t-ex-legext.png', w: 35, st: 5, last: null }
+      ],
+      back: [
+        { n: 'משיכת פולי עליון', g: 'כבל', img: './img/t-ex-pulldown.png', w: 45, st: 5, last: null },
+        { n: 'חתירה בכבל בישיבה', g: 'כבל', img: './img/t-ex-row.png', w: 40, st: 5, last: null },
+        { n: 'חתירה במכונה', g: 'מכונה', img: './img/t-ex-machrow.png', w: 35, st: 5, last: null },
+        { n: 'מתח', g: 'משקל גוף', img: './img/t-ex-pullup.png', bw: true, w: 0, st: 0, last: null }
+      ],
+      shoulders: [
+        { n: 'לחיצת כתפיים במכונה', g: 'מכונה', img: './img/t-ex-shpress.png', w: 30, st: 5, last: null },
+        { n: 'הרמה לצדדים בכבל', g: 'כבל', img: './img/t-ex-lateral.png', w: 7.5, st: 2.5, last: null },
+        { n: 'משיכת פנים בכבל', g: 'כבל', img: './img/t-ex-facepull.png', w: 15, st: 2.5, last: null }
+      ],
+      biceps: [
+        { n: 'כפיפות מרפקים עם דאמבלים', g: 'דאמבלים', img: './img/t-ex-curl.png', w: 10, st: 2, last: null }
+      ],
+      chest: [
+        { n: 'לחיצת חזה במוט', g: 'מוט', img: './img/t-ex-bench.png', w: 62.5, st: 2.5, last: { w: 62.5, r: 11, rir: 2 } },
+        { n: 'לחיצת חזה במכונה', g: 'מכונה', img: './img/t-ex-machine.png', w: 45, st: 5, last: { w: 45, r: 10, rir: 3 } },
+        { n: 'מקבילים במכונה', g: 'מכונה', img: './img/t-ex-dip.png', w: 35, st: 5, last: null },
+        { n: 'פרפר במכונה בשיפוע', g: 'מכונה', img: './img/t-ex-fly.png', w: 30, st: 5, last: null },
+        { n: 'שכיבות סמיכה', g: 'משקל גוף', img: './img/t-ex-pushup.png', bw: true, w: 0, st: 0, last: { w: 0, r: 12, rir: 1 } }
+      ],
+      triceps: [], abs: [], forearms: []
+    };
+  }
+
+  groups4() {
+    return [
+      { id: 'legs', n: 'רגליים', img: './img/g-legs.png', rec: 'לא נגעת', tone: 'fresh' },
+      { id: 'back', n: 'גב', img: './img/g-back.png', rec: 'לא נגעת', tone: 'fresh' },
+      { id: 'shoulders', n: 'כתפיים', img: './img/g-shoulders.png', rec: 'לא נגעת', tone: 'fresh' },
+      { id: 'biceps', n: 'יד קדמית', img: './img/g-biceps.png', rec: 'לא נגעת', tone: 'fresh' },
+      { id: 'abs', n: 'בטן', img: './img/g-abs.png', rec: 'לא נגעת', tone: 'fresh' },
+      { id: 'forearms', n: 'אמות', img: './img/g-forearms.png', rec: 'לא נגעת', tone: 'fresh' },
+      { id: 'triceps', n: 'יד אחורית', img: './img/g-triceps.png', rec: 'נח 2 ימים', tone: 'ok' },
+      { id: 'chest', n: 'חזה', img: './img/g-chest.png', rec: 'אתמול · עדיין עייף', tone: 'tired' }
+    ];
+  }
+
+  f4Start(gid, ix) {
+    const e = this.ex4()[gid][ix];
+    this.setState((st) => ({
+      fphase: 'work', fgrp: gid, fex: e,
+      fw: e.last ? e.last.w : e.w, fr: 6, flog: [], fsets: st.fsets,
+      fstage: 'work', frest: 0, ffield: e.bw ? 'r' : 'w'
+    }));
+  }
+
+  f4Primary() {
+    const st = this.state, e = st.fex, target = st.fsets;
+    if (st.fstage === 'rest') return this.setState({ fstage: 'work', frest: 0 });
+    const log = st.flog.concat([{ w: st.fw, r: st.fr }]);
+    if (log.length >= target) {
+      const best = e.bw ? Math.max.apply(null, log.map((x) => x.r)) + ' חזרות' : Math.max.apply(null, log.map((x) => x.w)) + ' ק״ג';
+      return this.setState({
+        flog: log, fstage: 'rest', frest: 120, fchoose: true,
+        fdone: st.fdone.concat([{ name: e.n, img: e.img, sets: log.length, best: best, grp: st.fgrp }])
+      });
+    }
+    this.setState({ flog: log, fstage: 'rest', frest: 120, fchoose: false });
+  }
+
+  turn4() {
+    const s = this.state, EX = this.ex4(), G = this.groups4();
+    const fmt = (v) => (Math.round(v * 10) % 10 === 0 ? String(Math.round(v)) : v.toFixed(1));
+    const toneC = { fresh: '#4ade80', ok: '#c5bcb4', tired: '#ffb066' };
+    const gName = (id) => (G.filter((g) => g.id === id)[0] || {}).n || '';
+    const doneGrps = s.fdone.map((d) => d.grp);
+    const out = {
+      fPick: s.fphase === 'pick',
+      fList: s.fphase === 'list',
+      fWork: s.fphase === 'work',
+      fGroups: G.map((g) => ({
+        n: g.n, img: g.img, rec: g.rec, c: toneC[g.tone],
+        bd: g.tone === 'fresh' ? 'rgba(74,222,128,.22)' : '#221c19',
+        open: ((id) => () => this.setState({ fphase: 'list', fgrp: id }))(g.id)
+      })),
+      fBack: () => this.setState((st) => ({ fphase: st.fdone.length || st.fex ? 'work' : 'pick' })),
+      fToPick: () => this.setState({ fphase: 'pick' }),
+      fReset: () => this.setState({ fphase: 'pick', fgrp: null, fex: null, flog: [], fdone: [], fstage: 'work', frest: 0 }),
+      fGrpName: gName(s.fgrp),
+      fEmpty: (EX[s.fgrp] || []).length === 0,
+      fRows: (EX[s.fgrp] || []).map((e, i) => ({
+        n: e.n, img: e.img, g: e.g,
+        last: e.last ? (e.bw ? 'קודם ' + e.last.r + ' חזרות' : 'קודם ' + fmt(e.last.w) + ' × ' + e.last.r) : 'ראשון · נקבע בסיס היום',
+        lastC: e.last ? '#c5bcb4' : '#ffb066',
+        tip: e.last ? (e.last.rir >= 3 ? '+' + fmt(e.st) + ' מומלץ' : 'אותו משקל') : '',
+        tipShow: !!e.last,
+        pick: ((ix) => () => this.f4Start(s.fgrp, ix))(i)
+      }))
+    };
+    if (s.fphase !== 'work' || !s.fex) return out;
+
+    const e = s.fex, done = s.flog.length, target = s.fsets, last = e.last;
+    const segs = [];
+    for (let k = 0; k < target; k++) segs.push({ bg: k < done ? 'linear-gradient(90deg,#ff6a00,#ffb066)' : '#2e2622' });
+    const chip = (label, hot, pick) => ({
+      label, pick,
+      bd: hot ? '#b13c00' : '#2e2622',
+      bg: hot ? 'rgba(255,106,0,.14)' : '#131010',
+      fg: hot ? '#ffb066' : '#c5bcb4'
+    });
+    let chips;
+    if (e.bw) {
+      chips = [6, 8, 10, 12, 15].map((v) => chip(String(v), s.fr === v, () => this.setState({ fr: v })));
+    } else if (last) {
+      chips = [
+        chip('קודם ' + fmt(last.w) + ' × ' + last.r, s.fw === last.w, () => this.setState({ fw: last.w })),
+        chip(last.rir >= 3 ? 'היה קל → ' + fmt(last.w + e.st) : 'נסה ' + fmt(last.w + e.st), s.fw === last.w + e.st, () => this.setState({ fw: last.w + e.st })),
+        chip(fmt(last.w + e.st * 2), s.fw === last.w + e.st * 2, () => this.setState({ fw: last.w + e.st * 2 }))
+      ];
+    } else if (done === 0) {
+      chips = [];
+    } else {
+      chips = [
+        chip('היה קל → ' + fmt(s.fw + (e.st || 2.5)), false, () => this.setState({ fw: s.fw + (e.st || 2.5) })),
+        chip('היה נכון → אותו משקל', true, () => {}),
+        chip('היה כבד → ' + fmt(Math.max(0, s.fw - (e.st || 2.5))), false, () => this.setState({ fw: Math.max(0, s.fw - (e.st || 2.5)) }))
+      ];
+    }
+    const fresh = G.filter((g) => g.tone === 'fresh' && doneGrps.indexOf(g.id) < 0 && (EX[g.id] || []).length && g.id !== s.fgrp);
+    const sameLeft = (EX[s.fgrp] || []).filter((x) => x.n !== e.n);
+    const sugg = [];
+    if (sameLeft.length) {
+      const x = sameLeft[0];
+      sugg.push({
+        n: x.n, img: x.img, why: 'עוד ל' + gName(s.fgrp), c: '#ffb066',
+        meta: x.last ? 'קודם ' + fmt(x.last.w) + ' × ' + x.last.r : 'ראשון',
+        pick: () => this.f4Start(s.fgrp, EX[s.fgrp].indexOf(x))
+      });
+    }
+    if (fresh.length) {
+      const g2 = fresh[0], x2 = EX[g2.id][0];
+      sugg.push({
+        n: x2.n, img: x2.img, why: g2.n + ' · טרי', c: '#4ade80',
+        meta: x2.last ? 'קודם ' + fmt(x2.last.w) + ' × ' + x2.last.r : 'ראשון',
+        pick: () => this.f4Start(g2.id, 0)
+      });
+    }
+    return Object.assign(out, {
+      fName: e.n, fImg: e.img, fSub: gName(s.fgrp) + ' · ' + e.g,
+      fSegs: segs,
+      fSetLine: 'סט ' + Math.min(done + 1, target) + ' מתוך ' + target,
+      fHasLog: done > 0,
+      fLogText: s.flog.map((x) => (e.bw ? x.r + ' חזרות' : fmt(x.w) + ' × ' + x.r)).join('  ·  '),
+      fWorking: s.fstage === 'work',
+      fResting: s.fstage === 'rest',
+      fHasWeight: !e.bw,
+      fBw: e.bw,
+      fW: fmt(s.fw), fR: s.fr,
+      fChips: chips,
+      fHint: !e.bw && !last && done === 0,
+      fChipsRow: chips.length > 0,
+      fCta: done + 1 >= target ? 'סיים תרגיל' : 'סיים סט',
+      fRestLabel: Math.floor(s.frest / 60) + ':' + String(s.frest % 60).padStart(2, '0'),
+      fRestPct: Math.max(0, Math.min(100, ((120 - s.frest) / 120) * 100)).toFixed(0) + '%',
+      fChoose: s.fchoose,
+      fNextSet: !s.fchoose,
+      fSugg: sugg,
+      fNextLine: e.bw ? s.fr + ' חזרות' : fmt(s.fw) + ' ק״ג × ' + s.fr,
+      fDone: s.fdone,
+      fNoDone: s.fdone.length === 0,
+      fDoneLine: s.fdone.length
+        ? s.fdone.length + (s.fdone.length === 1 ? ' תרגיל' : ' תרגילים') + ' · ' + s.fdone.reduce((a, d) => a + d.sets, 0) + ' סטים'
+        : 'התרגיל הראשון',
+      fFreshLine: fresh.length ? 'טרי עדיין: ' + fresh.map((g) => g.n).join(' · ') : 'עברת על כל השרירים הטריים',
+      fWPlus: () => this.setState((st) => ({ fw: Math.round((st.fw + (e.st || 2.5)) * 10) / 10 })),
+      fWMinus: () => this.setState((st) => ({ fw: Math.max(0, Math.round((st.fw - (e.st || 2.5)) * 10) / 10) })),
+      fRPlus: () => this.setState((st) => ({ fr: st.fr + 1 })),
+      fRMinus: () => this.setState((st) => ({ fr: Math.max(1, st.fr - 1) })),
+      fPlus30: () => this.setState((st) => ({ frest: st.frest + 30 })),
+      fPrimary: () => this.f4Primary(),
+      fSetsPlus: () => this.setState((st) => ({ fsets: Math.min(6, st.fsets + 1) })),
+      fSetsMinus: () => this.setState((st) => ({ fsets: Math.max(Math.max(1, s.flog.length), st.fsets - 1) }))
+    });
+  }
+
+  advance3() {
+    const EX = this.ex3(), st = this.state;
+    const ni = (st.nidx + 1) % EX.length, e2 = EX[ni];
+    this.setState({
+      nidx: ni, nlog: [], nw: e2.w, nr: 6, ncues: false, ntune: false, nRating: 0,
+      nfield: e2.bw ? 'r' : 'w',
+      nstage: st.nRestOn ? 'rest' : 'work',
+      nrest: st.nRestOn ? st.nrestTotal : 0
+    });
+  }
+
+  finishRating() { this.advance3(); }
+
+  turn3() {
+    const EX = this.ex3(), s = this.state, ex = EX[s.nidx], done = s.nlog.length;
+    const target = s.nsetsOv[s.nidx] || ex.sets;
+    const fmt = (v) => (Math.round(v * 10) % 10 === 0 ? String(Math.round(v)) : v.toFixed(1));
+    const segs = [];
+    for (let k = 0; k < target; k++) {
+      segs.push({ bg: k < done ? 'linear-gradient(90deg,#ff6a00,#ffb066)' : '#2e2622' });
+    }
+    const wo = EX.map((e, i) => ({
+      bg: i < s.nidx ? 'rgba(74,222,128,.5)' : i === s.nidx ? 'linear-gradient(90deg,#ff6a00,#ffb066)' : '#221c19'
+    }));
+    const chip = (label, hot, pick) => ({
+      label,
+      pick,
+      bd: hot ? '#b13c00' : '#2e2622',
+      bg: hot ? 'rgba(255,106,0,.14)' : '#131010',
+      fg: hot ? '#ffb066' : '#c5bcb4'
+    });
+    let chips = [];
+    if (s.nfield === 'w' && !ex.bw) {
+      chips.push(chip('המלצה ' + fmt(ex.w), s.nw === ex.w, () => this.setState({ nw: ex.w })));
+      const prev = ex.w - ex.st;
+      chips.push(chip('קודם ' + fmt(prev), s.nw === prev, () => this.setState({ nw: prev, nr: ex.r })));
+      chips.push(chip(fmt(ex.w + ex.st), s.nw === ex.w + ex.st, () => this.setState({ nw: ex.w + ex.st })));
+      chips.push(chip(fmt(ex.w + ex.st * 2), s.nw === ex.w + ex.st * 2, () => this.setState({ nw: ex.w + ex.st * 2 })));
+    } else {
+      const pick = (val) => () => this.setState({ nr: val });
+      chips.push(chip('6', s.nr === 6, pick(6)));
+      const span = ex.max - ex.min, step = span > 5 ? Math.ceil(span / 4) : 1;
+      for (let v = ex.min; v <= ex.max; v += step) {
+        if (v !== 6) chips.push(chip(String(v), s.nr === v, pick(v)));
+      }
+      chips = chips.slice(0, 6);
+    }
+    const nxt = EX[(s.nidx + 1) % EX.length];
+    const lastSet = done + 1 >= target;
+    const restTotal = s.nrestTotal;
+    const setOpts = [];
+    for (let v = 1; v <= 5; v++) {
+      setOpts.push({
+        label: String(v),
+        dim: v < Math.max(1, done) ? '.35' : '1',
+        bd: v === target ? '#ff6a00' : '#2e2622',
+        bg: v === target ? 'rgba(255,106,0,.16)' : '#131010',
+        fg: v === target ? '#fbf9f7' : v < done ? '#8d8279' : '#c5bcb4',
+        pick: ((val) => () => {
+          if (val < done) return;
+          this.setState((st) => ({ nsetsOv: Object.assign({}, st.nsetsOv, { [st.nidx]: val }) }));
+        })(v)
+      });
+    }
+    const RATINGS = [
+      { v: 1, label: 'קל מאוד', c: '#4ade80' },
+      { v: 2, label: 'קל', c: '#4ade80' },
+      { v: 3, label: 'בינוני', c: '#e0d9d3' },
+      { v: 4, label: 'קשה', c: '#ffb066' },
+      { v: 5, label: 'קשה מאוד', c: '#fb7185' }
+    ];
+    const rateOpts = RATINGS.map((o) => ({
+      label: o.label,
+      num: String(o.v),
+      bd: s.nRating === o.v ? o.c : 'rgba(255,255,255,.09)',
+      bg: s.nRating === o.v ? o.c + '26' : '#131010',
+      fg: o.c,
+      w: (o.v / 5) * 100 + '%',
+      pick: ((val) => () => this.setState({ nRating: val, nstage: 'rir' }))(o.v)
+    }));
+    const rirOpts = [0, 1, 2, 3, 4].map((v) => ({
+      label: v === 0 ? 'כשל' : String(v),
+      pick: () => this.finishRating()
+    }));
+    return {
+      nWo: wo,
+      nWoLabel: 'תרגיל ' + (s.nidx + 1) + ' מתוך ' + EX.length,
+      nImg: ex.img,
+      nName: ex.n,
+      nSub: ex.s,
+      nSegs: segs,
+      nSetLine: 'סט ' + Math.min(done + 1, target) + ' מתוך ' + target,
+      nTune: s.ntune,
+      nTuneCaret: s.ntune ? '▲' : '▼',
+      nSetOpts: setOpts,
+      nToggleTune: () => this.setState((st) => ({ ntune: !st.ntune })),
+      nAddSet: () => this.setState((st) => ({
+        nsetsOv: Object.assign({}, st.nsetsOv, { [st.nidx]: (st.nsetsOv[st.nidx] || EX[st.nidx].sets) + 1 })
+      })),
+      nRange: ex.min + '–' + ex.max,
+      nHasLog: done > 0,
+      nLogText: s.nlog.map((x) => (ex.bw ? x.r + ' חזרות' : fmt(x.w) + ' × ' + x.r)).join('  ·  '),
+      nWorking: s.nstage === 'work',
+      nResting: s.nstage === 'rest',
+      nRatingStage: s.nstage === 'rate',
+      nRirStage: s.nstage === 'rir',
+      nChipsRow: s.nstage === 'work' && !s.ntune,
+      nTuneRow: s.nstage === 'work' && s.ntune,
+      nRateOpts: rateOpts,
+      nRirOpts: rirOpts,
+      nRatedName: ex.n,
+      nFull: s.nfull,
+      nRingBg: 'conic-gradient(#ff6a00 0 ' + Math.max(0, Math.min(100, ((restTotal - s.nrest) / restTotal) * 100)).toFixed(0) + '%,#2e2622 0)',
+      nFullSetsLine: done === 0 ? target + ' סטים בתרגיל הזה' : done >= target ? 'היעד הושלם — ' + done + ' סטים' : 'סט ' + done + ' הושלם',
+      nFullRemain: target - done > 0 ? (target - done === 1 ? 'נשאר 1' : 'נשארו ' + (target - done)) : '',
+      nFullCta: target - done > 0 ? 'סט הבא' : 'לתרגיל הבא',
+      nNextImg: nxt.img,
+      nNextExName: nxt.n,
+      nNextExSets: nxt.sets + ' סטים',
+      nShares: ex.bw
+        ? [
+            { name: 'חזה', pct: '60%', c: '#ff8a2b', img: './img/mc-chest.png' },
+            { name: 'טריצפס', pct: '20%', c: '#a89f98', img: './img/mc-triceps.png' },
+            { name: 'כתף קדמית', pct: '20%', c: '#a89f98', img: './img/mc-delt.png' }
+          ]
+        : [
+            { name: 'חזה אמצעי', pct: '60%', c: '#ff8a2b', img: './img/mc-chest.png' },
+            { name: 'כתף קדמית', pct: '20%', c: '#a89f98', img: './img/mc-delt.png' },
+            { name: 'טריצפס', pct: '20%', c: '#a89f98', img: './img/mc-triceps.png' }
+          ],
+      nMinus30: () => this.setState((st) => ({ nrest: Math.max(5, st.nrest - 30) })),
+      nOpenFull: () => this.setState({ nfull: true }),
+      nCloseFull: () => this.setState({ nfull: false }),
+      nRestOn: s.nRestOn,
+      nRateOn: s.nRateOn,
+      nRestChip: s.nRestOn ? { bd: 'rgba(255,106,0,.4)', bg: 'rgba(255,106,0,.1)', fg: '#ffb066', label: 'מנוחה' } : { bd: '#2e2622', bg: '#131010', fg: '#8d8279', label: 'מנוחה כבויה' },
+      nRateChip: s.nRateOn ? { bd: 'rgba(255,106,0,.4)', bg: 'rgba(255,106,0,.1)', fg: '#ffb066', label: 'קושי' } : { bd: '#2e2622', bg: '#131010', fg: '#8d8279', label: 'קושי כבוי' },
+      nToggleRest: () => this.setState((st) => ({ nRestOn: !st.nRestOn })),
+      nToggleRate: () => this.setState((st) => ({ nRateOn: !st.nRateOn })),
+      nSkipRir: () => this.finishRating(),
+      nHasWeight: !ex.bw,
+      nBodyweight: ex.bw,
+      nW: fmt(s.nw),
+      nR: s.nr,
+      nWUnit: 'ק״ג',
+      nWBd: s.nfield === 'w' ? 'rgba(255,106,0,.45)' : '#2e2622',
+      nWGlow: s.nfield === 'w' ? '0 0 0 3px rgba(255,106,0,.07)' : 'none',
+      nRBd: s.nfield === 'r' ? 'rgba(255,106,0,.45)' : '#2e2622',
+      nRGlow: s.nfield === 'r' ? '0 0 0 3px rgba(255,106,0,.07)' : 'none',
+      nChips: chips,
+      nPrimaryLabel: lastSet ? 'סיים סט אחרון' : 'סיים סט',
+      nRestLabel: Math.floor(s.nrest / 60) + ':' + String(s.nrest % 60).padStart(2, '0'),
+      nRestPct: Math.max(0, Math.min(100, ((restTotal - s.nrest) / restTotal) * 100)).toFixed(0) + '%',
+      nNextTitle: done >= target || done === 0 ? 'התרגיל הבא' : 'הסט הבא',
+      nNextName: done >= target || done === 0 ? nxt.n : ex.n,
+      nNextLine: done >= target || done === 0
+        ? (nxt.bw ? nxt.r + ' חזרות' : fmt(nxt.w) + ' ק״ג × ' + nxt.r)
+        : (ex.bw ? s.nr + ' חזרות' : fmt(s.nw) + ' ק״ג × ' + s.nr),
+      nCues: s.ncues,
+      nCueCount: ex.cues.length,
+      nCueList: ex.cues,
+      nCuesLabel: s.ncues ? 'סגור' : 'פתח',
+      nDoneLabel: s.nidx > 0 ? s.nidx + ' הושלמו · נשארו ' + (EX.length - s.nidx - 1) : 'נשארו ' + (EX.length - 1),
+      nNext: EX.slice(s.nidx + 1).map((e) => ({
+        img: e.img, name: e.n, meta: e.s, sets: e.sets + '×' + e.min + '–' + e.max
+      })),
+      nToggleCues: () => this.setState((st) => ({ ncues: !st.ncues })),
+      nFocusW: () => this.setState({ nfield: 'w' }),
+      nFocusR: () => this.setState({ nfield: 'r' }),
+      nWPlus: () => this.setState((st) => ({ nw: Math.round((st.nw + (ex.st || 2.5)) * 10) / 10, nfield: 'w' })),
+      nWMinus: () => this.setState((st) => ({ nw: Math.max(0, Math.round((st.nw - (ex.st || 2.5)) * 10) / 10), nfield: 'w' })),
+      nRPlus: () => this.setState((st) => ({ nr: st.nr + 1, nfield: 'r' })),
+      nRMinus: () => this.setState((st) => ({ nr: Math.max(1, st.nr - 1), nfield: 'r' })),
+      nPlus30: () => this.setState((st) => ({ nrest: st.nrest + 30 })),
+      nPrimary: () => {
+        const st = this.state;
+        if (st.nstage === 'rest') return this.setState({ nstage: 'work', nrest: 0, nfull: false });
+        const log = st.nlog.concat([{ w: st.nw, r: st.nr }]);
+        if (log.length >= target) {
+          if (st.nRateOn) return this.setState({ nlog: log, nstage: 'rate', nRating: 0 });
+          return this.advance3();
+        }
+        this.setState({
+          nlog: log,
+          nstage: st.nRestOn ? 'rest' : 'work',
+          nrest: st.nRestOn ? restTotal : 0
+        });
+      }
+    };
+  }
+  componentDidMount() {
+    this.t = setInterval(() => {
+      if (this.state.resting) this.setState(s => (s.rest <= 1 ? { rest: 0, resting: false } : { rest: s.rest - 1 }));
+      if (this.state.nstage === 'rest') this.setState(s => (s.nrest <= 1 ? { nrest: 0, nstage: 'work', nfull: false } : { nrest: s.nrest - 1 }));
+      if (this.state.fstage === 'rest') this.setState(s => (s.frest <= 1 ? { frest: 0, fstage: 'work' } : { frest: s.frest - 1 }));
+    }, 1000);
+  }
+  componentWillUnmount() { clearInterval(this.t); }
+  renderVals() {
+    const s = this.state, total = 3, done = s.logged.length;
+    const R = React.createElement;
+    const plates = [];
+    for (let i = 0; i < total; i++) {
+      plates.push(R('div', { key: i, style: {
+        flex: 1, borderRadius: 3,
+        background: i < done ? 'linear-gradient(180deg,#ffb066,#e35100)' : 'rgba(255,255,255,.14)',
+        boxShadow: i < done ? '0 0 16px -3px rgba(255,106,0,.7)' : 'none'
+      }}));
+    }
+    const best = 52.5;
+    const loggedRows = s.logged.map((x, i) => {
+      const isPr = x.w >= best;
+      return R('div', { key: i, style: {
+        display: 'flex', alignItems: 'center', gap: 10, minHeight: 44, padding: '0 13px',
+        borderRadius: 12, background: '#131010',
+        border: '1px solid ' + (isPr ? 'rgba(74,222,128,.32)' : '#221c19'),
+        animation: 'riseIn .32s cubic-bezier(0.2,0,0,1) both'
+      }},
+        R('div', { style: { font: '700 11px/1 Rubik', color: '#8d8279', width: 34 } }, 'סט ' + (i + 1)),
+        R('div', { style: { font: '700 15px/1 Rubik', color: '#f0ebe6', fontVariantNumeric: 'tabular-nums', direction: 'ltr' } }, x.w + ' × ' + x.r),
+        isPr ? R('div', { style: { marginInlineStart: 'auto', font: '800 10.5px/1 Rubik', color: '#4ade80', letterSpacing: '.06em' } }, 'שיא אישי') : null
+      );
+    });
+    const pct = Math.round(((120 - s.rest) / 120) * 100);
+    return {
+      ...this.turn3(),
+      ...this.turn4(),
+      w: s.w, r: s.r, cues: s.cues, resting: s.resting, working: !s.resting,
+      hasLogged: done > 0, plates, loggedRows,
+      cuesLabel: s.cues ? 'סגור' : 'פתח',
+      setLabel: done >= total ? 'הושלם' : 'סט ' + (done + 1) + ' מתוך ' + total,
+      remainLabel: done >= total ? 'תרגיל הבא' : 'נשארו ' + (total - done),
+      restLabel: Math.floor(s.rest / 60) + ':' + String(s.rest % 60).padStart(2, '0'),
+      ringBg: 'conic-gradient(#ff6a00 0 ' + pct + '%,#221c19 ' + pct + '% 100%)',
+      nextHint: 'הסט הבא — ' + s.w + ' ק״ג לכל צד, ' + s.r + ' חזרות',
+      primaryLabel: s.resting ? 'דלג על המנוחה' : (done >= total ? 'לתרגיל הבא' : 'סיים סט'),
+      primary: () => {
+        if (this.state.resting) return this.setState({ resting: false, rest: 120 });
+        if (this.state.logged.length >= total) return this.setState({ logged: [], rest: 120, resting: false });
+        this.setState(st => ({ logged: st.logged.concat([{ w: st.w, r: st.r }]), resting: true, rest: 120 }));
+      },
+      wPlus: () => this.setState(st => ({ w: Math.round((st.w + 2.5) * 10) / 10 })),
+      wMinus: () => this.setState(st => ({ w: Math.max(0, Math.round((st.w - 2.5) * 10) / 10) })),
+      rPlus: () => this.setState(st => ({ r: st.r + 1 })),
+      rMinus: () => this.setState(st => ({ r: Math.max(1, st.r - 1) })),
+      toggleCues: () => this.setState(st => ({ cues: !st.cues }))
+    };
+  }
+}
+</script>
+</body>
+</html>

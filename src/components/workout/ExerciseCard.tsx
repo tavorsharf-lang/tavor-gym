@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
-import { ChevronDown, Ellipsis, Timer } from 'lucide-react'
+import { ChevronDown, Ellipsis, Minus, Plus, Timer } from 'lucide-react'
 import type {
   AppSettings,
   DraftSet,
@@ -42,6 +42,7 @@ import type { ValueChip } from './ValueChips'
 import { SetTuner } from './SetTuner'
 import { InlineRest } from './InlineRest'
 import { RateStage, RirStage } from './RateStage'
+import { RestChoose } from './RestChoose'
 import { ExerciseActionsSheet } from './ExerciseActionsSheet'
 
 /**
@@ -93,6 +94,16 @@ export interface ExerciseCardProps {
   onStopRest: () => void
   /** התרגיל שמחכה בתור אחרי זה — מה שהמנוחה מכריזה עליו כשהיעד הושלם */
   nextUp: { name: string; targetSets: number; targetReps: string } | null
+  /**
+   * אימון בלי תוכנית.
+   *
+   * שלושה דברים משתנים, וכולם נובעים מאותו מקור: אין תוכנית שקבעה מראש.
+   * אין טווח יעד להציג, סיום התרגיל הוא החלטה ולא הגעה ליעד, ואחריו הבמה
+   * שואלת "מה הלאה" במקום לפתוח את הפריט הבא בתור — כי אין תור.
+   */
+  freestyle: boolean
+  /** פותח את מסך בחירת השריר — "בחר שריר אחר" מתוך המנוחה */
+  onPickMuscle: () => void
 }
 
 /** עורך סט קיים. חי בגיליון נפרד כדי שהמספרים הגדולים לא ידחפו את הכרטיס */
@@ -179,6 +190,8 @@ export function ExerciseCard({
   onAdjustRest,
   onStopRest,
   nextUp,
+  freestyle,
+  onPickMuscle,
 }: ExerciseCardProps): JSX.Element {
   const logSet = useWorkout((s) => s.logSet)
   const updateSet = useWorkout((s) => s.updateSet)
@@ -191,6 +204,8 @@ export function ExerciseCard({
   const setItemRest = useWorkout((s) => s.setItemRest)
   const saveNote = useWorkout((s) => s.saveNote)
   const rate = useWorkout((s) => s.rate)
+  const addExercise = useWorkout((s) => s.addExercise)
+  const setCurrent = useWorkout((s) => s.setCurrent)
   const completeCurrent = useWorkout((s) => s.completeCurrent)
   const workout = useWorkout((s) => s.workout)
   const exercisesById = useWorkout((s) => s.exercisesById)
@@ -222,7 +237,7 @@ export function ExerciseCard({
     מקומי שמנסה לשקף אותו היה יכול להתפצל ממנו. `rate`/`rir` דווקא מקומיים —
     הם חיים רק בין הסט האחרון לתשובה, ואין להם מה לשרוד.
   */
-  const [stage, setStage] = useState<'work' | 'rate' | 'rir'>('work')
+  const [stage, setStage] = useState<'work' | 'rate' | 'rir' | 'choose'>('work')
   const [pendingRating, setPendingRating] = useState<Rating | null>(null)
   /** האריח שהשבבים מדברים עליו */
   const [field, setField] = useState<'weight' | 'reps'>(
@@ -360,6 +375,23 @@ export function ExerciseCard({
     return type === 'warmup' ? Math.round(base * 0.5) : base
   }
 
+  /**
+   * סיום התרגיל.
+   *
+   * באימון חופשי **הפריט נשאר פעיל** ולא נסגר כאן: אין תור שאפשר לפתוח את
+   * הבא בו, וסגירה הייתה מותירה את המסך בלי כרטיס בכלל — בדיוק ברגע שבו
+   * צריך לבחור מה הלאה. הסגירה קורית מעצמה כשבוחרים: `setCurrent` מסמן את
+   * הפעיל הקודם כ-done אם יש בו סטים.
+   */
+  const finishExercise = async (restSeconds: number): Promise<void> => {
+    if (freestyle) {
+      if (restSeconds > 0 && settings.restTimerEnabled) await startRest(item.key, restSeconds)
+      setStage('choose')
+      return
+    }
+    await advance(restSeconds)
+  }
+
   /** סוגר את התרגיל ופותח את הבא, עם מנוחה לפניו אם הטיימר דלוק */
   const advance = async (restSeconds: number): Promise<void> => {
     /*
@@ -400,7 +432,7 @@ export function ExerciseCard({
         setStage('rate')
         return
       }
-      await advance(restSeconds)
+      await finishExercise(restSeconds)
     } finally {
       setBusy(false)
     }
@@ -418,7 +450,31 @@ export function ExerciseCard({
     setBusy(true)
     try {
       await rate(item.key, value, rir)
-      await advance(restFor('work'))
+      await finishExercise(restFor('work'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /**
+   * הצעה נבחרה מתוך המנוחה.
+   *
+   * ‏`restEndsAt` לא נגעים בו — זו כל הפואנטה של הפאנל. `setCurrent` הוא גם
+   * מה שסוגר את התרגיל שיצאנו ממנו: הוא מסמן את הפעיל הקודם כ-done כשיש בו
+   * סטים, ולכן אין כאן `completeCurrent` נפרד שהיה משאיר את המסך בלי כרטיס.
+   */
+  const pickNext = async (next: Exercise): Promise<void> => {
+    if (busy) return
+    setBusy(true)
+    try {
+      const outcome = await addExercise(next.id)
+      if (outcome === 'failed') return
+      const queue = useWorkout.getState().workout?.queue ?? []
+      const key =
+        outcome === 'duplicate'
+          ? (queue.find((q) => q.exerciseId === next.id)?.key ?? null)
+          : (queue.at(-1)?.key ?? null)
+      if (key) await setCurrent(key)
     } finally {
       setBusy(false)
     }
@@ -446,10 +502,18 @@ export function ExerciseCard({
     התרגילים בהתקנה חדשה. כפתור ענום בלי מילה אחת של הסבר היה הופך את המסך
     הראשון של האפליקציה לחידה.
   */
+  const lastSet = workCount + 1 === item.targetSets
+  /*
+    "סיים תרגיל" ולא "סיים סט אחרון" באימון חופשי, וזה לא ניסוח אלא תיאור:
+    שם אין תוכנית שקבעה שזה האחרון — סגירת התרגיל היא ההחלטה עצמה, והכפתור
+    אומר מה היא עושה.
+  */
   const heroLabel = zeroWeight
     ? 'קבע משקל כדי לרשום'
-    : workCount + 1 === item.targetSets
-      ? 'סיים סט אחרון'
+    : lastSet
+      ? freestyle
+        ? 'סיים תרגיל'
+        : 'סיים סט אחרון'
       : 'סיים סט'
 
   const setLine =
@@ -465,6 +529,41 @@ export function ExerciseCard({
     קודמת" — ארבעה מקטעים שכולם ענו על "איזה מספר לשים בשדה".
   */
   const step = weightStep(exercise)
+
+  /*
+    ── כיול ──
+
+    מתחת לעשרה אימונים מתועדים אין לרוב התרגילים "פעם קודמת", ו-`recommendWeight`
+    נשען על היסטוריה שעדיין ריקה. הפתרון הרגיל — נחש, חכה שבוע, תראה בגרף — לא
+    עובד כשאין גרף. במקומו: הסט הראשון קובע בסיס, ומיד אחריו שואלים אם הוא היה
+    נכון. המשקל מתקן את עצמו **באותו אימון**.
+
+    נגזר פר-תרגיל מההיסטוריה ולא מדגל הגדרות ולא מספירת אימונים גלובלית, ולכן
+    תרגיל חדש מקבל כיול גם אחרי שנה באפליקציה. הוא נעלם מעצמו ברגע שיש אימון
+    שמיש אחד — אז יש "פעם קודמת", ומשם ההצעה היא של המנוע.
+
+    **הבחירה לא נשמרת בשום מקום.** היא קלט למשקל, לא נתון: שמירה שלה
+    כ-`ExerciseRating` הייתה יוצרת מסלול דירוג שני לאותו תרגיל לצד שאלון הקושי.
+  */
+  const calibrating = freestyle && !bodyweight && !timed && previousWork.length === 0
+  const calibrationChips = (): ValueChip[] => {
+    const base = lastWork?.weightKg ?? entry.weightKg
+    const options: { id: string; label: string; value: number; picked: boolean }[] = [
+      { id: 'heavy', label: `היה כבד → ${formatKg(round2(base - step))}`, value: round2(base - step), picked: false },
+      { id: 'right', label: `היה נכון → ${formatKg(base)}`, value: base, picked: true },
+      { id: 'light', label: `היה קל → ${formatKg(round2(base + step))}`, value: round2(base + step), picked: false },
+    ]
+    return options
+      .filter((o) => o.value > 0)
+      .map((o) => ({
+        id: o.id,
+        label: o.label,
+        picked: Math.abs(entry.weightKg - o.value) < 1e-9,
+        ariaLabel: `${o.label.split(' → ')[0]} — ${formatWeight(o.value, exercise.weightMode)} בסט הבא`,
+        onPick: () => setEntry((e) => ({ ...e, weightKg: o.value })),
+      }))
+  }
+
   const weightChips = (): ValueChip[] => {
     const out: ValueChip[] = []
     const seen = new Set<number>()
@@ -502,7 +601,11 @@ export function ExerciseCard({
       onPick: () => setEntry((e) => ({ ...e, reps: n })),
     }))
 
-  const chips = field === 'weight' && !bodyweight ? weightChips() : repChips()
+  const chips = calibrating
+    ? calibrationChips()
+    : field === 'weight' && !bodyweight
+      ? weightChips()
+      : repChips()
 
   const resting = rest !== null && stage === 'work'
   /*
@@ -577,10 +680,41 @@ export function ExerciseCard({
             className={`shrink-0 text-bone-500 transition-transform ${tuneOpen ? 'rotate-180' : ''}`}
           />
         </button>
-        {/* אי LTR: בלי זה "8–12" מוצג כ-"12–8" ונקרא כטווח יורד */}
-        <span dir="ltr" className="tnum shrink-0 text-xs font-bold text-bone-500">
-          {formatRepRange(item.targetReps, exercise.metric)}
-        </span>
+        {freestyle ? (
+          /*
+            סטפר במקום טווח היעד: באימון חופשי אין תוכנית שקבעה טווח, ולעומת
+            זאת "כמה סטים" היא שאלה חיה שנשאלת תוך כדי. הוויזואל 30×28 והאצבע
+            44 — הרקע נצבע על הפנימי בלבד, והעטיפה רק מרחיבה את שטח הלחיצה.
+          */
+          <span dir="ltr" className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              aria-label="סט אחד פחות"
+              disabled={item.targetSets <= Math.max(1, workCount)}
+              onClick={() => void setTargetSets(item.key, item.targetSets - 1)}
+              className="-my-2 -mx-1 px-1 py-2 disabled:opacity-30"
+            >
+              <span className="flex h-7 w-[30px] items-center justify-center rounded-[9px] border border-ink-700 bg-ink-900 text-sm font-bold text-bone-300">
+                <Minus size={13} strokeWidth={3} />
+              </span>
+            </button>
+            <button
+              type="button"
+              aria-label="סט אחד יותר"
+              onClick={() => void setTargetSets(item.key, item.targetSets + 1)}
+              className="-my-2 -mx-1 px-1 py-2"
+            >
+              <span className="flex h-7 w-[30px] items-center justify-center rounded-[9px] border border-ink-700 bg-ink-900 text-sm font-bold text-bone-300">
+                <Plus size={13} strokeWidth={3} />
+              </span>
+            </button>
+          </span>
+        ) : (
+          /* אי LTR: בלי זה "8–12" מוצג כ-"12–8" ונקרא כטווח יורד */
+          <span dir="ltr" className="tnum shrink-0 text-xs font-bold text-bone-500">
+            {formatRepRange(item.targetReps, exercise.metric)}
+          </span>
+        )}
       </div>
 
       {/*
@@ -606,7 +740,18 @@ export function ExerciseCard({
               </span>
             ))}
           </span>
-          {hasPr ? (
+          {/*
+            הכיול קודם לשיא, ובכוונה.
+
+            הסט הראשון בתרגיל שאין לו היסטוריה הוא **תמיד** שיא — אין מול מה
+            להשוות — ולכן תג "שיא" עליו אינו הישג אלא טאוטולוגיה, ו-"בסיס נקבע"
+            לעולם לא היה מגיע למסך. השיא האמיתי מתחיל מהאימון השני.
+          */}
+          {calibrating ? (
+            <span className="shrink-0 text-[0.625rem] leading-none font-extrabold tracking-[0.06em] text-pr-400">
+              בסיס נקבע
+            </span>
+          ) : hasPr ? (
             <span className="shrink-0 text-[0.625rem] leading-none font-extrabold text-pr-400">
               שיא
             </span>
@@ -629,6 +774,15 @@ export function ExerciseCard({
           <RateStage exerciseName={exercise.name} selected={pendingRating} onPick={pickRating} />
         ) : stage === 'rir' ? (
           <RirStage onPick={(rir) => finishRating(rir)} onSkip={() => finishRating(null)} />
+        ) : stage === 'choose' ? (
+          <RestChoose
+            currentGroup={exercise.muscleGroup}
+            rest={rest}
+            onPick={(next) => void pickNext(next)}
+            onOtherMuscle={onPickMuscle}
+            onOpenFull={onOpenFullRest}
+            onAdd30={() => onAdjustRest(30)}
+          />
         ) : resting && rest ? (
           <InlineRest
             endsAt={rest.endsAt}
@@ -708,6 +862,14 @@ export function ExerciseCard({
                   <Timer size={16} aria-hidden="true" />
                   מדוד עם סטופר — היעד {formatClock(item.targetReps.min)}
                 </button>
+              ) : calibrating && sets.length === 0 ? (
+                /*
+                  לפני הסט הראשון אין מה להציע ואין מה לכייל — יש רק להסביר
+                  לפי מה לבחור. זה טקסט ולא כפתור, ולכן אין כאן שום דבר לחיץ.
+                */
+                <p className="flex h-full items-center rounded-xl border border-flame-500/25 bg-flame-500/[0.07] px-3 text-[0.71875rem] leading-tight font-semibold text-flame-300">
+                  בסיס: משקל שאתה בטוח בו ל-6 חזרות. נכייל אחרי הסט.
+                </p>
               ) : chips.length > 0 ? (
                 <ValueChips chips={chips} />
               ) : (
