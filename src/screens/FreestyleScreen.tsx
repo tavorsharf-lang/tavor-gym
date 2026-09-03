@@ -121,9 +121,13 @@ export function FreestyleScreen(): JSX.Element | null {
           recommendation: recommendWeight(exercise, rows, exercise.targetReps, now),
         }
       })
-    ).then((next) => {
-      if (!cancelled) setPicks(next)
-    })
+    )
+      .then((next) => {
+        if (!cancelled) setPicks(next)
+      })
+      // ‏catch: מסד שנסגר תחת המסך דוחה כל שאילתה שהייתה באוויר, וההמלצות
+      // הן ליטוש — היעדרן לעולם לא אמור להפיל משהו
+      .catch(() => {})
     return () => {
       cancelled = true
     }

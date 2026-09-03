@@ -189,11 +189,21 @@ export function WorkoutScreen(): JSX.Element | null {
       return
     }
     let cancelled = false
-    void getExerciseHistory(activeExerciseId).then((rows) => {
-      if (cancelled) return
-      setHistory(rows)
-      setHistoryFor(activeExerciseId)
-    })
+    void getExerciseHistory(activeExerciseId)
+      .then((rows) => {
+        if (cancelled) return
+        setHistory(rows)
+        setHistoryFor(activeExerciseId)
+      })
+      /*
+        קריאה למסד שנשלחה ואיש לא ממתין לה חייבת `catch`.
+
+        ‏Dexie דוחה כל שאילתה שהייתה באוויר כשהמסד נסגר (`DatabaseClosedError`),
+        וזה קורה באמת: "מחק הכל" בהגדרות סוגר ופותח את המסד בזמן שמסכים מורכבים.
+        בלי הענף הזה זו דחייה בלתי מטופלת — שגיאה גלובלית על נתון שממילא כבר
+        לא רלוונטי, כי המסך שביקש אותו נמצא בדרך החוצה.
+      */
+      .catch(() => {})
     return () => {
       cancelled = true
     }

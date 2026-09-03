@@ -363,7 +363,11 @@ export function SummaryScreen(): JSX.Element {
   }, [sessionId])
 
   useEffect(() => {
-    void getSettings().then((s) => setConfettiEnabled(s.confettiEnabled))
+    // ‏catch: המסד יכול להיסגר תחת המסך ("מחק הכל"), ודחייה בלתי מטופלת על
+    // דגל קונפטי היא שגיאה גלובלית על נתון שאפשר לוותר עליו
+    void getSettings()
+      .then((s) => setConfettiEnabled(s.confettiEnabled))
+      .catch(() => {})
   }, [])
 
   /*

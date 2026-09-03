@@ -123,7 +123,11 @@ export function RestChoose({
       }
 
       setSuggestions(out)
-    })()
+    })().catch(() => {
+      // מסד שנסגר תחת הפאנל דוחה את השאילתות שהיו באוויר. הפאנל מציג אז
+      // "בחר שריר אחר" לבדו, וזה בדיוק המצב הנכון — לא שגיאה גלובלית.
+      if (!cancelled) setSuggestions([])
+    })
     return () => {
       cancelled = true
     }

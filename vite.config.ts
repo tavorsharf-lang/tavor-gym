@@ -136,5 +136,23 @@ export default defineConfig({
       אחוזים ולא מספר קבוע, כדי שזה יחזיק גם על מכונה אחרת.
     */
     maxWorkers: '50%',
+    /*
+      דחייה אחת מסוננת, ובכוונה רק היא.
+
+      ‏`resetAll` של בדיקות המסך מוחק את המסד בין בדיקה לבדיקה, ו-Dexie דוחה
+      כל קריאה שהייתה באוויר באותו רגע (`DatabaseClosedError`). זו תופעה של
+      *הפירוק* ולא של האפליקציה: הרכיב שביקש את הנתון כבר פורק על ידי
+      ‏`cleanup` של testing-library, אין מי שממתין לתשובה, ואין דרך לבטל
+      קריאת IndexedDB שכבר יצאה.
+
+      השם הספציפי הוא כל ההגנה — כל דחייה אחרת עדיין מפילה את ההרצה, ולכן
+      השער לא נפרץ. **אין להרחיב את התנאי הזה.** אם מופיעה דחייה חדשה, היא
+      באג שצריך לתקן בקוד ולא סוג נוסף להוסיף כאן.
+    */
+    onUnhandledError(error) {
+      const name = (error as { name?: string; inner?: { name?: string } }).name
+      const inner = (error as { inner?: { name?: string } }).inner?.name
+      if (name === 'DatabaseClosedError' || inner === 'DatabaseClosedError') return false
+    },
   },
 })
