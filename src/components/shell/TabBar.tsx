@@ -2,6 +2,14 @@ import { NavLink } from 'react-router-dom'
 import { Dumbbell, History, LineChart, Settings } from 'lucide-react'
 import type { ComponentType } from 'react'
 
+/**
+ * המסלולים שבהם הסרגל התחתון מוצג — ולכן גם המסלולים שבהם "בית" כבר על המסך.
+ *
+ * מיוצא כדי שיהיה מקור אחד: `App` מחליט לפיו אם לרנדר את הסרגל, ו-`ScreenHeader`
+ * מחליט לפיו אם להוסיף כפתור בית משלו. שתי רשימות היו נפרדות ביום שיתווסף מסלול.
+ */
+export const TAB_ROUTES = ['/', '/history', '/stats', '/settings']
+
 const TABS: { to: string; label: string; Icon: ComponentType<{ size?: number; strokeWidth?: number }> }[] = [
   { to: '/', label: 'בית', Icon: Dumbbell },
   { to: '/history', label: 'היסטוריה', Icon: History },

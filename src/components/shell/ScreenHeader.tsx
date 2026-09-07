@@ -1,6 +1,46 @@
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, House } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useBack } from '@/hooks/useBack'
+import { TAB_ROUTES } from './TabBar'
+
+/**
+ * "חזרה לדף הבית" — הדרך הקצרה החוצה, מכל מסך.
+ *
+ * חזרה אחורה מטפסת רשומה אחת בכל לחיצה, ומסך שנפתח מתוך מסך שנפתח מתוך גיליון
+ * דורש שלוש. הבית הוא `replace` ולא רשומה חדשה: ערימת היסטוריה שמתנפחת היא מה
+ * שהופך את מחוות ההחלקה של iOS לטיול דרך עותקים של אותו מסך.
+ *
+ * מיוצא כי שלושה מסכים מחזיקים כותרת משלהם (האימון, האימון החופשי) ולא את
+ * `ScreenHeader` — והכפתור חייב להיראות ולהתנהג בהם אותו דבר.
+ */
+export function HomeButton({
+  compact = false,
+  className = '',
+}: {
+  /** הצורה של כותרת האימון — ריבוע 34 עם מסגרת, כמו ה-`+` שלידו */
+  compact?: boolean
+  className?: string
+}) {
+  const navigate = useNavigate()
+  return (
+    <button
+      type="button"
+      onClick={() => navigate('/', { replace: true })}
+      aria-label="חזרה לדף הבית"
+      className={[
+        'relative flex shrink-0 items-center justify-center active:bg-ink-800',
+        // הוויזואל 34 והאצבע 44 — הפסאודו מרחיב את שטח הלחיצה בלי לשנות גובה
+        compact
+          ? "size-[34px] rounded-[11px] border border-ink-700 bg-ink-900 text-bone-500 after:absolute after:-inset-[5px] after:content-['']"
+          : 'size-11 rounded-full text-bone-400',
+        className,
+      ].join(' ')}
+    >
+      <House size={compact ? 18 : 20} />
+    </button>
+  )
+}
 
 /**
  * כותרת מסך אחידה עם חזרה.
@@ -31,6 +71,12 @@ export function ScreenHeader({
 }) {
   const goBack = useBack(fallback)
   const back = onBack ?? goBack
+  /*
+    במסכי הסרגל התחתון "בית" כבר יושב על המסך, וכפתור שני באותו יעד היה רעש
+    ולא קיצור. בכל שאר המסכים אין סרגל, ושם הוא הדרך היחידה החוצה בלחיצה אחת.
+  */
+  const { pathname } = useLocation()
+  const showHome = !TAB_ROUTES.includes(pathname)
 
   return (
     <header
@@ -49,6 +95,7 @@ export function ScreenHeader({
         {subtitle && <p className="truncate text-xs text-bone-500">{subtitle}</p>}
       </div>
       {action}
+      {showHome && <HomeButton className="-me-2" />}
     </header>
   )
 }

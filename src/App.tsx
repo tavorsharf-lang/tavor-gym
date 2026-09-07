@@ -12,7 +12,7 @@ import { useScrollMemory } from '@/hooks/useScrollMemory'
 import { useColdLaunchHome } from '@/hooks/useColdLaunchHome'
 import { ensurePersisted } from '@/hooks/useStorageStatus'
 import { ToastHost } from '@/components/ui'
-import { TabBar } from '@/components/shell/TabBar'
+import { TAB_ROUTES, TabBar } from '@/components/shell/TabBar'
 import { UpdateBanner } from '@/components/shell/UpdateBanner'
 import { WelcomeScreen } from '@/screens/WelcomeScreen'
 import { HomeScreen } from '@/screens/HomeScreen'
@@ -32,9 +32,6 @@ import { ExerciseEditorScreen } from '@/screens/settings/ExerciseEditorScreen'
 import { PlanEditorScreen } from '@/screens/settings/PlanEditorScreen'
 import { MediaScreen } from '@/screens/settings/MediaScreen'
 import { BackupScreen } from '@/screens/settings/BackupScreen'
-
-/** המסכים שבהם מוצג סרגל הניווט התחתון. באימון פעיל הוא נעלם. */
-const TAB_ROUTES = ['/', '/history', '/stats', '/settings']
 
 function Shell() {
   /*

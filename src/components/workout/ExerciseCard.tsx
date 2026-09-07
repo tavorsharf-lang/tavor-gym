@@ -384,12 +384,21 @@ export function ExerciseCard({
    * הפעיל הקודם כ-done אם יש בו סטים.
    */
   const finishExercise = async (restSeconds: number): Promise<void> => {
+    /*
+      מנוחה שכבר רצה על התרגיל הזה אינה מתאפסת.
+
+      בזרימה הרגילה אין מנוחה ברגע הזה — הסט שהשלים את היעד דילג עליה בכוונה
+      ופתח את הדירוג. מה שכן מגיע לכאן עם מנוחה חיה הוא סגירה **מתוך** מנוחה:
+      הורדת היעד למספר שכבר בוצע. שם השניות שכבר נספרו הן אותן שניות בדיוק,
+      וטיימר שמתחיל מחדש נראה כמו עונש על ההחלטה.
+    */
+    const seconds = rest !== null ? 0 : restSeconds
     if (freestyle) {
-      if (restSeconds > 0 && settings.restTimerEnabled) await startRest(item.key, restSeconds)
+      if (seconds > 0 && settings.restTimerEnabled) await startRest(item.key, seconds)
       setStage('choose')
       return
     }
-    await advance(restSeconds)
+    await advance(seconds)
   }
 
   /** סוגר את התרגיל ופותח את הבא, עם מנוחה לפניו אם הטיימר דלוק */
@@ -403,6 +412,34 @@ export function ExerciseCard({
     */
     if (restSeconds > 0 && settings.restTimerEnabled) await startRest(item.key, restSeconds)
     await completeCurrent()
+  }
+
+  /**
+   * בחירת יעד מתוך פאנל "כמה סטים היום".
+   *
+   * הורדה של היעד אל מספר שכבר בוצע היא הצהרה ולא כוונון: "תכננתי שניים,
+   * עשיתי אחד, מספיק". לכן היא סוגרת את התרגיל באותו מסלול בדיוק שבו סוגרת
+   * אותו השלמת היעד — כולל שאלון הקושי, אם הוא דלוק.
+   *
+   * ‏`next < item.targetSets` ולא רק `<= workCount`: לחיצה חוזרת על המספר
+   * שכבר נבחר אינה בקשה לסגור שום דבר.
+   */
+  const applyTargetSets = async (next: number): Promise<void> => {
+    if (busy) return
+    const closes = next < item.targetSets && next <= workCount
+    await setTargetSets(item.key, next)
+    if (!closes) return
+    setTuneOpen(false)
+    if (settings.askRating && !rating) {
+      setStage('rate')
+      return
+    }
+    setBusy(true)
+    try {
+      await finishExercise(restFor('work'))
+    } finally {
+      setBusy(false)
+    }
   }
 
   const commitSet = async (type: SetType, weightKg: number, reps: number): Promise<void> => {
@@ -608,6 +645,8 @@ export function ExerciseCard({
       : repChips()
 
   const resting = rest !== null && stage === 'work'
+  /** האם שורת השבבים פנויה — רק אז יש איפה לצייר את "כמה סטים היום" */
+  const canTune = stage === 'work' && !resting
   /*
     מה המנוחה מכריזה עליו. נשאר סט בתרגיל הזה — "הסט הבא", והמספרים הם מה
     שעומד להירשם. היעד הושלם — "התרגיל הבא", ואז מדובר בשורה שאחריו בתור.
@@ -665,10 +704,15 @@ export function ExerciseCard({
       {/* 2 — כמה סטים, כמה נשארו, ומה היעד */}
       <div className="mt-[11px] flex items-center gap-2.5">
         <PlateProgress className="flex-1" total={item.targetSets} states={segments} />
+        {/*
+          הבמה תפוסה במנוחה, בדירוג ובבחירת הבא — ואז אין איפה לפתוח את שורת
+          היעד. במקום נקישה שלא עושה כלום, אותה שאלה נפתחת בגיליון הפעולות,
+          שם היעד יושב גם הוא. זה הרגע שבו באמת שואלים אותה.
+        */}
         <button
           type="button"
-          aria-expanded={tuneOpen}
-          onClick={() => setTuneOpen((v) => !v)}
+          aria-expanded={canTune ? tuneOpen : undefined}
+          onClick={() => (canTune ? setTuneOpen((v) => !v) : setActionsOpen(true))}
           className="relative flex shrink-0 items-center gap-1.5 after:absolute after:inset-x-0 after:-inset-y-[14px] after:content-['']"
         >
           <span className="tnum border-b border-dashed border-flame-400/50 text-xs font-extrabold whitespace-nowrap text-flame-400">
@@ -842,7 +886,7 @@ export function ExerciseCard({
                 <SetTuner
                   targetSets={item.targetSets}
                   doneWorkSets={workCount}
-                  onPick={(next) => void setTargetSets(item.key, next)}
+                  onPick={(next) => void applyTargetSets(next)}
                 />
               ) : timed ? (
                 /*
@@ -1029,12 +1073,15 @@ export function ExerciseCard({
         onClose={() => setActionsOpen(false)}
         exerciseName={exercise.name}
         restSeconds={item.restSeconds}
+        targetSets={item.targetSets}
+        doneWorkSets={workCount}
         canSkip={sets.length === 0}
         onDefer={() => void deferItem(item.key)}
         onSubstitute={onOpenSubstitute}
         onFinishExercise={onFinishExercise}
         onSkip={onSkip}
         onRest={(next) => void setItemRest(item.key, next)}
+        onTargetSets={(next) => void applyTargetSets(next)}
       />
 
       <BottomSheet open={noteOpen} onClose={() => setNoteOpen(false)} title="הערה לתרגיל">

@@ -78,8 +78,11 @@ describe('אימון חופשי', () => {
 
     // ונחתנו על הכרטיס, לא על עוד מסך בחירה
     await screen.findByRole('button', { name: /קבע משקל כדי לרשום|סיים סט/ }, { timeout: SLOW })
-    // אין `+` בכותרת של אימון חופשי — ההוספה יושבת ליד רשימת מה־שנעשה
-    expect(screen.queryByRole('button', { name: 'הוסף תרגיל לאימון' })).toBeNull()
+    /*
+      שתי דלתות לאותה פעולה, ושתיהן קיימות גם באימון חופשי: `+` בכותרת ושורה
+      ליד "מה עשית עד עכשיו". פקד שנעלם בין מצב למצב גרוע משתי דלתות.
+    */
+    expect(screen.getByRole('button', { name: 'הוסף תרגיל לאימון' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'הוסף תרגיל' })).toBeTruthy()
   }, 40000)
 

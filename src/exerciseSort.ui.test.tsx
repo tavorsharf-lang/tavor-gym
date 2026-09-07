@@ -145,34 +145,28 @@ describe('מיון רשימת התרגילים', () => {
     )
   }, 40000)
 
-  it('אותה שורת מיון גם בבורר שבאמצע אימון', async () => {
+  it('אותה שורת מיון גם במסך שמוסיפים ממנו תרגיל באמצע אימון', async () => {
     const user = userEvent.setup()
     await useWorkout.getState().start('F1', [])
     window.location.hash = '#/workout'
     render(<App />)
 
+    /*
+      ההוספה תוך כדי אימון היא מסך מלא ולא גיליון: רשת השרירים, ואז התרגילים
+      של השריר שנבחר. המיון יושב בכותרת של המסך הזה, בדיוק כמו בבונה.
+    */
     await user.click(
       await screen.findByRole('button', { name: 'הוסף תרגיל לאימון' }, { timeout: SLOW })
     )
+    await user.click(await screen.findByRole('button', { name: /^רגליים —/ }, { timeout: SLOW }))
 
-    /*
-      הבורר הוא גיליון מעל מסך האימון, ולכן הטענות נשאלות בתוכו: מסך האימון
-      חי מתחתיו ונושא שמות משלו.
-    */
-    const picker = await screen.findByRole('dialog', {}, { timeout: SLOW })
-    await user.click(within(picker).getByRole('button', { name: 'מיון וסינון' }))
-
-    /*
-      שני גיליונות על המסך יחד — הבורר ותפריט המיון שמעליו. האחרון ב-DOM
-      הוא זה שנפתח עכשיו, וזו אותה אנטומיה שכבר קיימת בהוספת תרגיל מתוך
-      מסך המנוחה.
-    */
-    const sheets = await screen.findAllByRole('dialog', {}, { timeout: SLOW })
-    const menu = sheets[sheets.length - 1]
+    await user.click(await screen.findByRole('button', { name: 'מיון וסינון' }, { timeout: SLOW }))
+    const menu = await screen.findByRole('dialog', {}, { timeout: SLOW })
     await user.click(within(menu).getByRole('button', { name: /^אחוז/ }))
+    // הגיליון נסגר ב-Escape — אין בו כפתור סגירה, הרקע והמקש הם הדרך
     await user.keyboard('{Escape}')
 
-    await waitFor(() => expect(within(picker).getAllByText(/%$/).length).toBeGreaterThan(0), {
+    await waitFor(() => expect(screen.getAllByText(/%$/).length).toBeGreaterThan(0), {
       timeout: SLOW,
     })
   }, 40000)

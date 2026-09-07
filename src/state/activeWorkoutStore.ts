@@ -285,6 +285,9 @@ export const useWorkout = create<WorkoutState>((set, get) => {
           setsByKey: byKey,
           restEndsAt: staleRest ? null : saved.restEndsAt,
           restForKey: staleRest ? null : saved.restForKey,
+          // אימון שנשמר לפני שהשדה קיים: תור של יותר מתרגיל אחד היה בחירה
+          // מראש, כי אימון חופשי מוסיף תרגיל אחד בכל פעם
+          planned: saved.planned ?? saved.queue.length > 1,
         },
         exercisesById: Object.fromEntries(exercises.map((e) => [e.id, e])),
         prCache: prs,
@@ -346,6 +349,8 @@ export const useWorkout = create<WorkoutState>((set, get) => {
         restForKey: null,
         notes: '',
         lastSavedAt: Date.now(),
+        // התור הגיע מתוכנית — הוא מתוכנן מראש גם כשהוא יצא ריק
+        planned: true,
       }
 
       set({
@@ -419,6 +424,13 @@ export const useWorkout = create<WorkoutState>((set, get) => {
         restForKey: null,
         notes: '',
         lastSavedAt: Date.now(),
+        /*
+          מה שמפריד בין הבונה לאימון חופשי, ואין שום דבר אחר שמפריד ביניהם:
+          שניהם `routineId: null`. תור של יותר מתרגיל אחד נבחר מראש — בסל או
+          ב"בנה לי אימון" — ולכן מסך האימון חייב להראות אותו כתור. תרגיל אחד
+          (או אפס, ב"אימון ריק") הוא התחלה של אימון שנבנה תוך כדי.
+        */
+        planned: queue.length > 1,
       }
 
       set({

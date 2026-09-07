@@ -76,7 +76,8 @@ describe('אתרי הקריאה של הנגן והתמונה', () => {
     'screens/ExerciseLibraryScreen.tsx',
     'components/workout/ExerciseCard.tsx',
     'components/workout/SubstituteSheet.tsx',
-    'components/exercises/ExercisePickerSheet.tsx',
+    'screens/FreestyleScreen.tsx',
+    'components/exercises/ExercisePickList.tsx',
     ...LIBRARY_SCREENS,
   ]
 
@@ -122,8 +123,8 @@ describe('אתרי הקריאה של הנגן והתמונה', () => {
     'components/workout/SubstituteSheet.tsx',
     'components/workout/QueueRow.tsx',
     'components/builder/BasketBar.tsx',
-    // הבורר המאוחד — הרשימה שמוסיפים ממנה תרגיל באמצע אימון
-    'components/exercises/ExercisePickerSheet.tsx',
+    // הרשימה שמוסיפים ממנה תרגיל — גם באמצע אימון וגם בפתיחת אימון חופשי
+    'components/exercises/ExercisePickList.tsx',
   ]
 
   it('כל רשימת תרגילים מציגה את כרטיס השרירים ולא פריים מהסרטון', () => {

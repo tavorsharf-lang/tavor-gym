@@ -220,6 +220,38 @@ describe('הסל — מתרגיל בקטלוג המאוחד לאימון', () =>
     expect((await db.activeWorkout.get('current'))?.queue).toHaveLength(2)
   })
 
+  /*
+    ‏`planned` הוא מה שמפריד בין הבונה לאימון חופשי, ואין שום דבר אחר שמפריד
+    ביניהם — שניהם `routineId: null`. בלעדיו מסך האימון הציג תור שנבחר בסל
+    כאילו אין בו אף תרגיל, כי הוא זיהה כל אימון בלי תוכנית כ"אימון חופשי".
+  */
+  it('תור שנבחר מראש מסומן planned, ותרגיל בודד לא', async () => {
+    await useWorkout.getState().startWithItems(['leg-press', 'lat-pulldown'])
+    expect(useWorkout.getState().workout?.planned).toBe(true)
+    expect((await db.activeWorkout.get('current'))?.planned).toBe(true)
+
+    await useWorkout.getState().discard()
+    await useWorkout.getState().startWithItems(['leg-press'])
+    expect(useWorkout.getState().workout?.planned).toBe(false)
+
+    // ואימון מתוכנית מסומן תמיד — התור שלו הגיע מהתוכנית
+    await useWorkout.getState().discard()
+    await useWorkout.getState().start('F1', [])
+    expect(useWorkout.getState().workout?.planned).toBe(true)
+  })
+
+  it('אימון פתוח שנשמר לפני השדה מקבל planned לפי אורך התור', async () => {
+    await useWorkout.getState().startWithItems(['leg-press', 'lat-pulldown'])
+    const saved = await db.activeWorkout.get('current')
+    // שורה כמו זו שנשמרה בגרסה הקודמת — בלי השדה בכלל
+    delete (saved as { planned?: boolean }).planned
+    await db.activeWorkout.put(saved!)
+
+    useWorkout.setState({ workout: null, hydrated: false })
+    await useWorkout.getState().hydrate()
+    expect(useWorkout.getState().workout?.planned).toBe(true)
+  })
+
   it('startWithItems מסנן כפילויות ותרגילים שהוצאו', async () => {
     await db.exercises.update('lat-pulldown', { isActive: false })
     await useWorkout.getState().startWithItems(['leg-press', 'leg-press', 'lat-pulldown'])

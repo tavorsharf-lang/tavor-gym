@@ -12,10 +12,13 @@ import { useWorkout } from './state/activeWorkoutStore'
 /**
  * הוספת תרגיל תוך כדי אימון, ומתג "שלי/הכל" בבניית האימון.
  *
- * מה שנבדק כאן ואי אפשר לבדוק ברמת ה-store: שהבורר באמת מרונדר מתוך מסך
+ * "הוסף תרגיל" מוביל מכל מקום למסך אחד — רשת השרירים ואז התרגילים של השריר
+ * שנבחר. מה שנבדק כאן ואי אפשר לבדוק ברמת ה-store: שהמסך באמת נפתח מתוך
  * האימון, שהמתג באמת מפריד בין הקטלוג למאגר, ושלחיצה על שורת מאגר עוברת את
- * כל השרשרת — `ensureTrainable` יוצר כרטיס, `addExercise` דוחף אותו לתור,
- * והגיליון נשאר פתוח להוספה הבאה.
+ * כל השרשרת — `ensureTrainable` יוצר כרטיס ו-`addExercise` דוחף אותו לתור.
+ *
+ * ושתי ההתנהגויות שקל לשבור: מאימון עם תור ההוספה **לא** קופצת לתרגיל החדש
+ * (`?add=queue`), ותרגיל שכבר באימון מסומן ומושבת.
  *
  * "מכרעים" (`lib-lunge`) נבחר בכוונה: הוא קיים במאגר בלבד ואינו בקטלוג הזרוע,
  * ולכן הוא מוכיח את שני הצדדים של המתג בשורה אחת.
@@ -45,11 +48,12 @@ async function resetAll(): Promise<void> {
 describe('הוספת תרגיל תוך כדי אימון', () => {
   beforeEach(resetAll)
 
-  it('מ"הכל" ישר לתור, בלי לצאת ממסך האימון', async () => {
+  it('מ"הכל" לתור של אימון שרץ — בלי לקפוץ לתרגיל החדש', async () => {
     const user = userEvent.setup()
     await useWorkout.getState().start('F1', [])
     const sessionId = useWorkout.getState().workout?.sessionId
     const before = useWorkout.getState().workout?.queue.length ?? 0
+    const currentKey = useWorkout.getState().workout?.currentKey
 
     window.location.hash = '#/workout'
     render(<App />)
@@ -63,21 +67,18 @@ describe('הוספת תרגיל תוך כדי אימון', () => {
       await screen.findByRole('button', { name: 'הוסף תרגיל לאימון' }, { timeout: SLOW })
     )
 
-    // הגיליון נפתח על "שלי", ותרגיל מאגר לא דולף לשם
+    // רשת השרירים היא הפאזה הראשונה — התווית היא השם ומצב ההתאוששות
+    await user.click(await screen.findByRole('button', { name: /^רגליים —/ }, { timeout: SLOW }))
+
+    // הרשימה נפתחת על "שלי", ותרגיל מאגר לא דולף לשם
     await screen.findByRole('button', { name: 'הכל' }, { timeout: SLOW })
+    await waitFor(() => expect(screen.getByText('לחיצת רגליים')).toBeTruthy(), { timeout: SLOW })
     expect(screen.queryByText('מכרעים')).toBeNull()
 
     await user.click(screen.getByRole('button', { name: 'הכל' }))
     await waitFor(() => expect(screen.getByText('מכרעים')).toBeTruthy(), { timeout: SLOW })
-
-    /*
-      שורת הצ׳יפים עובדת גם כאן, ובאותן שתי רמות: הרמה הראשונה היא קבוצות
-      שריר, ולחיצה על אחת מהן מצמצמת את הגיליון אליה בלבד. זה מה שהופך
-      "עוד משהו לרגליים" באמצע אימון לשתי לחיצות במקום לגלילה.
-    */
-    await user.click(screen.getByRole('button', { name: /^רגליים \d+$/ }))
-    await waitFor(() => expect(screen.queryByText('שכיבות סמיכה')).toBeNull())
-    expect(screen.getByText('מכרעים')).toBeTruthy()
+    // והקטלוג לא נעלם — "הכל" הוא הרחבה ולא החלפה
+    expect(screen.getByText('לחיצת רגליים')).toBeTruthy()
 
     /*
       הלחיצה היא על גוף השורה ולא על הריבוע. השם מופיע בשניהם — הריבוע פותח
@@ -102,27 +103,33 @@ describe('הוספת תרגיל תוך כדי אימון', () => {
     expect(last?.source).toBe('builder')
     // אותו אימון בדיוק — שום סט לא אבד ושום אימון חדש לא נפתח
     expect(useWorkout.getState().workout?.sessionId).toBe(sessionId)
+    /*
+      **התרגיל הפתוח לא זז.** מי שלחץ `+` באמצע תרגיל שהוא בתוכו ביקש עוד
+      תרגיל להמשך ולא לצאת מזה שהוא עושה — זו כל המשמעות של `?add=queue`.
+    */
+    expect(useWorkout.getState().workout?.currentKey).toBe(currentKey)
 
-    // והגיליון נשאר פתוח: חמש הוספות ברצף הן התרחיש, לא החריג
-    expect(screen.getByRole('button', { name: 'הכל' })).toBeTruthy()
+    // וחזרנו למסך האימון, שם הכפתור שממנו יצאנו נמצא שוב
+    await screen.findByRole('button', { name: 'הוסף תרגיל לאימון' }, { timeout: SLOW })
 
     /*
       והשורה שנוספה כבר לא לחיצה. אותו תרגיל פעמיים באותו אימון היה מפצל את
       הסטים בין שתי שורות בתור, ואיתם את ספירת הסטים ואת קריאת השיאים.
 
       מושבתת ולא מוסתרת: שורה שנעלמת מהרשימה נקראת כ"התרגיל איננו", ואז
-      מחפשים אותה שוב. הסימון "כבר באימון" הוא התשובה שבאו לחפש.
+      מחפשים אותה שוב. הסימון "כבר באימון" הוא התשובה שבאו לחפש. הפעם היא
+      כבר ב"שלי" — `ensureTrainable` יצר לה כרטיס — ולכן אין צורך במתג.
     */
-    await waitFor(() => {
-      const row = screen
-        .getAllByText('מכרעים')
-        .map((el) => el.closest('li'))
-        .find((li): li is HTMLLIElement => li !== null)
-      expect(row).not.toBeUndefined()
-      expect(within(row!).getByText('כבר באימון')).toBeTruthy()
-      const button = within(row!).getByText('מכרעים').closest('button') as HTMLButtonElement
-      expect(button.disabled).toBe(true)
-    })
+    await user.click(screen.getByRole('button', { name: 'הוסף תרגיל לאימון' }))
+    await user.click(await screen.findByRole('button', { name: /^רגליים —/ }, { timeout: SLOW }))
+    await waitFor(
+      () => {
+        const again = screen.getByText('מכרעים').closest('button') as HTMLButtonElement
+        expect(again.disabled).toBe(true)
+        expect(within(again).getByText('כבר באימון')).toBeTruthy()
+      },
+      { timeout: SLOW }
+    )
   }, 40000)
 
   it('מסך תרגילי השריר נפתח על "שלי", ו"הכל" חושף את המאגר', async () => {
@@ -169,9 +176,10 @@ describe('הוספת תרגיל תוך כדי אימון', () => {
     expect(workout?.routineId).toBeNull()
     expect(workout?.currentKey).toBeNull()
 
-    // מסך האימון נפתח על המצב הריק, והוא עצמו מציע את הבורר
+    // מסך האימון נפתח על המצב הריק, והוא עצמו מציע את הבחירה
     await screen.findByText('אין תרגילים באימון הזה', {}, { timeout: SLOW })
     await user.click(screen.getByRole('button', { name: 'הוסף תרגיל' }))
+    await user.click(await screen.findByRole('button', { name: /^רגליים —/ }, { timeout: SLOW }))
     await screen.findByRole('button', { name: 'הכל' }, { timeout: SLOW })
 
     const row = (await screen.findByText('לחיצת רגליים', {}, { timeout: SLOW })).closest('button')
@@ -222,8 +230,11 @@ describe('הוספת תרגיל תוך כדי אימון', () => {
       )
     )
 
-    // הבורר נפתח מעל מסך המנוחה, והספירה ממשיכה מתחתיו
-    await screen.findByRole('button', { name: 'הכל' }, { timeout: SLOW })
+    /*
+      נוחתים על רשת השרירים, **והמנוחה ממשיכה לרוץ**: היא חיה בחנות ולא במסך,
+      ולכן מעבר מסך לא נוגע בה. זו הסיבה שהוספה מכאן היא ניווט ולא ויתור.
+    */
+    await screen.findByRole('button', { name: /^רגליים —/ }, { timeout: SLOW })
     expect(useWorkout.getState().workout?.restEndsAt).not.toBeNull()
   }, 40000)
 })

@@ -2,6 +2,7 @@ import type { JSX, ReactNode } from 'react'
 import { Check, Clock, Minus, Plus, Repeat, SkipForward, Timer } from 'lucide-react'
 import { BottomSheet } from '@/components/ui'
 import { formatClock } from '@/domain/units'
+import { SetTuner } from './SetTuner'
 
 /**
  * גיליון הפעולות של התרגיל — מה שהיה ארבעה כפתורים רבועים בתחתית הכרטיס.
@@ -52,6 +53,8 @@ export function ExerciseActionsSheet({
   onClose,
   exerciseName,
   restSeconds,
+  targetSets,
+  doneWorkSets,
   /** דילוג קיים רק לפני הסט הראשון — אחרי שיש סטים הסגירה היא "סיים תרגיל" */
   canSkip,
   onDefer,
@@ -59,17 +62,22 @@ export function ExerciseActionsSheet({
   onFinishExercise,
   onSkip,
   onRest,
+  onTargetSets,
 }: {
   open: boolean
   onClose: () => void
   exerciseName: string
   restSeconds: number
+  targetSets: number
+  doneWorkSets: number
   canSkip: boolean
   onDefer: () => void
   onSubstitute: () => void
   onFinishExercise: () => void
   onSkip: () => void
   onRest: (seconds: number) => void
+  /** בחירת יעד שכבר הושג סוגרת את התרגיל — הכרטיס הוא שמחליט, לא הגיליון */
+  onTargetSets: (next: number) => void
 }): JSX.Element {
   /** סוגר את הגיליון לפני שהפעולה משנה את המסך שמתחתיו */
   const run = (action: () => void) => () => {
@@ -80,6 +88,33 @@ export function ExerciseActionsSheet({
   return (
     <BottomSheet open={open} onClose={onClose} title={exerciseName}>
       <div className="flex flex-col gap-2 pt-1 pb-4">
+        {/*
+          "כמה סטים היום" — כאן ולא רק על הכרטיס, וזו לא כפילות.
+
+          על הכרטיס השורה הזו חיה בבמה, והבמה תפוסה ברגע שמתחילה מנוחה או
+          שאלון קושי. אבל בדיוק אז השאלה נשאלת: תכננתי שניים, עשיתי אחד, ואני
+          רוצה לסגור. הגיליון פתוח מכל מצב, ולכן היעד נגיש מכל מצב.
+
+          בחירת מספר שכבר בוצע היא "סיימתי כאן" — הכרטיס סוגר את התרגיל.
+        */}
+        <div className="rounded-card border border-ink-700 bg-ink-900/60 px-3 py-2.5">
+          <div className="h-11">
+            <SetTuner
+              targetSets={targetSets}
+              doneWorkSets={doneWorkSets}
+              onPick={(next) => {
+                if (next <= doneWorkSets) onClose()
+                onTargetSets(next)
+              }}
+            />
+          </div>
+          <p className="mt-2 text-[0.6875rem] font-medium text-bone-500">
+            {doneWorkSets > 0
+              ? `תיעדת ${doneWorkSets === 1 ? 'סט אחד' : `${doneWorkSets} סטים`} — בחירה בו סוגרת את התרגיל`
+              : 'רק לאימון הזה — התוכנית לא משתנה'}
+          </p>
+        </div>
+
         <Row
           icon={<Clock size={18} className="text-flame-400" />}
           label="המתקן תפוס"

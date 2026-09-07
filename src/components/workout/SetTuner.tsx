@@ -40,7 +40,8 @@ export function SetTuner({
             type="button"
             disabled={locked}
             aria-pressed={selected}
-            aria-label={`${n} סטים`}
+            // ריבוי מפורש: "1 סטים" הוא בדיוק סוג השגיאה שנתקעת באוזן
+            aria-label={n === 1 ? 'סט אחד' : `${n} סטים`}
             onClick={() => onPick(n)}
             className={`tnum relative flex flex-1 items-center justify-center rounded-[11px] border text-sm font-extrabold transition-colors after:absolute after:inset-x-0 after:-inset-y-[3px] after:content-[''] ${
               selected

@@ -8,7 +8,7 @@ import { getBlocks, getExerciseHistory, getFinishedSessions, getRoutines } from 
 import type { DraftSet, ExerciseMetric, QueueItem, WeightMode } from '@/db/types'
 import { MUSCLE_GROUPS, MUSCLE_GROUP_ORDER } from '@/db/types'
 import { EmptyState, fireConfetti, toast } from '@/components/ui'
-import { Screen } from '@/components/shell/ScreenHeader'
+import { HomeButton, Screen } from '@/components/shell/ScreenHeader'
 import { VideoPlayer } from '@/components/media/VideoPlayer'
 import { openItems, skippedItems, useWorkout } from '@/state/activeWorkoutStore'
 import { detachFromPlans, findPlanUsage } from '@/db/catalog'
@@ -32,7 +32,6 @@ import type { RestFocus } from '@/components/workout/RestOverlay'
 import { RatingSheet } from '@/components/workout/RatingSheet'
 import { SubstituteSheet } from '@/components/workout/SubstituteSheet'
 import { QueueSheet } from '@/components/workout/QueueSheet'
-import { AddExerciseSheet } from '@/components/workout/AddExerciseSheet'
 import { FinishSheet } from '@/components/workout/FinishSheet'
 
 /**
@@ -46,7 +45,7 @@ import { FinishSheet } from '@/components/workout/FinishSheet'
  *     כל נגיעה, והאזנה אליה הייתה מרנדרת את המסך בלי סוף.
  */
 
-type SheetName = 'add' | 'finish' | 'queue' | 'rating' | 'substitute'
+type SheetName = 'finish' | 'queue' | 'rating' | 'substitute'
 
 /**
  * "4 סטים · 25×10" לשורה המכווצת, מפורק לשני חלקים.
@@ -384,10 +383,22 @@ export function WorkoutScreen(): JSX.Element | null {
   const subtitle = [routine?.subtitle, ...blockNames].filter(Boolean).join(' · ')
 
   /*
-    אימון בלי תוכנית. `routineId === null` הוא בדיוק זה — אין כאן דגל חדש,
-    ו-`start(null, [])` כבר מייצר את המצב הזה מאז ומתמיד.
+    אימון בלי תוכנית — ובלי תור שנבחר מראש.
+
+    ‏`routineId === null` לבדו לא מספיק, וזה היה באג אמיתי: גם הבונה וגם
+    "בנה לי אימון" פותחים אימון בלי תוכנית, ולכן חמישה תרגילים שנבחרו בסל
+    הוצגו כאן כאילו אין אף אחד מהם. `planned` הוא מה שמפריד ביניהם.
   */
-  const freestyle = workout.routineId === null
+  const freestyle = workout.routineId === null && workout.planned !== true
+
+  /**
+   * לאן "הוסף תרגיל" הולך — תמיד למסך השרירים, ובאותו הבדל אחד.
+   *
+   * באימון חופשי בחירת תרגיל *היא* התחלת עבודה, ולכן היא קופצת אליו. באימון
+   * שיש לו תור, מי שלוחץ `+` באמצע תרגיל שהוא בתוכו ביקש עוד תרגיל להמשך
+   * ולא לצאת מזה שהוא עושה — ולכן `?add=queue`, שדוחף לסוף התור ומחזיר.
+   */
+  const addPath = freestyle ? '/freestyle' : '/freestyle?add=queue'
 
   const total = workout.queue.length
   // דילוג מפורש נחשב "טופל" — פס ההתקדמות מודד כמה נשאר להחליט עליו, לא כמה בוצע
@@ -495,6 +506,14 @@ export function WorkoutScreen(): JSX.Element | null {
       sets: workout.setsByKey[q.key] ?? [],
     })
   )
+  /*
+    מה שעוד לא הושלם — הרשימה שאימון חופשי מציג מעל "מה עשית עד עכשיו".
+
+    דילוג נכלל בה בכוונה: הוא נסגר אבל הוא לא הישג, ולכן מקומו ליד מה שעוד
+    פתוח (`לחיצה מחזירה`) ולא ליד מה שנעשה. באימון מתוכנן הרשימה המלאה כבר
+    מציגה את שניהם, ולכן היא לא בשימוש שם.
+  */
+  const openRows = queueRows.filter(({ item }) => item.status !== 'done')
 
   /*
     מה שמסך המנוחה מציג. הכל נגזר כאן ולא בתוך השכבה: התור, הסטים והתרגילים
@@ -585,19 +604,23 @@ export function WorkoutScreen(): JSX.Element | null {
             היא הפעולה שהופכת את המסך הזה לבנייה ולא רק לתיעוד, אבל היא
             לעולם לא מתחרה על האגודל מול היעד היחיד של אזור התחתון.
 
-            באימון חופשי היא יורדת מכאן: שם *כל* המסך הוא בנייה, וההוספה יושבת
-            ליד רשימת מה־שנעשה — במקום שבו מסתכלים אחרי שתרגיל נסגר.
+            היא נמצאת גם באימון חופשי, שבו יש לה דלת שנייה ליד רשימת מה־שנעשה:
+            שני מקומות לאותה פעולה עדיפים על פקד שנעלם בין מצב למצב.
           */}
-          {!freestyle && (
-            <button
-              type="button"
-              aria-label="הוסף תרגיל לאימון"
-              onClick={() => setSheet('add')}
-              className="relative flex size-[34px] shrink-0 items-center justify-center rounded-[11px] border border-ink-700 bg-ink-900 text-bone-500 after:absolute after:-inset-[5px] after:content-[''] active:bg-ink-800"
-            >
-              <Plus size={18} />
-            </button>
-          )}
+          <button
+            type="button"
+            aria-label="הוסף תרגיל לאימון"
+            onClick={() => navigate(addPath)}
+            className="relative flex size-[34px] shrink-0 items-center justify-center rounded-[11px] border border-ink-700 bg-ink-900 text-bone-500 after:absolute after:-inset-[5px] after:content-[''] active:bg-ink-800"
+          >
+            <Plus size={18} />
+          </button>
+          {/*
+            הבית. האימון ממשיך לרוץ מאחוריו — מסך הבית מציג "יש אימון פתוח"
+            עם "המשך אימון" — ולכן זו יציאה ולא סיום, וזה מה שמאפשר להציע
+            אותה כאן בלי להתחרות ב"סיים".
+          */}
+          <HomeButton compact className="-me-1" />
         </div>
 
         {/*
@@ -681,7 +704,7 @@ export function WorkoutScreen(): JSX.Element | null {
           action={
             <button
               type="button"
-              onClick={() => setSheet('add')}
+              onClick={() => navigate(addPath)}
               className="flex min-h-13 items-center gap-2 rounded-pill border border-flame-500/40 bg-flame-500/12 px-5 text-sm font-bold text-flame-300"
             >
               <Plus size={18} />
@@ -749,18 +772,57 @@ export function WorkoutScreen(): JSX.Element | null {
           */}
           {freestyle ? (
             /*
-              "מה עשית עד עכשיו" ולא "הבאים בתור" — אין תור. הרשימה גדלה
-              לאחור, וההוספה יושבת בכותרת שלה: זה המקום שמסתכלים בו אחרי
-              שתרגיל נסגר, ולכן זה המקום שממנו בוחרים את הבא.
+              "מה עשית עד עכשיו" ולא "הבאים בתור" — הרשימה כאן גדלה לאחור,
+              וההוספה יושבת בכותרת שלה: זה המקום שמסתכלים בו אחרי שתרגיל נסגר,
+              ולכן זה המקום שממנו בוחרים את הבא.
             */
             <>
+              {/*
+                וכן, גם באימון חופשי יכול להיות תור.
+
+                פס הסל שולח לאימון שרץ ("הוסף לאימון שרץ") כמה תרגילים בבת אחת,
+                והם נכנסים כ-`pending`. בלי המקטע הזה הם היו יושבים בתור בלי
+                שאף מסך מציג אותם — בדיוק הבאג שהיה כאן על אימון מהבונה.
+              */}
+              {openRows.length > 0 && (
+                <>
+                  <div className="mt-3.5 flex items-center justify-between gap-2 px-1">
+                    <span className="text-[0.625rem] leading-none font-bold tracking-[0.12em] text-bone-500">
+                      הבאים בתור
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSheet('queue')}
+                      className="relative text-[0.65625rem] leading-none font-semibold text-bone-500 after:absolute after:inset-x-0 after:-inset-y-[17px] after:content-['']"
+                    >
+                      {openRows.length === 1 ? 'נשאר אחד' : `נשארו ${openRows.length}`}
+                    </button>
+                  </div>
+
+                  <div className="mt-2.5 flex flex-col gap-1.5">
+                    {openRows.map(({ item, exercise, sets }) => (
+                      <QueueRow
+                        key={item.key}
+                        item={item}
+                        exercise={exercise}
+                        apart={distinguisher(exercise, duplicates)}
+                        setCount={sets.length}
+                        summary={summarize(sets, exercise.weightMode, exercise.metric)}
+                        onTap={() => void setCurrent(item.key)}
+                        onSkip={() => handleSkip(item.key)}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+
               <div className="mt-3.5 flex items-center justify-between gap-2 px-1">
                 <span className="text-[0.625rem] leading-none font-bold tracking-[0.12em] text-bone-500">
                   מה עשית עד עכשיו
                 </span>
                 <button
                   type="button"
-                  onClick={() => navigate('/freestyle')}
+                  onClick={() => navigate(addPath)}
                   className="relative text-[0.6875rem] leading-none font-bold text-flame-300 after:absolute after:-inset-x-2.5 after:-inset-y-3.5 after:content-['']"
                 >
                   הוסף תרגיל
@@ -886,7 +948,7 @@ export function WorkoutScreen(): JSX.Element | null {
         }}
         focus={restFocus}
         startedAt={workout.startedAt}
-        onAddExercise={() => setSheet('add')}
+        onAddExercise={() => navigate(addPath)}
         onFinishWorkout={() => setSheet('finish')}
       />
 
@@ -934,17 +996,15 @@ export function WorkoutScreen(): JSX.Element | null {
       )}
 
       {/*
-        שני גיליונות אחים ולא מקוננים. סדר האימון ובורר התרגילים הם שתי
-        שאלות שונות — "באיזה סדר" מול "מה בכלל" — ובגיליון אחד בתוך השני
-        הסגירה של הפנימי הייתה מחזירה למצב שממנו כבר לא רואים את התור.
+        סדר האימון נשאר בגיליון; בחירת התרגיל עברה למסך מלא. שתי השאלות
+        שונות — "באיזה סדר" מול "מה בכלל" — ובגיליון אחד בתוך השני הסגירה של
+        הפנימי הייתה מחזירה למצב שממנו כבר לא רואים את התור.
       */}
       <QueueSheet
         open={sheet === 'queue'}
         onClose={() => setSheet(null)}
-        onAddExercise={() => setSheet('add')}
+        onAddExercise={() => navigate(addPath)}
       />
-
-      <AddExerciseSheet open={sheet === 'add'} onClose={() => setSheet(null)} />
 
       <SkipStreakSheet
         open={streakCandidate !== null}

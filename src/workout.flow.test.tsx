@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { App } from './App'
-import { db, ensureReady } from './db/db'
+import { db, ensureReady, saveSettings } from './db/db'
 import { openItems, skippedItems, touchedGroups, useWorkout } from './state/activeWorkoutStore'
 import { invalidateHiddenVideos } from './db/hiddenVideos'
 import { invalidateHiddenExercises } from './db/hiddenExercises'
@@ -39,6 +39,9 @@ async function resetAll(): Promise<void> {
   invalidateHiddenVideos()
   invalidateHiddenExercises()
   invalidateVideoPrefs()
+  // ה-hash שורד בין בדיקות בדיוק כמו המטמונים, ומסך שנפתח בכתובת של הקודמת
+  // הוא תלות-סדר שקטה
+  window.location.hash = '#/'
 }
 
 describe('זרימת אימון', () => {
@@ -755,5 +758,68 @@ describe('רמפת חימום מתקדמת בין השלבים', () => {
     // שלושה שלבים עולים, ואחריהם אין מה להציע
     expect(seen).toEqual([60, 95, 125])
     expect(nextStep()).toBeNull()
+  }, 20000)
+
+  /*
+    ── התור של אימון שנבנה בסל ──
+
+    ‏`startWithItems` פותח אימון בלי תוכנית (`routineId: null`), וזה בדיוק מה
+    שמסך האימון זיהה בטעות כ"אימון חופשי": הוא הציג רק תרגילים שכבר נסגרו,
+    וחמשת התרגילים שנבחרו בסל פשוט לא רונדרו. הבדיקה הזו היא השער על זה.
+  */
+  it('אימון שנבנה בסל מציג את שאר התרגילים שבתור', async () => {
+    await useWorkout.getState().startWithItems(['leg-press', 'lat-pulldown'])
+    window.location.hash = '#/workout'
+    render(<App />)
+
+    await screen.findByRole('button', { name: 'הוסף תרגיל לאימון' }, { timeout: 5000 })
+    // הראשון פרוש בכרטיס, והשני חייב להיראות מתחתיו ולא להיעלם
+    expect(screen.getByText('לחיצת רגליים')).toBeTruthy()
+    expect(await screen.findByText('משיכת פולי עליון', {}, { timeout: 5000 })).toBeTruthy()
+    // ופס ההתקדמות מודד מול התור, כי יש תור
+    expect(screen.getByText('תרגיל 1 מתוך 2')).toBeTruthy()
+  }, 20000)
+
+  /*
+    ── "תכננתי שניים, עשיתי אחד, מספיק" ──
+
+    שורת היעד יושבת בבמה, והבמה תפוסה ברגע שמתחילה מנוחה — כלומר בדיוק ברגע
+    שבו השאלה נשאלת. הדלת השנייה היא גיליון הפעולות, ובחירת מספר שכבר בוצע
+    סוגרת את התרגיל במקום להשאיר "סט 2 — מעבר ליעד 1".
+  */
+  it('הורדת היעד למספר שכבר בוצע סוגרת את התרגיל מתוך המנוחה', async () => {
+    const user = userEvent.setup()
+    await saveSettings({ askRating: false })
+    await useWorkout.getState().start('F1', [])
+    const first = useWorkout.getState().workout!.currentKey!
+    window.location.hash = '#/workout'
+    render(<App />)
+
+    const weight = await screen.findByLabelText('משקל', {}, { timeout: 5000 })
+    await user.clear(weight)
+    await user.type(weight, '80')
+    // היעד הוא שניים, ולכן זה סט 1 מתוך 2 והמנוחה מתחילה אחריו
+    await user.click(await screen.findByRole('button', { name: /^סיים סט$/ }, { timeout: 5000 }))
+    await waitFor(() => expect(useWorkout.getState().workout?.restEndsAt).not.toBeNull(), {
+      timeout: 5000,
+    })
+    const restStarted = useWorkout.getState().workout?.restEndsAt
+
+    // הכפתור שפותח את "כמה סטים היום" נופל לגיליון הפעולות כשהבמה תפוסה
+    await user.click(screen.getByRole('button', { name: /^סט 2 מתוך 2/ }))
+    await user.click(await screen.findByRole('button', { name: 'סט אחד' }, { timeout: 5000 }))
+
+    await waitFor(
+      () => {
+        const w = useWorkout.getState().workout!
+        expect(w.queue.find((q) => q.key === first)?.targetSets).toBe(1)
+        // התרגיל נסגר והתור התקדם — זו כל הפואנטה של הבחירה הזו
+        expect(w.queue.find((q) => q.key === first)?.status).toBe('done')
+        expect(w.currentKey).not.toBe(first)
+      },
+      { timeout: 5000 }
+    )
+    // והמנוחה שכבר רצה לא התאפסה — השניות שנספרו הן אותן שניות
+    expect(useWorkout.getState().workout?.restEndsAt).toBe(restStarted)
   }, 20000)
 })
