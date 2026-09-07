@@ -54,6 +54,15 @@ async function pickFirstExercise(group: RegExp): Promise<void> {
   await user.click(await screen.findByRole('button', { name: group }, { timeout: SLOW }))
   const rows = await screen.findAllByRole('button', { name: /קודם|ראשון/ }, { timeout: SLOW })
   await user.click(rows[0])
+  /*
+    ממתינים שהאימון באמת נפתח, ולא רק שהלחיצה נשלחה.
+
+    בין הלחיצה לבין `startWithItems` יש היום סבב מסד שלם — `ensureTrainable`,
+    שהופך שורת מאגר לתרגיל שאפשר לתעד בו — ולכן קורא שרץ מיד אחרי העוזר הזה
+    יכול לתפוס `workout === null`. זה נפל בערך פעם בשש הרצות, ותמיד על השורה
+    שקוראת `currentKey` מיד אחרי הבחירה.
+  */
+  await waitFor(() => expect(useWorkout.getState().workout).not.toBeNull(), { timeout: SLOW })
 }
 
 describe('אימון חופשי', () => {
