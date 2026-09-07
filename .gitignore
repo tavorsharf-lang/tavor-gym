@@ -39,3 +39,6 @@ dist-ssr
 # מה שנכנס ל-git הוא רק הפלט שהאפליקציה מגישה (public/images/muscles),
 # שנוצר עם npm run import:muscle-cards.
 muscle-cards-45/**/*.png
+
+# צילומי מסך מ-scripts/shoot.mjs — תוצר ריצה, לא מקור
+.claude/shots/*.png
