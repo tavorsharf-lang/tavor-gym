@@ -40,6 +40,9 @@ export const EXERCISE_IMAGES: Readonly<Record<string, readonly string[]>> = {
     'preacher_curl',
   ],
   'hammer-curl': ['standing_dumbbell_hammer_curl', 'standing_dumbbell_hammer_curl_2'],
+  // אותם שני כרטיסים כמו הפטיש בישיבה, ומאותה סיבה: הכרטיס מתאר את חלוקת
+  // העומס שהאחיזה קובעת, וזווית הספסל לא משנה אותה. אין כרטיס לפטיש בשיפוע.
+  'incline-hammer-curl': ['standing_dumbbell_hammer_curl', 'standing_dumbbell_hammer_curl_2'],
   'behind-body-cable-curl': ['behind_the_body_cable_curl', 'behind_the_body_cable_curl_2'],
   'leg-press': ['45_plate_loaded_leg_press', '45_plate_loaded_leg_press_2'],
   'calf-raise': ['standing_calf_raise', 'standing_calf_raise_2', 'calf_press_on_leg_press'],
@@ -125,6 +128,12 @@ export const EXERCISE_IMAGES: Readonly<Record<string, readonly string[]>> = {
   ],
   'lib-barbell_curl': ['standing_barbell_biceps_curl'],
   'lib-incline_dumbbell_curl': ['incline_dumbbell_biceps_curl'],
+  /*
+    כרטיס אחיזת הפטיש ולא כרטיס השיפוע, ובכוונה: הכרטיס הוא חלוקת העומס, ומה
+    שמזיז אותה כאן הוא האחיזה הניטרלית (ברכיורדיאליס וברכיאליס) ולא זווית
+    הספסל. אין במאגר התמונות כרטיס לפטיש בשיפוע.
+  */
+  'lib-incline_hammer_curl': ['standing_dumbbell_hammer_curl', 'standing_dumbbell_hammer_curl_2'],
   'lib-cable_curl': ['standing_cable_biceps_curl'],
 
   // ─── מאגר · יד אחורית ───

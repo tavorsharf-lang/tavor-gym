@@ -22,6 +22,7 @@ import {
   PLANK_RANGE,
   // ‏SEED_ROUTINES נשאר מיובא בשביל מיגרציה 2 בלבד — היא כותבת את F1/F2 עם
   // משקלי ההתחלה של תבור, והיא לא יכולה לרוץ על מסד בגרסה 12.
+  SEED_EXERCISES,
   SEED_ROUTINES,
   freshSeedBlocks,
   freshSeedExercises,
@@ -33,6 +34,9 @@ import { withLibraryLink } from './libraryLinks'
 import { withSecondaryMuscles } from './muscleTags'
 import { mergeCalfShelves, withoutCalves } from './calfMerge'
 import { withInclineBench, withV10Fields } from './catalogV10'
+
+/** התרגיל שמיגרציה 15 משלימה. כאן ולא בתוך המיגרציה — הבדיקה קוראת אותו גם. */
+export const INCLINE_HAMMER_CURL_ID = 'incline-hammer-curl'
 
 /**
  * מסד הנתונים המובנה.
@@ -486,6 +490,40 @@ class GymDatabase extends Dexie {
         if (!row) return
         if (typeof row.value.defaultSets === 'number') return
         await settings.put({ key: 'app', value: { ...row.value, defaultSets: DEFAULT_SETS } })
+      })
+
+    /**
+     * גרסה 15 — "כפיפת פטיש בשיפוע" נכנסת לקטלוג של מכשיר קיים.
+     *
+     * הזריעה מטפלת בהתקנה חדשה בלבד: `populate` יורה פעם אחת בחיי מסד, ואצל
+     * מי שכבר מתאמן הוא ירה מזמן. בלי המיגרציה הזו התרגיל היה קיים רק בקוד
+     * ובמאגר — כלומר המשתמש היה צריך למצוא אותו ב"הכל" ולהוסיף אותו ביד,
+     * בזמן שהוא נוסף לקטלוג *בשבילו*.
+     *
+     * ‏`add` אחרי `get` באותה טרנזקציה, ולכן אין כאן התנגשות שיכולה לזרוק —
+     * וזה חשוב: זריקה בתוך `upgrade` חוסמת את `db.open()` והאפליקציה נוחתת
+     * על מסך השגיאה. `order` הוא הגבוה ביותר ועוד אחד, כדי לא לדרוס את
+     * מקומו של אף תרגיל קיים בקבוצה שלו.
+     *
+     * מי שכבר הוסיף את התרגיל בעצמו מ"הכל" מקבל שורה עם מזהה `ex-…` ולא
+     * `incline-hammer-curl`, ולכן יראה אותו פעמיים. זה מצב אמיתי אבל צר —
+     * חלון של יום בין הפריסות — והתשובה לו היא "הוצא מהתרגילים שלי", לא
+     * מיגרציה שמנחשת איזו משתי השורות היא הנכונה.
+     */
+    this.version(15)
+      .stores({})
+      .upgrade(async (tx) => {
+        const table = tx.table<Exercise, string>('exercises')
+        if (await table.get(INCLINE_HAMMER_CURL_ID)) return
+        const seeded = SEED_EXERCISES.find((e) => e.id === INCLINE_HAMMER_CURL_ID)
+        if (!seeded) return
+        const maxOrder = (await table.toArray()).reduce((m, e) => Math.max(m, e.order), -1)
+        await table.add({
+          ...seeded,
+          order: maxOrder + 1,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        })
       })
 
     /*

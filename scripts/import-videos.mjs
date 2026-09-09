@@ -199,6 +199,13 @@ const LIB_REASSIGN = {
   'https://www.tiktok.com/@deltabolic/video/7471078615006891269': 'lib-incline_dumbbell_curl',
   'https://www.tiktok.com/@deltabolic/video/7584931170341735688': 'lib-incline_dumbbell_curl',
   'https://www.tiktok.com/@deltabolic/video/7473645877161233719': 'lib-cable_curl',
+
+  // הקליפ היחיד שהמקור נתן ל-`lib-incline_dumbbell_curl` מבוצע **באחיזה
+  // ניטרלית**: בתחתית התנועה ידית הדאמבל שוכבת במישור התמונה עם משקולת לפנים
+  // ואחת לאחור, כלומר צירה מצביע קדימה-אחורה ביחס לגוף. באחיזת סופינציה הציר
+  // חוצה את הגוף ומצלמת הצד רואה דיסק אחד. אומת בשמונה פריימים ובשלוש
+  // תקריבים על כף היד. הכיתוב אומר "Incline Dumbbell Curl", והביצוע גובר.
+  'https://www.tiktok.com/@deltabolic/video/7618743084087512321': 'lib-incline_hammer_curl',
 }
 
 /**
@@ -218,6 +225,18 @@ const LIB_NEW = {
   'lib-cable_curl': {
     nameHe: 'כפיפת מרפקים בכבל',
     nameEn: 'Cable Biceps Curl',
+    muscleGroup: 'biceps',
+    videoCount: 0,
+  },
+  /*
+    אחיזת פטיש בשיפוע. המקור לא מכיר אותה כרשומה — הוא סיווג את הקליפ
+    כ"כפיפת מרפקים בשיפוע" לפי הכותרת — ולכן היא נולדת כאן, ו-`LIB_REASSIGN`
+    מעביר אליה את הקליפ. זו גם התשובה למה שכתוב ב-`UNLINKED_NOTES` על
+    `hammer-curl`: יש במאגר אחיזת פטיש אחת, והיא בשיפוע.
+  */
+  'lib-incline_hammer_curl': {
+    nameHe: 'כפיפת פטיש בשיפוע',
+    nameEn: 'Incline Dumbbell Hammer Curl',
     muscleGroup: 'biceps',
     videoCount: 0,
   },

@@ -95,6 +95,7 @@ export const SECONDARY_MUSCLES: Record<string, MuscleGroup[]> = {
   'lib-preacher_curl': [], // כפיפת מרפקים בספה
   'lib-barbell_curl': [], // כפיפת מרפקים במוט
   'lib-incline_dumbbell_curl': [], // כפיפת מרפקים בשיפוע
+  'lib-incline_hammer_curl': [], // כפיפת פטיש בשיפוע — בידוד, כמו שאר הכפיפות
   // נפתחה באודיט היד הקדמית — כפיפה בכבל היא תרגיל נפרד מכפיפה בדאמבלים
   'lib-cable_curl': [], // כפיפת מרפקים בכבל — בידוד
   'lib-rear_delt_fly': ['back'], // פרפר הפוך

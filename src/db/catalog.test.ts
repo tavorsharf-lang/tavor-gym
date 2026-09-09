@@ -14,7 +14,7 @@ import {
   restoreToMine,
 } from '@/db/catalog'
 import { saveSettings } from '@/db/db'
-import { LIBRARY_CATALOG } from '@/db/libraryManifest'
+import { LIBRARY_CATALOG, LIBRARY_MANIFEST } from '@/db/libraryManifest'
 import { LIBRARY_LINKS } from '@/db/libraryLinks'
 import { DEFAULT_SETS, SEED_EXERCISES } from '@/db/seed'
 import type { Exercise } from '@/db/types'
@@ -357,5 +357,37 @@ describe('סטים ברירת מחדל', () => {
     expect(seeded?.targetSets).toBe(
       SEED_EXERCISES.find((e) => e.id === 'leg-press')?.targetSets
     )
+  })
+})
+
+/**
+ * הקליפ שהמקור סיווג לפי הכותרת ולא לפי הביצוע.
+ *
+ * ‏`lib-incline_dumbbell_curl` קיבל מהמקור קליפ יחיד שכותרתו "Incline Dumbbell
+ * Curl" ושהביצוע בו באחיזה ניטרלית — בתחתית התנועה ידית הדאמבל שוכבת במישור
+ * התמונה, מה שאפשרי רק כשהציר מצביע קדימה-אחורה. הוא הועבר לרשומה משלו,
+ * והבדיקה נועלת את שני הצדדים: שהוא לא חזר לרשומה הישנה, ושהוא לא נעלם.
+ *
+ * ‏URL ולא שם קובץ: שם הקובץ נשאר `incline_dumbbell_curl-01` בכוונה — הוא
+ * המפתח של הסרטון ב-DB המדיה על המכשיר, והעברה בין רשומות לא משנה אותו.
+ */
+describe('כפיפת פטיש בשיפוע', () => {
+  const CLIP = 'https://www.tiktok.com/@deltabolic/video/7618743084087512321'
+
+  it('הקליפ יושב ברשומה אחת בלבד, וזו רשומת הפטיש', () => {
+    const holders = LIBRARY_CATALOG.filter((l) => l.videos.some((v) => v.url === CLIP))
+    expect(holders.map((l) => l.id)).toEqual(['lib-incline_hammer_curl'])
+  })
+
+  it('הרשומה שממנה הוא יצא נשארה מלאה', () => {
+    const incline = LIBRARY_CATALOG.find((l) => l.id === 'lib-incline_dumbbell_curl')
+    expect(incline?.videos.length).toBe(3)
+    expect(incline?.totalAvailable).toBe(3)
+  })
+
+  it('התרגיל בקטלוג מקושר לרשומה, ולכן הסרטון מגיע איתו', async () => {
+    const seeded = SEED_EXERCISES.find((e) => e.id === 'incline-hammer-curl')
+    expect(seeded?.libraryId).toBe('lib-incline_hammer_curl')
+    expect(LIBRARY_MANIFEST['lib-incline_hammer_curl']).toHaveLength(1)
   })
 })

@@ -2470,14 +2470,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
   ],
   "lib-incline_dumbbell_curl": [
     {
-      "src": "videos/lib/incline_dumbbell_curl-01.mp4",
-      "poster": "videos/lib/incline_dumbbell_curl-01.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 12.4,
-      "sizeBytes": 368122
-    },
-    {
       "src": "videos/lib/dumbbell_curl-12.mp4",
       "poster": "videos/lib/dumbbell_curl-12.jpg",
       "width": 406,
@@ -3678,6 +3670,16 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "height": 720,
       "durationSec": 9.1,
       "sizeBytes": 307331
+    }
+  ],
+  "lib-incline_hammer_curl": [
+    {
+      "src": "videos/lib/incline_dumbbell_curl-01.mp4",
+      "poster": "videos/lib/incline_dumbbell_curl-01.jpg",
+      "width": 406,
+      "height": 720,
+      "durationSec": 12.4,
+      "sizeBytes": 368122
     }
   ]
 }
@@ -5221,10 +5223,6 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
     "muscleGroup": "biceps",
     "videos": [
       {
-        "topic": "How to Perform the PERFECT Incline Dumbbell Curl",
-        "url": "https://www.tiktok.com/@deltabolic/video/7618743084087512321"
-      },
-      {
         "topic": "STOP moving your upper arm excessively during incline bicep curls",
         "url": "https://www.tiktok.com/@deltabolic/video/7110747528437533958"
       },
@@ -5237,7 +5235,7 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
         "url": "https://www.tiktok.com/@deltabolic/video/7584931170341735688"
       }
     ],
-    "totalAvailable": 4
+    "totalAvailable": 3
   },
   {
     "id": "lib-rear_delt_fly",
@@ -6024,6 +6022,19 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
       {
         "topic": "The PERFECT Cable Bicep Curl 1 ⃣ Keep your upper arms fixed in a vertical position.",
         "url": "https://www.tiktok.com/@deltabolic/video/7473645877161233719"
+      }
+    ],
+    "totalAvailable": 1
+  },
+  {
+    "id": "lib-incline_hammer_curl",
+    "nameHe": "כפיפת פטיש בשיפוע",
+    "nameEn": "Incline Dumbbell Hammer Curl",
+    "muscleGroup": "biceps",
+    "videos": [
+      {
+        "topic": "How to Perform the PERFECT Incline Dumbbell Curl",
+        "url": "https://www.tiktok.com/@deltabolic/video/7618743084087512321"
       }
     ],
     "totalAvailable": 1
