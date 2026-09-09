@@ -28,12 +28,19 @@ import {
   freshSeedExercises,
   freshSeedRoutines,
 } from './seed'
-import { CATALOG_FIXES_V5, CATALOG_FIXES_V10, CATALOG_FIXES_V11, applyCatalogFix } from './catalogFix'
+import {
+  CATALOG_FIXES_V5,
+  CATALOG_FIXES_V10,
+  CATALOG_FIXES_V11,
+  CATALOG_FIXES_V16,
+  applyCatalogFix,
+} from './catalogFix'
 import { markFirstRun, markFirstRunSeen } from './firstRun'
 import { withLibraryLink } from './libraryLinks'
 import { withSecondaryMuscles } from './muscleTags'
 import { mergeCalfShelves, withoutCalves } from './calfMerge'
 import { withInclineBench, withV10Fields } from './catalogV10'
+import { withDipsChest } from './dipsChest'
 
 /** התרגיל שמיגרציה 15 משלימה. כאן ולא בתוך המיגרציה — הבדיקה קוראת אותו גם. */
 export const INCLINE_HAMMER_CURL_ID = 'incline-hammer-curl'
@@ -524,6 +531,29 @@ class GymDatabase extends Dexie {
           createdAt: Date.now(),
           updatedAt: Date.now(),
         })
+      })
+
+    /**
+     * גרסה 16 — מקבילים במכונה חוזרים לחזה.
+     *
+     * מיגרציה 10 העבירה אותם לטריצפס לפי כותרת הסרטון. כרטיס השרירים של
+     * המכונה, שנכנס למאגר אחרי כן, מודד חזה תחתון 48% מול טרייספס 27% —
+     * והכרטיס הוא מה שמסך הכיסוי ומיון האחוז קוראים. סיווג שסותר אותו מכריז
+     * "חזה · לא נגעת" אחרי אימון שכן נגע בו.
+     *
+     * שני שערים נפרדים, ובכוונה: הסיווג ב-`withDipsChest` (נוגע רק במי שעדיין
+     * `triceps`, כלומר בערך שהאפליקציה עצמה כתבה), והטקסט ב-`applyCatalogFix`
+     * (נוגע רק במי ששמו ודגשיו עדיין המקוריים). מי שערך אחד מהם שומר עליו.
+     */
+    this.version(16)
+      .stores({})
+      .upgrade(async (tx) => {
+        const table = tx.table<Exercise, string>('exercises')
+        for (const exercise of await table.toArray()) {
+          const fixed = applyCatalogFix(exercise, CATALOG_FIXES_V16) ?? exercise
+          const patched = withDipsChest(fixed)
+          if (patched !== exercise) await table.put(patched)
+        }
       })
 
     /*

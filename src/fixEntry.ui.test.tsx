@@ -77,7 +77,12 @@ describe('תיקון שיוך שריר ברשימת התרגילים', () => {
       window.location.hash = '#/exercises'
       render(<App />)
 
-      await longPress(await rowFor(/מקבילים במכונה/))
+      /*
+        פשיטת מרפקים בפולי ולא מקבילים: המקבילים שימשו כאן כתרגיל טריצפס
+        שמעבירים לחזה, ומיגרציה 16 הפכה אותם לחזה בעצמם — כלומר צ׳יפ "חזה"
+        כבר לחוץ ואין לאן להעביר.
+      */
+      await longPress(await rowFor(/פשיטת מרפקים בפולי עם מוט ישר/))
 
       // הגיליון נפתח — ולא ניווטנו למסך התרגיל, שאין בו כפתור "שמור"
       const sheet = await screen.findByRole('dialog')
@@ -88,7 +93,7 @@ describe('תיקון שיוך שריר ברשימת התרגילים', () => {
 
       const nameField = within(sheet).getByLabelText('שם התרגיל')
       await user.clear(nameField)
-      await user.type(nameField, 'מקבילים')
+      await user.type(nameField, 'פשיטת מרפקים')
 
       await user.click(within(sheet).getByRole('button', { name: 'חזה', pressed: false }))
       await user.click(within(sheet).getByRole('button', { name: 'חזה עליון' }))
@@ -99,8 +104,8 @@ describe('תיקון שיוך שריר ברשימת התרגילים', () => {
         `saveMuscleFix`, וזו הצלע שאי אפשר לראות במסך.
       */
       await waitFor(async () => {
-        const after = await db.exercises.get('dips')
-        expect(after?.name).toBe('מקבילים')
+        const after = await db.exercises.get('cable-tricep-pushdown')
+        expect(after?.name).toBe('פשיטת מרפקים')
         expect(after?.muscleGroup).toBe('chest')
         expect(after?.secondaryMuscles).not.toContain('chest')
       }, { timeout: SETTLE })

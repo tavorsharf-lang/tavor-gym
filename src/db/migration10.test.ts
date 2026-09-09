@@ -118,14 +118,20 @@ describe('מיגרציה 10 — פיצול לחיצת החזה ותיקוני ק
     expect((await db.exercises.get('db-bench-press'))?.usesPlates).toBe(true)
   })
 
-  it('מקבילים עוברים לטריצפס, והחזה יורד לעבודה משנית בלי כפילות', async () => {
+  /*
+    מיגרציה 10 העבירה כאן את המקבילים לטריצפס. **מיגרציה 16 ביטלה את ההעברה**
+    לפי כרטיס השרירים של המכונה (חזה תחתון 48% מול טרייספס 27%), ומכשיר שעולה
+    מגרסה 9 עובר דרך שתיהן — ולכן מה שנמדד כאן הוא מצב הסיום.
+  */
+  it('מקבילים נשארים חזה, והטריצפס יורד לעבודה משנית בלי כפילות', async () => {
     await seedV9()
     await db.open()
 
     const dips = await db.exercises.get('dips')
-    expect(dips?.muscleGroup).toBe('triceps')
+    expect(dips?.muscleGroup).toBe('chest')
     // הראשי לעולם לא נשאר גם במשניים — זו ספירה כפולה במסך הכיסוי
-    expect(dips?.secondaryMuscles).toEqual(['chest', 'shoulders'])
+    expect(dips?.secondaryMuscles).not.toContain('chest')
+    expect(dips?.secondaryMuscles).toContain('triceps')
     expect(dips?.cues[2]).toBe('הידיות נעות ולא הגוף — לדחוף למטה עד פשיטת מרפק מלאה')
   })
 
@@ -151,7 +157,11 @@ describe('מיגרציה 10 — פיצול לחיצת החזה ותיקוני ק
 
     const dips = await db.exercises.get('dips')
     expect(dips?.name).toBe('המקבילים שלי')
-    // הדגשים הם של המשתמש עכשיו, אבל קבוצת השריר היא עובדה על התרגיל ולא טקסט
-    expect(dips?.muscleGroup).toBe('triceps')
+    /*
+      הרשומה נזרעה כאן כ-`chest`, ומיגרציה 10 כבר לא מזיזה אותה משם. גם השער
+      של מיגרציה 16 לא נוגע בה — הוא מחפש `triceps`, כלומר את הערך שהאפליקציה
+      עצמה כתבה. שם שהמשתמש שינה לא מונע תיקון *סיווג*, אבל כאן אין מה לתקן.
+    */
+    expect(dips?.muscleGroup).toBe('chest')
   })
 })

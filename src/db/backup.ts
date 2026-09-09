@@ -18,6 +18,7 @@ import { withLibraryLink } from '@/db/libraryLinks'
 import { withSecondaryMuscles } from '@/db/muscleTags'
 import { mergeCalfShelves, withoutCalves } from '@/db/calfMerge'
 import { withInclineBench, withV10Fields } from '@/db/catalogV10'
+import { withDipsChest } from '@/db/dipsChest'
 import { PLANK_RANGE } from '@/db/seed'
 import { invalidateHiddenVideos } from '@/db/hiddenVideos'
 import { invalidateHiddenExercises } from '@/db/hiddenExercises'
@@ -190,6 +191,8 @@ export async function importData(file: File | Blob): Promise<ImportResult> {
       .map(withSecondaryMuscles)
       .map(withoutCalves)
       .map(withV10Fields)
+      // גיבוי שנוצר בין מיגרציה 10 ל-16 מחזיק `triceps` על המקבילים
+      .map(withDipsChest)
   )
   /*
     רק פריטי התוכנית של תרגילים שהגיעו מהקובץ *בלי* metric מתוקנים.

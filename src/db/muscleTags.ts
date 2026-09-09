@@ -27,7 +27,9 @@ export const SECONDARY_MUSCLES: Record<string, MuscleGroup[]> = {
   'incline-barbell-bench-press': ['triceps', 'shoulders'],
   'decline-machine-press': ['triceps', 'shoulders'],
   // מקבילים במכונה עברו ל-triceps כראשי במיגרציה 10, ולכן החזה הוא המשני
-  dips: ['chest', 'shoulders'],
+  // הראשי הוא חזה תחתון (48% על הכרטיס), ולכן הטריצפס הוא המשני — ההפך
+  // ממה שהיה כאן עד שהכרטיס נכנס למאגר
+  dips: ['triceps', 'shoulders'],
   'decline-pec-fly': [],
   'bench-machine-press': ['triceps', 'shoulders'],
   'overhead-tricep-ext': [],

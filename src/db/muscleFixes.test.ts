@@ -84,26 +84,30 @@ describe('תיקון שיוך שריר', () => {
    * ומועמדי ההחלפה — ולא לשכבה שרק מזיזה שורה ברשימה.
    */
   it('קבוצה של תרגיל בקטלוג נכתבת לרשומה, לא לשכבה', async () => {
-    const before = await db.exercises.get('dips')
+    /*
+      פשיטת מרפקים ולא מקבילים: המקבילים היו כאן כדוגמה ל"תרגיל טריצפס
+      שמעבירים לחזה", ומיגרציה 16 הפכה אותם לחזה בעצמם. הטענה לא השתנתה —
+      רק התרגיל שנושא אותה.
+    */
+    const before = await db.exercises.get('cable-tricep-pushdown')
     expect(before?.muscleGroup).toBe('triceps')
-    expect(before?.secondaryMuscles).toContain('chest')
 
-    const entry = await entryById('dips')
+    const entry = await entryById('cable-tricep-pushdown')
     await saveMuscleFix(entry, { group: 'chest', sub: 'חזה עליון' })
 
-    const after = await db.exercises.get('dips')
+    const after = await db.exercises.get('cable-tricep-pushdown')
     expect(after?.muscleGroup).toBe('chest')
     // השריר הראשי מנוקה מהמשניים באותה פעולה — אחרת סט אחד נספר פעמיים
     expect(after?.secondaryMuscles).not.toContain('chest')
     expect(after?.subTarget).toBe('חזה עליון')
 
     // רק הראש בשכבה. קבוצה כפולה הייתה דורסת בחזרה שינוי מהעורך המלא.
-    const stored = (await getSettings()).muscleFixes['dips']
+    const stored = (await getSettings()).muscleFixes['cable-tricep-pushdown']
     expect(stored?.group).toBeUndefined()
     expect(stored?.sub).toBe('חזה עליון')
 
     // והשורה באמת עברה קבוצה ברשימה
-    expect(groupOf(await entryById('dips'), await loadMuscleFixes())).toBe('chest')
+    expect(groupOf(await entryById('cable-tricep-pushdown'), await loadMuscleFixes())).toBe('chest')
   })
 
   it('קבוצה של שורת מאגר בלי כרטיס נשמרת בשכבה ולא נוגעת בטבלה', async () => {

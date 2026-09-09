@@ -5,6 +5,7 @@ import {
   CATALOG_FIXES_V5,
   CATALOG_FIXES_V10,
   CATALOG_FIXES_V11,
+  CATALOG_FIXES_V16,
   applyCatalogFix,
 } from './catalogFix'
 import { SEED_EXERCISES } from './seed'
@@ -13,6 +14,7 @@ const seedById = new Map(SEED_EXERCISES.map((e) => [e.id, e]))
 const v5ById = new Map(CATALOG_FIXES_V5.map((f) => [f.id, f]))
 const v10ById = new Map(CATALOG_FIXES_V10.map((f) => [f.id, f]))
 const v11ById = new Map(CATALOG_FIXES_V11.map((f) => [f.id, f]))
+const v16ById = new Map(CATALOG_FIXES_V16.map((f) => [f.id, f]))
 
 /**
  * מה התיקון האחרון שחל על התרגיל הזה. תרגיל שדור מאוחר יותר נגע בו נמדד מולו
@@ -20,7 +22,9 @@ const v11ById = new Map(CATALOG_FIXES_V11.map((f) => [f.id, f]))
  * לגיטימי, ומפסיקה להגן על מה שהיא נועדה להגן עליו.
  */
 function latest(fix: (typeof CATALOG_FIXES)[number]): (typeof CATALOG_FIXES)[number] {
-  return v11ById.get(fix.id) ?? v10ById.get(fix.id) ?? v5ById.get(fix.id) ?? fix
+  return (
+    v16ById.get(fix.id) ?? v11ById.get(fix.id) ?? v10ById.get(fix.id) ?? v5ById.get(fix.id) ?? fix
+  )
 }
 
 /** רשומה בקטלוג כפי שהיא נראית לפני התיקון */
@@ -43,6 +47,7 @@ describe('CATALOG_FIXES מול הזריעה', () => {
       ...CATALOG_FIXES_V5,
       ...CATALOG_FIXES_V10,
       ...CATALOG_FIXES_V11,
+      ...CATALOG_FIXES_V16,
     ]) {
       expect(seedById.has(fix.id), `${fix.id} לא בזריעה`).toBe(true)
     }
@@ -54,10 +59,13 @@ describe('CATALOG_FIXES מול הזריעה', () => {
    */
   it('מחיל בדיוק את מה שיושב בזריעה', () => {
     const newest = new Map(
-      [...CATALOG_FIXES, ...CATALOG_FIXES_V5, ...CATALOG_FIXES_V10, ...CATALOG_FIXES_V11].map((f) => [
-        f.id,
-        latest(f),
-      ])
+      [
+        ...CATALOG_FIXES,
+        ...CATALOG_FIXES_V5,
+        ...CATALOG_FIXES_V10,
+        ...CATALOG_FIXES_V11,
+        ...CATALOG_FIXES_V16,
+      ].map((f) => [f.id, latest(f)])
     )
     for (const fix of newest.values()) {
       const seed = seedById.get(fix.id)
@@ -96,8 +104,31 @@ describe('CATALOG_FIXES מול הזריעה', () => {
     }
   })
 
+  /** ואותה חוקיות לדור 16, שממשיך את דור 10 על אותה רשומה בדיוק */
+  it('כל תיקון בדור 16 ממשיך את התוצאה של הדור שלפניו', () => {
+    const previousById = new Map(
+      [...CATALOG_FIXES, ...CATALOG_FIXES_V5, ...CATALOG_FIXES_V10, ...CATALOG_FIXES_V11].map(
+        (f) => [f.id, v11ById.get(f.id) ?? v10ById.get(f.id) ?? v5ById.get(f.id) ?? f]
+      )
+    )
+    for (const fix of CATALOG_FIXES_V16) {
+      const previous = previousById.get(fix.id)
+      if (!previous) continue
+      expect([fix.id, fix.was]).toEqual([fix.id, previous.name])
+      if (fix.wasCues && previous.cues) {
+        expect([fix.id, [...fix.wasCues]]).toEqual([fix.id, [...previous.cues]])
+      }
+    }
+  })
+
   it('אין מזהה שמופיע פעמיים', () => {
-    for (const list of [CATALOG_FIXES, CATALOG_FIXES_V5, CATALOG_FIXES_V10, CATALOG_FIXES_V11]) {
+    for (const list of [
+      CATALOG_FIXES,
+      CATALOG_FIXES_V5,
+      CATALOG_FIXES_V10,
+      CATALOG_FIXES_V11,
+      CATALOG_FIXES_V16,
+    ]) {
       const ids = list.map((f) => f.id)
       expect(new Set(ids).size).toBe(ids.length)
     }

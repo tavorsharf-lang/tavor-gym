@@ -14,10 +14,9 @@ import type { Exercise } from './types'
  *  1. `db-bench-press` הוא תרגיל מוט ולא דאמבלים (זה כבר תוקן בשם בגרסה 3),
  *     ולכן `usesPlates` שלו היה צריך להיות דלוק מאז. בלי זה מחשבון הפלטות
  *     כבוי דווקא בתרגיל היחיד בקטלוג שבו באמת מעמיסים פלטות על מוט.
- *  2. `dips` היה `chest` כשריר ראשי, שריד מהשם הישן "מקבילים". הסרטון מוכתר
- *     "Plate Loaded Tricep Dips" וכל הנחיה בו מרחיקה עומס מהחזה. החזה יורד
- *     לעבודה משנית — ולא נשאר גם וגם, כי שריר ראשי שמופיע גם במשניים נספר
- *     פעמיים במסך הכיסוי.
+ *  2. `dips` הועבר כאן מ-`chest` ל-`triceps` על סמך כותרת הסרטון. **ההעברה
+ *     הזו בוטלה במיגרציה 16** — כרטיס השרירים של המכונה, שנכנס למאגר אחרי
+ *     גרסה 10, מודד חזה תחתון 48% מול טרייספס 27%. ראה `dipsChest.ts`.
  *
  * הפונקציה מחזירה את אותו אובייקט כשאין מה לשנות, כדי שהקורא ידלג על הכתיבה.
  */
@@ -32,14 +31,14 @@ export function withV10Fields(exercise: Exercise): Exercise {
   if (exercise.id === FLAT_BENCH_ID && !exercise.usesPlates) {
     return { ...exercise, usesPlates: true }
   }
-  if (exercise.id === 'dips' && exercise.muscleGroup === 'chest') {
-    const secondary = (exercise.secondaryMuscles ?? []).filter((m) => m !== 'triceps')
-    return {
-      ...exercise,
-      muscleGroup: 'triceps',
-      secondaryMuscles: secondary.includes('chest') ? secondary : ['chest', ...secondary],
-    }
-  }
+  /*
+    כאן ישבה גם העברת `dips` מ-`chest` ל-`triceps`.
+
+    היא הוסרה במיגרציה 16 ולא נשארה כ"מה שהיה נכון בגרסה 10", בשונה משאר
+    התיקונים הקפואים בקובץ הזה — כי היא לא טקסט אלא **סיווג**, והיא ממשיכה
+    לרוץ בכל ייבוא גיבוי. אילו הייתה נשארת, כל שחזור היה מחזיר את הסיווג
+    שהוסר. ההיפוך והראיות שלו יושבים ב-`dipsChest.ts`.
+  */
   return exercise
 }
 
