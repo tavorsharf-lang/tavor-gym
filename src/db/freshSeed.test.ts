@@ -51,7 +51,7 @@ describe('freshSeed — מה שהתקנה חדשה מקבלת', () => {
   it('מחזירה את אותה הפניה כשאין מה לשנות — שלושת מסלולי הכתיבה חייבים להיות זהים', () => {
     const fresh = freshSeedExercises()
     const untouched = fresh.filter((e, i) => e === SEED_EXERCISES[i])
-    // ‏6 מ-29 כבר נזרעים בלי משקל היום, ואף אחד מהם אינו תאום — הם עוברים כמו שהם
+    // ‏7 מ-30 כבר נזרעים בלי משקל היום, ואף אחד מהם אינו תאום — הם עוברים כמו שהם
     expect(untouched.length).toBeGreaterThan(0)
   })
 })
