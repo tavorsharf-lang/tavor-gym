@@ -41,6 +41,7 @@ export const LIBRARY_LINKS: Readonly<Record<string, string>> = {
   'calf-raise': 'lib-calf_raise',
   // הרשומה נפתחה יחד עם התרגיל עצמו — שניהם נולדו מאותו קליף
   'incline-hammer-curl': 'lib-incline_hammer_curl',
+  'ez-bar-curl': 'lib-ez_bar_curl',
 }
 
 /**

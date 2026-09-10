@@ -194,7 +194,13 @@ const LIB_REASSIGN = {
   'https://www.tiktok.com/@deltabolic/video/6800546602126691590': 'lib-barbell_curl',
   'https://www.tiktok.com/@deltabolic/video/6950476539347684613': 'lib-barbell_curl',
   'https://www.tiktok.com/@deltabolic/video/7021690774332951813': 'lib-barbell_curl',
-  'https://www.tiktok.com/@deltabolic/video/7245075772501658886': 'lib-barbell_curl',
+  /*
+    לא מוט ישר אלא **מוט דבליו** — הכיפוף הזיגזגי של המוט נראה בבירור בחצי
+    השני של הקליפ, בשלושה פריימים שונים מזווית חזית. הכיתוב ("KEEP YOUR ELBOWS
+    CLOSE TO YOUR BODY") מדבר על המרפקים ולא על סוג המוט, ולכן סבב האודיט
+    הקודם, שחיפש "מוט מול דאמבל", נחת נכון על "מוט" ופספס את הצורה.
+  */
+  'https://www.tiktok.com/@deltabolic/video/7245075772501658886': 'lib-ez_bar_curl',
   'https://www.tiktok.com/@deltabolic/video/7110747528437533958': 'lib-incline_dumbbell_curl',
   'https://www.tiktok.com/@deltabolic/video/7471078615006891269': 'lib-incline_dumbbell_curl',
   'https://www.tiktok.com/@deltabolic/video/7584931170341735688': 'lib-incline_dumbbell_curl',
@@ -237,6 +243,16 @@ const LIB_NEW = {
   'lib-incline_hammer_curl': {
     nameHe: 'כפיפת פטיש בשיפוע',
     nameEn: 'Incline Dumbbell Hammer Curl',
+    muscleGroup: 'biceps',
+    videoCount: 0,
+  },
+  /*
+    מוט דבליו. המקור מפריד בין דאמבל, מוט וכבל אבל לא בין מוט ישר למוט זוויתי,
+    ולכן הרשומה נולדת כאן וה-`LIB_REASSIGN` מעביר אליה את הקליפ היחיד שבו.
+  */
+  'lib-ez_bar_curl': {
+    nameHe: 'כפיפת מרפקים עם מוט דבליו',
+    nameEn: 'EZ-Bar Curl',
     muscleGroup: 'biceps',
     videoCount: 0,
   },

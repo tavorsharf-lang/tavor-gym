@@ -45,6 +45,9 @@ import { withDipsChest } from './dipsChest'
 /** התרגיל שמיגרציה 15 משלימה. כאן ולא בתוך המיגרציה — הבדיקה קוראת אותו גם. */
 export const INCLINE_HAMMER_CURL_ID = 'incline-hammer-curl'
 
+/** ומה שמיגרציה 17 משלימה, מאותה סיבה בדיוק */
+export const EZ_BAR_CURL_ID = 'ez-bar-curl'
+
 /**
  * מסד הנתונים המובנה.
  *
@@ -554,6 +557,29 @@ class GymDatabase extends Dexie {
           const patched = withDipsChest(fixed)
           if (patched !== exercise) await table.put(patched)
         }
+      })
+
+    /**
+     * גרסה 17 — "כפיפת מרפקים עם מוט דבליו" נכנסת לקטלוג של מכשיר קיים.
+     *
+     * אותה צורה בדיוק כמו מיגרציה 15, ומאותה סיבה: הזריעה מכסה התקנה חדשה
+     * בלבד. הרשומה במאגר נולדה מקליפ שישב עד עכשיו תחת "כפיפת מרפקים במוט" —
+     * המוט שם זוויתי ולא ישר — ולכן היא מגיעה עם הסרטון שלה כבר מותקן.
+     */
+    this.version(17)
+      .stores({})
+      .upgrade(async (tx) => {
+        const table = tx.table<Exercise, string>('exercises')
+        if (await table.get(EZ_BAR_CURL_ID)) return
+        const seeded = SEED_EXERCISES.find((e) => e.id === EZ_BAR_CURL_ID)
+        if (!seeded) return
+        const maxOrder = (await table.toArray()).reduce((m, e) => Math.max(m, e.order), -1)
+        await table.add({
+          ...seeded,
+          order: maxOrder + 1,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        })
       })
 
     /*

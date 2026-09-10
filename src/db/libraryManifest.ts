@@ -2458,14 +2458,6 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "height": 720,
       "durationSec": 10.4,
       "sizeBytes": 506695
-    },
-    {
-      "src": "videos/lib/dumbbell_curl-14.mp4",
-      "poster": "videos/lib/dumbbell_curl-14.jpg",
-      "width": 406,
-      "height": 720,
-      "durationSec": 11.9,
-      "sizeBytes": 390792
     }
   ],
   "lib-incline_dumbbell_curl": [
@@ -3680,6 +3672,16 @@ export const LIBRARY_MANIFEST: Record<string, BundledVideo[]> = {
       "height": 720,
       "durationSec": 12.4,
       "sizeBytes": 368122
+    }
+  ],
+  "lib-ez_bar_curl": [
+    {
+      "src": "videos/lib/dumbbell_curl-14.mp4",
+      "poster": "videos/lib/dumbbell_curl-14.jpg",
+      "width": 406,
+      "height": 720,
+      "durationSec": 11.9,
+      "sizeBytes": 390792
     }
   ]
 }
@@ -5208,13 +5210,9 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
       {
         "topic": "Flaring your elbows excessively during bicep curls!",
         "url": "https://www.tiktok.com/@deltabolic/video/7021690774332951813"
-      },
-      {
-        "topic": "STOP flaring out your elbows durjng bicep curls!",
-        "url": "https://www.tiktok.com/@deltabolic/video/7245075772501658886"
       }
     ],
-    "totalAvailable": 8
+    "totalAvailable": 7
   },
   {
     "id": "lib-incline_dumbbell_curl",
@@ -6035,6 +6033,19 @@ export const LIBRARY_CATALOG: LibraryExercise[] = [
       {
         "topic": "How to Perform the PERFECT Incline Dumbbell Curl",
         "url": "https://www.tiktok.com/@deltabolic/video/7618743084087512321"
+      }
+    ],
+    "totalAvailable": 1
+  },
+  {
+    "id": "lib-ez_bar_curl",
+    "nameHe": "כפיפת מרפקים עם מוט דבליו",
+    "nameEn": "EZ-Bar Curl",
+    "muscleGroup": "biceps",
+    "videos": [
+      {
+        "topic": "STOP flaring out your elbows durjng bicep curls!",
+        "url": "https://www.tiktok.com/@deltabolic/video/7245075772501658886"
       }
     ],
     "totalAvailable": 1

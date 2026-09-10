@@ -15,7 +15,7 @@ import type { ExerciseImage } from './imageManifest'
  * הערך הוא **מערך מסודר**: הראשון הוא מה שמופיע בשורה ברשימה, וכולם מופיעים
  * כשקופיות פתיחה בגלריה.
  *
- * **כל 30 תרגילי הקטלוג וכל 65 רשומות המאגר מופיעים כאן.** מה שלא מופיע פשוט
+ * **כל 31 תרגילי הקטלוג וכל 66 רשומות המאגר מופיעים כאן.** מה שלא מופיע פשוט
  * לא מקבל כרטיס והשורה חוזרת להציג את פריים הסרטון — זה המצב של תרגיל שהמשתמש
  * יצר בעצמו, ואין לו כרטיס עד שייווצר אחד.
  */
@@ -43,6 +43,7 @@ export const EXERCISE_IMAGES: Readonly<Record<string, readonly string[]>> = {
   // אותם שני כרטיסים כמו הפטיש בישיבה, ומאותה סיבה: הכרטיס מתאר את חלוקת
   // העומס שהאחיזה קובעת, וזווית הספסל לא משנה אותה. אין כרטיס לפטיש בשיפוע.
   'incline-hammer-curl': ['standing_dumbbell_hammer_curl', 'standing_dumbbell_hammer_curl_2'],
+  'ez-bar-curl': ['standing_barbell_biceps_curl'],
   'behind-body-cable-curl': ['behind_the_body_cable_curl', 'behind_the_body_cable_curl_2'],
   'leg-press': ['45_plate_loaded_leg_press', '45_plate_loaded_leg_press_2'],
   'calf-raise': ['standing_calf_raise', 'standing_calf_raise_2', 'calf_press_on_leg_press'],
@@ -134,6 +135,12 @@ export const EXERCISE_IMAGES: Readonly<Record<string, readonly string[]>> = {
     הספסל. אין במאגר התמונות כרטיס לפטיש בשיפוע.
   */
   'lib-incline_hammer_curl': ['standing_dumbbell_hammer_curl', 'standing_dumbbell_hammer_curl_2'],
+  /*
+    כרטיס המוט הישר, כי אין כרטיס למוט דבליו. חלוקת העומס בשניהם היא אותה
+    חלוקה — מה שהמוט הזוויתי משנה הוא הזווית של שורש כף היד, לא איזה שריר
+    עובד — ולכן זו הקרבה הנכונה ולא פשרה.
+  */
+  'lib-ez_bar_curl': ['standing_barbell_biceps_curl'],
   'lib-cable_curl': ['standing_cable_biceps_curl'],
 
   // ─── מאגר · יד אחורית ───
