@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { JSX } from 'react'
 import { newId } from '@/domain/units'
 
@@ -106,9 +106,51 @@ const TONES: Record<ToastTone, string> = {
   warn: 'border-flame-400/40 text-flame-400',
 }
 
+/**
+ * כמה זמן טוסט נשאר מצויר אחרי שהוסר מהחנות, וכמה נמשכת היציאה שלו.
+ * שני המספרים חייבים להיות זהים, אחרת הוא נחתך באמצע או נשאר תקוע שקוף.
+ */
+const EXIT_MS = 260
+
 /** מותקן פעם אחת ב-App */
 export function ToastHost(): JSX.Element {
   const list = useSyncExternalStore(subscribe, snapshot, snapshot)
+
+  /*
+    טוסט שהוסר מהחנות נשאר מצויר עוד רגע, כדי שיהיה לו במה לצאת.
+
+    קודם הוא נכנס ב-340ms ונעלם בפריים אחד. זה בולט במיוחד כאן, כי
+    ‏`MAX_VISIBLE` הוא אחד: טוסט חדש *דורס* את הקודם, ובלי יציאה ההחלפה
+    נראתה כמו הבהוב ולא כמו החלפה.
+
+    הטיימרים יושבים ב-ref ולא ב-cleanup של האפקט בכוונה. הרשימה מתחלפת בכל
+    טוסט חדש, ו-cleanup היה מבטל את הטיימר של מי שכבר יוצא — כלומר משאיר
+    אותו על המסך לנצח.
+  */
+  const [leaving, setLeaving] = useState<readonly ToastItem[]>([])
+  const prev = useRef(list)
+  const exitTimers = useRef(new Map<string, number>())
+
+  useEffect(() => {
+    const gone = prev.current.filter((p) => !list.some((t) => t.id === p.id))
+    prev.current = list
+    if (gone.length === 0) return
+    setLeaving((cur) => [...cur.filter((t) => !gone.some((g) => g.id === t.id)), ...gone])
+    for (const item of gone) {
+      const handle = window.setTimeout(() => {
+        exitTimers.current.delete(item.id)
+        setLeaving((cur) => cur.filter((t) => t.id !== item.id))
+      }, EXIT_MS)
+      exitTimers.current.set(item.id, handle)
+    }
+  }, [list])
+
+  useEffect(() => {
+    const timers = exitTimers.current
+    return () => {
+      for (const handle of timers.values()) window.clearTimeout(handle)
+    }
+  }, [])
 
   return (
     <div
@@ -116,13 +158,30 @@ export function ToastHost(): JSX.Element {
       role="status"
       aria-live="polite"
     >
-      {list.map((t) => (
+      {[...leaving, ...list].map((t) => {
+        const out = leaving.some((l) => l.id === t.id)
+        return (
         <div
           key={t.id}
           className={[
-            'animate-rise card pointer-events-auto flex items-center gap-2 py-1 ps-4 pe-2 backdrop-blur-md',
+            'card flex items-center gap-2 py-1 ps-4 pe-2 backdrop-blur-md',
+            'transition-[opacity,transform] duration-[260ms] ease-swift',
+            /*
+              ‏`animate-rise` יורד ביציאה, וזה מה שמאפשר לטרנזישן לעבוד: הוא
+              מוגדר `both`, והמילוי שלו היה גובר על כל טרנזישן. הוא מסתיים
+              בדיוק על מצב הבסיס, ולכן הסרתו לא מקפיצה כלום.
+            */
+            out
+              ? 'pointer-events-none translate-y-2 opacity-0'
+              : 'animate-rise pointer-events-auto',
             TONES[t.tone],
           ].join(' ')}
+          /*
+            טוסט שיוצא כבר לא נמצא: המכל הוא `aria-live`, וטוסט שמחליק החוצה
+            לא אמור להיות מוכרז שוב, לקבל פוקוס, או להיענות ללחיצה.
+          */
+          aria-hidden={out || undefined}
+          inert={out}
         >
           <button
             type="button"
@@ -145,7 +204,8 @@ export function ToastHost(): JSX.Element {
             </button>
           ) : null}
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

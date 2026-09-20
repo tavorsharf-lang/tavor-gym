@@ -58,7 +58,37 @@ describe('טוסטים', () => {
     act(() => {
       vi.advanceTimersByTime(3_000)
     })
+    // ‏260ms של יציאה: הוא עוד מצויר, אבל כבר לא נמצא לאף קורא
     expect(screen.queryByRole('button', { name: 'התחל עכשיו' })).toBeNull()
+
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+    expect(screen.queryByText('התרגיל נוסף')).toBeNull()
+  })
+
+  it('טוסט שנסגר מחליק החוצה לפני שהוא יורד מה-DOM', () => {
+    render(<ToastHost />)
+
+    act(() => {
+      toast('התרגיל נוסף')
+    })
+    act(() => {
+      screen.getByRole('button', { name: 'התרגיל נוסף' }).click()
+    })
+
+    /*
+      בלי חלון היציאה הזה הטוסט נכנס ב-340ms ונעלם בפריים אחד. הוא עדיין
+      בעץ — אחרת אין לו במה לצאת — אבל `aria-hidden` כבר מוציא אותו מהכרזת
+      ה-`aria-live`, ולכן חיפוש לפי תפקיד לא מוצא אותו.
+    */
+    expect(screen.queryByRole('button', { name: 'התרגיל נוסף' })).toBeNull()
+    expect(screen.getByText('התרגיל נוסף')).toBeTruthy()
+
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+    expect(screen.queryByText('התרגיל נוסף')).toBeNull()
   })
 
   it('הפעולה עדיין רצה בלחיצה, והטוסט נסגר אחריה', () => {
@@ -73,6 +103,9 @@ describe('טוסטים', () => {
     })
 
     expect(onAction).toHaveBeenCalledTimes(1)
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
     expect(screen.queryByText('התרגיל נוסף')).toBeNull()
   })
 })
