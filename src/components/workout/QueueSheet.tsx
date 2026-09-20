@@ -89,7 +89,9 @@ function QueueRow({
         type="button"
         ref={setActivatorNodeRef}
         aria-label={`גרור לשינוי מקום: ${name}`}
-        className="knurl no-touch-scroll h-12 w-7 shrink-0 rounded-lg border border-ink-700 bg-ink-850"
+        // הוויזואל 28 רחב, האצבע 44: הפסאודו בולע את ריפוד השורה מצד אחד ואת
+        // המרווח לטקסט מצד שני, ושניהם לא אינטראקטיביים
+        className="knurl no-touch-scroll relative h-12 w-7 shrink-0 rounded-lg border border-ink-700 bg-ink-850 after:absolute after:inset-y-0 after:-inset-x-2 after:content-['']"
         {...attributes}
         {...listeners}
       />

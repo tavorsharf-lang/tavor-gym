@@ -69,7 +69,7 @@ export function resolveMuscleFilter(
 }
 
 const CHIP =
-  'flex min-h-9 shrink-0 items-center gap-1.5 rounded-pill border px-3 text-xs font-bold transition-colors'
+  'relative flex min-h-9 shrink-0 items-center gap-1.5 rounded-pill border px-3 text-xs font-bold transition-colors after:absolute after:inset-x-0 after:-inset-y-1 after:content-[\'\']'
 const ON = 'border-flame-500 bg-flame-500 text-ink-950'
 const OFF = 'border-ink-700 bg-ink-900/70 text-bone-300 active:bg-ink-800'
 
@@ -143,7 +143,7 @@ export function MuscleFilterChips({
     ‏‎-mx-4/px-4 כדי שהצ׳יפ האחרון ייגמר בקצה המסך ולא בקצה העמודה.
   */
   return (
-    <div className="-mx-4 mb-4 overflow-x-auto px-4">
+    <div className="scroll-touch -mx-4 mb-4 overflow-x-auto px-4">
       <div className="flex w-max gap-1.5" role="group" aria-label="סינון לפי שריר">
         {current === null ? (
           <>

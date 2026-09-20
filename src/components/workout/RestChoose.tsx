@@ -144,7 +144,7 @@ export function RestChoose({
             type="button"
             onClick={onOpenFull}
             aria-label={`מנוחה, נותרו ${clock} — פתח את מסך המנוחה המלא`}
-            className={`tnum shrink-0 text-[1.875rem] leading-none font-extrabold ${
+            className={`tnum relative shrink-0 text-[1.875rem] leading-none font-extrabold after:absolute after:inset-x-0 after:-inset-y-[7px] after:content-[''] ${
               urgent ? 'animate-heat text-flame-400' : 'text-bone-50'
             }`}
           >
@@ -162,7 +162,7 @@ export function RestChoose({
             dir="ltr"
             onClick={onAdd30}
             aria-label="הוסף 30 שניות למנוחה"
-            className="btn-ghost flex h-[30px] shrink-0 items-center rounded-[10px] px-2.5 text-[0.71875rem] font-bold"
+            className="btn-ghost relative flex h-[30px] shrink-0 items-center rounded-[10px] px-2.5 text-[0.71875rem] font-bold after:absolute after:inset-x-0 after:-inset-y-[7px] after:content-['']"
           >
             +30
           </button>
@@ -172,6 +172,9 @@ export function RestChoose({
       {/*
         ‏`flex: none` על כל שורה, וזו לא קוסמטיקה: בלעדיו ה-flex סוחט שלוש
         שורות של 40 אל מתחת ליעד הלחיצה של 44, בשקט מוחלט.
+
+        אבל 40 הוא ממילא מתחת ל-44, ו-`flex: none` רק מנע הידרדרות נוספת:
+        ההרחבה ל-44 מגיעה מהפסאודו השקוף, כמו בכל שאר המסך. הוויזואל נשאר 40.
       */}
       <div className="mt-2 flex flex-1 flex-col gap-1.5">
         {(suggestions ?? []).map((s) => (
@@ -179,7 +182,7 @@ export function RestChoose({
             key={s.exercise.id}
             type="button"
             onClick={() => onPick(s.exercise)}
-            className="flex h-10 flex-none items-center gap-2 rounded-[13px] border border-ink-700 bg-ink-850 px-2 text-start active:border-flame-700"
+            className="relative flex h-10 flex-none items-center gap-2 rounded-[13px] border border-ink-700 bg-ink-850 px-2 text-start after:absolute after:inset-x-0 after:-inset-y-[2px] after:content-[''] active:border-flame-700"
           >
             <ExerciseThumb exerciseId={s.exercise.id} libraryId={s.exercise.libraryId} size="row" />
             <span className="min-w-0 flex-1">
@@ -209,7 +212,7 @@ export function RestChoose({
         <button
           type="button"
           onClick={onOtherMuscle}
-          className="mt-auto flex h-10 flex-none items-center justify-center rounded-[13px] border border-dashed border-ink-600 text-xs font-bold text-bone-300 active:border-ink-700"
+          className="relative mt-auto flex h-10 flex-none items-center justify-center rounded-[13px] border border-dashed border-ink-600 text-xs font-bold text-bone-300 after:absolute after:inset-x-0 after:-inset-y-[2px] after:content-[''] active:border-ink-700"
         >
           בחר שריר אחר
         </button>

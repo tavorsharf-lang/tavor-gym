@@ -33,7 +33,7 @@ export function SubTargetHeading({ sub, count }: { sub: string; count: number })
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`${sub} — איפה השריר הזה יושב`}
-        className="mb-1.5 flex min-h-9 w-full items-center gap-2 px-1 text-start active:opacity-70"
+        className="relative mb-1.5 flex min-h-9 w-full items-center gap-2 px-1 text-start after:absolute after:inset-x-0 after:-inset-y-1 after:content-[''] active:opacity-70"
       >
         <img
           src={assetUrl(card.thumb)}

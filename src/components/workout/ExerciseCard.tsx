@@ -736,7 +736,7 @@ export function ExerciseCard({
               aria-label="סט אחד פחות"
               disabled={item.targetSets <= Math.max(1, workCount)}
               onClick={() => void setTargetSets(item.key, item.targetSets - 1)}
-              className="-my-2 -mx-1 px-1 py-2 disabled:opacity-30"
+              className="-my-2 -mx-[7px] px-[7px] py-2 disabled:opacity-30"
             >
               <span className="flex h-7 w-[30px] items-center justify-center rounded-[9px] border border-ink-700 bg-ink-900 text-sm font-bold text-bone-300">
                 <Minus size={13} strokeWidth={3} />
@@ -746,7 +746,7 @@ export function ExerciseCard({
               type="button"
               aria-label="סט אחד יותר"
               onClick={() => void setTargetSets(item.key, item.targetSets + 1)}
-              className="-my-2 -mx-1 px-1 py-2"
+              className="-my-2 -mx-[7px] px-[7px] py-2"
             >
               <span className="flex h-7 w-[30px] items-center justify-center rounded-[9px] border border-ink-700 bg-ink-900 text-sm font-bold text-bone-300">
                 <Plus size={13} strokeWidth={3} />
@@ -1062,7 +1062,7 @@ export function ExerciseCard({
         <button
           type="button"
           onClick={onOpenRating}
-          className="mt-[9px] flex h-10 w-full items-center justify-center gap-2 rounded-[13px] border border-ink-700 bg-ink-900/60 px-3 text-[0.78125rem] font-bold text-bone-300"
+          className="relative mt-[9px] flex h-10 w-full items-center justify-center gap-2 rounded-[13px] after:absolute after:inset-x-0 after:-inset-y-[2px] after:content-[''] border border-ink-700 bg-ink-900/60 px-3 text-[0.78125rem] font-bold text-bone-300"
         >
           הרגיש {formatRatingText(rating.rating, rating.rir)}
         </button>
