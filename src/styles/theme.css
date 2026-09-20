@@ -154,13 +154,24 @@
     color: #fff;
   }
 
+  /*
+    הפחתת תנועה.
+
+    ‏`animation-delay` חייב להתאפס יחד עם המשך, ולא רק לידו. `.animate-rise`
+    מוגדר עם `both`, ולכן המילוי לאחור מחזיק את קיפריים ה-0% — כלומר
+    ‏`opacity: 0` — לכל אורך ההשהיה. בלי האיפוס הזה רשת התוכניות בדף הבית
+    עדיין נדלקה אחת-אחת על פני ~400ms, רק בלי התנועה: מי שביקש פחות תנועה
+    קיבל הבהוב במקום. `transition-delay` מאופס מאותה סיבה.
+  */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
     *::after {
       animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
+      transition-delay: 0ms !important;
     }
   }
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Minus, Plus, TimerOff, X } from 'lucide-react'
 import { useRestTimer } from '@/hooks/useRestTimer'
+import { useModalLayer } from '@/hooks/useModalLayer'
 import type { AudioCue } from '@/hooks/useAudioCue'
 import { formatClock } from '@/domain/units'
 import { assetUrl } from '@/db/mediaDb'
@@ -50,6 +51,13 @@ export interface RestFocus {
     targetSets: number
   } | null
 }
+
+/**
+ * הילת החום שמאחורי המסך. קבוע מודול ולא מחרוזת שנבנית ברינדור: הערך זהה
+ * בכל טיק, וכך React לא כותב `backgroundImage` מחדש 240 פעם בכל מנוחה.
+ */
+const GLOW =
+  'radial-gradient(90% 55% at 50% 42%, var(--color-flame-500), transparent 70%)'
 
 /** "נשאר 1" ולא "נשארו 1" — המסך הזה נקרא בחטף ושגיאת מספר נתקעת בעין */
 function remainingChip(remaining: number): string {
@@ -163,6 +171,7 @@ export function RestOverlay({
   const [flash, setFlash] = useState(false)
   const [card, setCard] = useState<MuscleCardImage | null>(null)
   const flashTimer = useRef<number | null>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
 
   const timer = useRestTimer(endsAt, totalSeconds, () => {
     // מנוחה שהסתיימה לפני יותר מדקה כבר לא רלוונטית — לא מצפצפים על היסטוריה
@@ -181,6 +190,21 @@ export function RestOverlay({
 
   // שלוש השניות האחרונות מקבלות פעימה — התראה מקדימה בלי צליל
   const urgent = timer.active && timer.remainingSeconds <= 3 && timer.remainingSeconds > 0
+
+  /*
+    המעטפת המודאלית. היא חייבת לרוץ לפני היציאות המוקדמות שמתחת, כי הוק לא
+    יכול לרוץ בתנאי — ולכן ה"פתוח" מחושב כאן ולא נגזר מהיציאה.
+
+    ‏Escape מכווץ ולא מכבה: הכיווץ הוא מה שמחזיר לכרטיס בלי לעצור את הספירה,
+    בדיוק כמו ה-X בכותרת. שכבה מכווצת אינה מודאלית — היא `pointer-events-none`
+    ורק מבזיקה — ולכן היא מחוץ לכליאה.
+  */
+  useModalLayer(timer.active && !collapsed, {
+    root: rootRef,
+    // ‏Escape מתנהג בדיוק כמו ה-X, כולל כשאין X: `onCollapse` אופציונלי,
+    // ובלעדיו אין לאן לסגור והמקש לא אמור להמציא יציאה משלו
+    onClose: onCollapse ?? (() => {}),
+  })
 
   if (!timer.active && !flash) return null
 
@@ -241,19 +265,34 @@ export function RestOverlay({
 
   return createPortal(
     <div
+      ref={rootRef}
       className="fixed inset-0 z-50 flex flex-col overflow-hidden animate-fade"
       role="dialog"
       aria-modal="true"
+      aria-label="מנוחה"
     >
-      {/* רקע: שחור עמוק עם הילת חום שמתחזקת ככל שנשאר פחות זמן */}
+      {/*
+        רקע: שחור עמוק עם הילת חום שמתחזקת ככל שנשאר פחות זמן.
+
+        שתי שכבות ולא אחת, וזה לא סידור אלא עלות. קודם ההילה והבלר ישבו יחד
+        על אלמנט אחד עם `transition-[background] duration-1000`, בזמן
+        ש-`useRestTimer` מטיק כל 250ms — כלומר כל ערך חדש כיוון מחדש טרנזישן
+        שנמשך פי ארבעה מהמרווח בינו לבין הבא, והוא לעולם לא התייצב. התוצאה
+        הייתה אינטרפולציה של גרדיאנט על מסך מלא בכל פריים, על אותו אלמנט שנושא
+        ‏`backdrop-filter` של 24px, לאורך כל המנוחה. עכשיו שכבת ההאפלה סטטית
+        והבלר מחושב פעם אחת, וההילה נוסעת על `opacity` לבדו — כלומר על
+        הקומפוזיטור.
+      */}
+      <div className="absolute inset-0 bg-ink-950/97 backdrop-blur-xl" />
       <div
-        className="absolute inset-0 bg-ink-950/97 backdrop-blur-xl transition-[background] duration-1000"
+        className="absolute inset-0 transition-opacity duration-[250ms] ease-linear"
         style={{
           // הגוון מהטוקן ולא כליטרל: שינוי צבע המבטא לא אמור להשאיר את
-          // מסך המנוחה — המסך הכי כתום באפליקציה — על הגוון הישן
-          backgroundImage: `radial-gradient(90% 55% at 50% 42%, color-mix(in srgb, var(--color-flame-500) ${
-            (0.06 + 0.16 * timer.progress) * 100
-          }%, transparent), transparent 70%)`,
+          // מסך המנוחה — המסך הכי כתום באפליקציה — על הגוון הישן.
+          // האטימות מחליפה את ה-color-mix: 0.06→0.22 על גוון מלא נותן בדיוק
+          // את אותם 6%–22% שהיו שם, בלי לצייר את הגרדיאנט מחדש.
+          backgroundImage: GLOW,
+          opacity: 0.06 + 0.16 * timer.progress,
         }}
       />
       {flash && <div className="pointer-events-none absolute inset-0 animate-flash bg-flame-500" />}
