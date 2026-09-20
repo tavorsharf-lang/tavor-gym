@@ -92,6 +92,13 @@ function Shell() {
   return (
     <>
       <UpdateBanner />
+      {/*
+        ‏<main> אחד סביב כל המסלולים. בלעדיו הרוטור של VoiceOver הציע רק
+        ‏<header> ו-<nav> ולא "תוכן ראשי", כלומר הדרך המהירה ביותר לדלג אל
+        התוכן פשוט לא הייתה קיימת. הכותרות עצמן תקינות: `ScreenHeader` מספק
+        ‏<h1> לכל מסך.
+      */}
+      <main>
       <Routes>
         <Route path="/" element={<HomeScreen />} />
         <Route path="/workout" element={<WorkoutScreen />} />
@@ -125,6 +132,7 @@ function Shell() {
         <Route path="/settings/backup" element={<BackupScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </main>
       {showTabs && <TabBar />}
       <ToastHost />
     </>

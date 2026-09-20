@@ -25,7 +25,7 @@ import { MUSCLE_GROUPS, MUSCLE_GROUP_BY_SIZE } from '@/db/types'
 import type { Exercise, PlayableVideo } from '@/db/types'
 import { Button, toast } from '@/components/ui'
 import { MuscleLoadMap } from './MuscleLoadMap'
-import { lockBodyScroll } from '@/lib/scrollLock'
+import { useModalLayer } from '@/hooks/useModalLayer'
 
 /**
  * נגן ההדגמות.
@@ -98,6 +98,7 @@ export function VideoPlayer({
   /** מזהה הנכס שבוחרים לו יעד העברה */
   const [movingId, setMovingId] = useState<string | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
   /*
     נקודת ההתחלה של המחווה ב-ref ולא במשתנה רגיל.
 
@@ -197,16 +198,18 @@ export function VideoPlayer({
   }, [open])
 
   /*
-    נעילת גלילת הרקע כל עוד הנגן פתוח.
+    נעילת גלילת הרקע, Escape, כליאת פוקוס והחזרתו.
 
-    דרך המונה המשותף, כי הנגן כמעט תמיד נפתח *מעל* גיליון שכבר נעל. שמירת
-    `previous` מקומית כאן קראה את הנעילה של הגיליון כמצב הבסיס, והחזירה
-    'hidden' אחרי שהגיליון כבר שוחרר — כלומר דף נעול בלי שום מודל פתוח.
+    הנעילה עוברת דרך המונה המשותף, כי הנגן כמעט תמיד נפתח *מעל* גיליון שכבר
+    נעל. שמירת `previous` מקומית כאן קראה את הנעילה של הגיליון כמצב הבסיס,
+    והחזירה 'hidden' אחרי שהגיליון כבר שוחרר — כלומר דף נעול בלי שום מודל
+    פתוח.
+
+    הכליאה היא מה שחסר עד עכשיו: היו לנגן שם נגיש, Escape ונעילה, אבל Tab
+    המשיך לצעוד ממנו אל הגיליון שמתחתיו. וה-`isTopmost` שבהוק הוא בדיוק מה
+    שצריך כאן, כי זה הפורטל שנפתח מעל גיליון פתוח.
   */
-  useEffect(() => {
-    if (!open) return
-    return lockBodyScroll()
-  }, [open])
+  useModalLayer(open, { root: rootRef, onClose })
 
   /**
    * מעבר מחזורי בין הסרטונים.
@@ -226,14 +229,13 @@ export function VideoPlayer({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') return onClose()
       // המסך כולו RTL: הבא יושב משמאל, ולכן חץ שמאלה מקדם וחץ ימינה מחזיר
       if (e.key === 'ArrowLeft') go(1)
       if (e.key === 'ArrowRight') go(-1)
     }
     if (open) window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose, go])
+  }, [open, go])
 
   /*
     סרטון שנוגן מהרשת נשמר למכשיר.
@@ -399,6 +401,7 @@ export function VideoPlayer({
       שמתחתיו לדעת שהוא כבר לא העליון ולוותר על כליאת הפוקוס שלו.
     */
     <div
+      ref={rootRef}
       className="fixed inset-0 z-50 flex flex-col bg-ink-950/97 backdrop-blur-xl animate-fade"
       role="dialog"
       aria-modal="true"

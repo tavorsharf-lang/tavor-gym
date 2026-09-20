@@ -1096,7 +1096,9 @@ export function ExerciseCard({
           <p className="text-sm leading-relaxed text-bone-400">
             מה שכדאי לזכור על המכונה הזו בפעם הבאה. נשמר על התרגיל, לא על האימון.
           </p>
+          {/* כותרת הגיליון מתארת את השדה אבל לא משויכת אליו */}
           <textarea
+            aria-label="הערה לתרגיל"
             value={noteDraft}
             onChange={(e) => setNoteDraft(e.target.value)}
             rows={3}

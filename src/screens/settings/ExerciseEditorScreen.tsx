@@ -676,7 +676,10 @@ export function ExerciseEditorScreen(): JSX.Element {
             הגדרות המכונה ומה שכדאי לזכור. נפרד מהדגשים: הם "איך מבצעים", וזה "מה
             שאני יודע על המכונה הזו". אפשר לכתוב גם באמצע אימון, מהכרטיס.
           </p>
+          {/* התווית הנראית היא <h2> בחוץ ואינה משויכת, ולכן VoiceOver הכריז
+              רק את ה-placeholder */}
           <textarea
+            aria-label="ההערה שלי על התרגיל"
             value={draft.personalNote ?? ''}
             onChange={(e) => patch({ personalNote: e.target.value })}
             rows={3}
