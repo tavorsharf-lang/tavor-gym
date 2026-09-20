@@ -15,6 +15,21 @@ import { useModalLayer } from '@/hooks/useModalLayer'
  * בלי לחפש כפתור.
  */
 
+/**
+ * משך הכניסה והיציאה, ובדיוק כמה זמן הגיליון נשאר ב-DOM אחרי שנסגר.
+ *
+ * הכניסה הייתה `@keyframes`, ובזה היו שני באגים. הראשון: אנימציה גוברת על
+ * סטייל אינליין בקסקייד, ולכן גרירה שהתחילה בתוך 280ms הראשונים נבלעה —
+ * האצבע זזה והגיליון לא. השני: יציאה לא הייתה בכלל. הגיליון עלה ב-280ms
+ * ונעלם בפריים אחד, וגרוע מכך דווקא במסלול שהקובץ הזה השקיע בו — גוררים
+ * אותו 95 פיקסלים, משחררים, והוא מפסיק להתקיים במקום להמשיך לשפה שממנה בא.
+ *
+ * טרנזישן במקום קיפריימים פותר את שניהם: הוא מכוון מחדש מהמצב הנוכחי במקום
+ * להתחיל מאפס, ולכן הוא גם מפסיק להילחם בגרירה וגם יודע לצאת מאיפה שהאצבע
+ * עזבה.
+ */
+const SHEET_MS = 280
+
 /** כמה צריך למשוך כדי לסגור — או כמה מהר, למי שרק מנפנף */
 const CLOSE_DISTANCE_PX = 96
 const FLICK_DISTANCE_PX = 32
@@ -100,25 +115,66 @@ export function BottomSheet({
   }, [open])
 
   /*
+    שני מצבים ולא אחד: `present` הוא "קיים ב-DOM" ו-`shown` הוא "במצב הפתוח".
+    הפער ביניהם הוא כל היציאה — הגיליון כבר לא פתוח, אבל הוא עדיין מצויר
+    ומחליק החוצה.
+
+    ‏`requestAnimationFrame` בכניסה הוא הכרח ולא זהירות: בלי פריים אחד בין
+    ההרכבה לבין `shown`, הדפדפן מאחד את שני המצבים לחישוב סגנון אחד ואין מה
+    לעבור בינו לבין עצמו — הגיליון פשוט מופיע במקומו.
+  */
+  const [present, setPresent] = useState(open)
+  const [shown, setShown] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      setPresent(true)
+      const frame = requestAnimationFrame(() => setShown(true))
+      return () => cancelAnimationFrame(frame)
+    }
+    setShown(false)
+    const id = window.setTimeout(() => setPresent(false), SHEET_MS)
+    return () => window.clearTimeout(id)
+  }, [open])
+
+  /*
     נעילת הגלילה, Escape, כליאת הפוקוס והחזרתו יושבות ב-`useModalLayer`.
     הן היו כתובות כאן, ו-`RestOverlay` הצהיר `aria-modal` בלי אף אחת מהן —
     החילוץ הוא מה שנתן לו אותן בלי להעתיק אותן.
   */
   useModalLayer(open, { root: rootRef, panel: panelRef, onClose })
 
-  if (!open) return null
+  if (!present) return null
 
   return createPortal(
     <div
       ref={rootRef}
       className="fixed inset-x-0 top-0 z-50 flex h-[100dvh] items-end"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={title ? titleId : undefined}
-      aria-label={title ? undefined : 'חלון'}
+      /*
+        הסמנטיקה נגזרת מ-`open` ולא מ-`shown`, וזה לא קיצור: `shown` מתעדכן
+        בפריים שאחרי ההרכבה, ולכן קשירה אליו הייתה מסתירה את הגיליון מעץ
+        הנגישות בדיוק ברגע שבו הוא נפתח.
+
+        מה שכן נגזר מהיציאה: בזמנה הגיליון כבר לא מודאל. הוא נשאר מצויר עוד
+        ‏280ms, ובחלון הזה `isTopmost` של שכבה אחרת הייתה סופרת אותו כעליון
+        וחוסמת לעצמה את הפוקוס.
+      */
+      role={open ? 'dialog' : undefined}
+      aria-modal={open ? true : undefined}
+      aria-hidden={open ? undefined : true}
+      aria-labelledby={open && title ? titleId : undefined}
+      aria-label={open && !title ? 'חלון' : undefined}
     >
+      {/*
+        ‏`pointer-events-none` בזמן היציאה הוא לא ניקיון: ה-backdrop שקוף אבל
+        עדיין פרוס על כל המסך, ובלעדיו הוא היה בולע נגיעות 280ms אחרי שהגיליון
+        נסגר. תחת "הפחתת תנועה" המעבר מסתיים מיד וההמתנה נשארת — כלומר שם זה
+        היה מורגש במיוחד.
+      */}
       <div
-        className="animate-fade absolute inset-0 bg-ink-950/70 backdrop-blur-sm"
+        className={`absolute inset-0 bg-ink-950/70 backdrop-blur-sm transition-opacity duration-[280ms] ease-swift ${
+          shown ? 'opacity-100' : 'pointer-events-none opacity-0'
+        }`}
         aria-hidden="true"
         onClick={() => onClose()}
       />
@@ -126,12 +182,17 @@ export function BottomSheet({
       <div
         ref={panelRef}
         tabIndex={-1}
-        className={`animate-sheet relative flex w-full flex-col overflow-hidden rounded-t-[1.5rem] border-t border-ink-700 bg-ink-900 shadow-[0_-14px_44px_-14px_rgba(0,0,0,0.85)] focus:outline-none ${
-          dragging ? '' : 'transition-transform duration-200'
+        className={`relative flex w-full flex-col overflow-hidden rounded-t-[1.5rem] border-t border-ink-700 bg-ink-900 shadow-[0_-14px_44px_-14px_rgba(0,0,0,0.85)] focus:outline-none ${
+          dragging ? '' : 'transition-transform duration-[280ms] ease-swift'
         }`}
         style={{
           maxHeight: `${maxHeightVh}dvh`,
-          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
+          /*
+            ‏`100%` הוא גובה הגיליון עצמו ולא מספר קשיח, ולכן אותו ערך נכון
+            לגיליון של שתי שורות ולגיליון של 85dvh. כשהוא נסגר אחרי גרירה
+            הטרנזישן מכוון מהמיקום שהאצבע עזבה אל השפה, במקום לקפוץ.
+          */
+          transform: shown ? `translateY(${dragY}px)` : 'translateY(100%)',
         }}
       >
         {/*
