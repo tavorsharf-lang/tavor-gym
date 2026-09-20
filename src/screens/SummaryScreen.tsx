@@ -580,7 +580,7 @@ export function SummaryScreen(): JSX.Element {
         <section className="mt-6">
           <h3 className="meta mb-2">שיאים שנשברו</h3>
           <ul className="flex flex-col gap-2">
-            {sessionPrs.map((pr) => {
+            {sessionPrs.map((pr, i) => {
               const ex = exerciseById.get(pr.exerciseId)
               const event: PrEvent = {
                 exerciseId: pr.exerciseId,
@@ -593,6 +593,12 @@ export function SummaryScreen(): JSX.Element {
               return (
                 <li
                   key={`${pr.exerciseId}-${pr.kind}`}
+                  /*
+                    רשימת השיאים היא הרגע הנדיר והרגשי היחיד באפליקציה שמותר
+                    לו תקציב, והיא נדלקה כבלוק אחד. 45ms לפריט — אותו מנגנון
+                    שרשת התוכניות בדף הבית כבר משתמשת בו.
+                  */
+                  style={{ animationDelay: `${i * 45}ms` }}
                   className="card animate-rise flex items-center gap-3 border-pr-400/25 p-3"
                 >
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-pr-400/12 text-pr-400">

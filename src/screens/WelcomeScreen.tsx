@@ -57,8 +57,13 @@ export function WelcomeScreen({ onDone }: { onDone: (to: string) => void }): JSX
   const noServiceWorker =
     isInAppBrowser() || typeof navigator === 'undefined' || !('serviceWorker' in navigator)
 
+  /*
+    ‏`animate-fade` על השכבה הוא לא קישוט. המסך הזה לא עולה בציור הראשון: הוא
+    נקבע אחרי `db.sessions.count()` באפקט, ולכן דף הבית כבר צויר — והשכבה
+    נחתה עליו בקפיצה. זו גם הפעם היחידה שמישהו רואה את המסך הזה.
+  */
   return (
-    <div className="fixed inset-0 z-[80] overflow-y-auto overscroll-contain bg-ink-950">
+    <div className="animate-fade fixed inset-0 z-[80] overflow-y-auto overscroll-contain bg-ink-950">
       <Screen dock={false}>
         {/*
           ‏pt-safe ביד: `Screen` מוסיף רק ריפוד צדדי ותחתון, וכל הריפוד העליון

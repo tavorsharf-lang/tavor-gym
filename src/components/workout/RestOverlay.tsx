@@ -399,8 +399,15 @@ export function RestOverlay({
                 strokeWidth={STROKE}
                 strokeLinecap="round"
                 strokeDasharray={circumference}
-                strokeDashoffset={drained}
+                /*
+                  ‏`strokeDashoffset` בסטייל ולא כאטריביוט, וזה מה שמאפשר
+                  לטרנזישן לתפוס. בלעדיו הטבעת קפצה במדרגות של 250ms — בזמן
+                  שאותו `timer.progress` בדיוק מניע פסים חלקים ב-InlineRest
+                  וב-RestChoose. מקור אחד, משמעות אחת, ושלוש התנהגויות.
+                */
+                className="transition-[stroke-dashoffset] duration-[250ms] ease-linear"
                 style={{
+                  strokeDashoffset: drained,
                   filter:
                     'drop-shadow(0 0 8px color-mix(in srgb, var(--color-flame-500) 65%, transparent))',
                 }}

@@ -43,7 +43,7 @@ export function SetTuner({
             // ריבוי מפורש: "1 סטים" הוא בדיוק סוג השגיאה שנתקעת באוזן
             aria-label={n === 1 ? 'סט אחד' : `${n} סטים`}
             onClick={() => onPick(n)}
-            className={`tnum pressable relative flex flex-1 items-center justify-center rounded-[11px] border text-sm font-extrabold transition-colors active:scale-[0.975] after:absolute after:inset-x-0 after:-inset-y-[3px] after:content-[''] ${
+            className={`tnum pressable relative flex flex-1 items-center justify-center rounded-[11px] border text-sm font-extrabold active:scale-[0.975] after:absolute after:inset-x-0 after:-inset-y-[3px] after:content-[''] ${
               selected
                 ? 'border-flame-500 bg-flame-500/15 text-bone-50'
                 : 'border-ink-700 bg-ink-900 text-bone-300'
