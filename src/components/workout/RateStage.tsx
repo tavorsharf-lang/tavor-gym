@@ -72,7 +72,7 @@ export function RateStage({
               // ‏currentColor הוא הציר: הספרה, המסגרת הנבחרת והמד כולם נגזרים
               // ממנו, ולכן יש כאן משתנה צבע אחד לכל אפשרות ולא שלושה
               style={{ color: choice.color }}
-              className={`flex h-26 flex-1 flex-col items-center justify-center gap-[7px] rounded-[14px] border px-1 transition-colors ${
+              className={`pressable flex h-26 flex-1 flex-col items-center justify-center gap-[7px] rounded-[14px] border px-1 transition-colors active:scale-[0.97] ${
                 picked ? 'border-current bg-current/15' : 'border-bone-50/10 bg-ink-900'
               }`}
             >

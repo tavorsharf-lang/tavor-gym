@@ -28,7 +28,7 @@ export function SessionCard({
     <button
       type="button"
       onClick={onTap}
-      className="card flex w-full items-center gap-3 p-3 text-start transition-transform active:scale-[0.985]"
+      className="card flex w-full items-center gap-3 p-3 text-start pressable active:scale-[0.985]"
     >
       <span
         aria-hidden="true"

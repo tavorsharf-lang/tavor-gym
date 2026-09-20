@@ -197,7 +197,7 @@ function MediaRow({
           key={v.id}
           onClick={onOpen}
           aria-label={`נגן ${v.label}`}
-          className="relative h-24 w-[4.5rem] shrink-0 overflow-hidden rounded-xl border border-ink-700 transition-transform active:scale-95"
+          className="relative h-24 w-[4.5rem] shrink-0 overflow-hidden rounded-xl border border-ink-700 pressable active:scale-95"
         >
           {v.posterUrl ? (
             <img src={v.posterUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
@@ -281,7 +281,7 @@ function HistoryRow({
   return (
     <button
       onClick={onOpen}
-      className="card w-full p-3.5 text-start transition-transform active:scale-[0.99]"
+      className="card w-full p-3.5 text-start pressable active:scale-[0.99]"
     >
       <div className="flex items-center gap-2">
         <span className="text-sm font-extrabold text-bone-50">{formatRelativeDay(entry.startedAt)}</span>

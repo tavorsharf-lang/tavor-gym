@@ -425,7 +425,7 @@ export function RestOverlay({
                     שאילתת בדיקה שמחפשת אחד מהם.
                   */
                   aria-label={`הדגמות ואחוזי העומס של ${focus.name}`}
-                  className="absolute overflow-hidden rounded-full bg-bone-50 transition-transform active:scale-[0.98] disabled:active:scale-100"
+                  className="absolute overflow-hidden rounded-full bg-bone-50 pressable active:scale-[0.98]"
                   style={{ inset: imageInset }}
                 >
                   {/*

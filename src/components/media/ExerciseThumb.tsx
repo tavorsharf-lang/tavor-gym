@@ -95,7 +95,7 @@ export function ExerciseThumb({
     <button
       onClick={onOpen}
       aria-label={`אילו שרירים עובדים ב${image.nameHe}`}
-      className={`${frame} transition-transform active:scale-95`}
+      className={`${frame} pressable active:scale-95`}
     >
       {inner}
     </button>

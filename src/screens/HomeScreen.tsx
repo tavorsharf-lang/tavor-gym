@@ -256,7 +256,7 @@ export function HomeScreen(): JSX.Element {
                     onClick={() => openSheet(status.routineId)}
                     style={{ animationDelay: `${i * 50}ms` }}
                     className={[
-                      'card animate-rise relative flex min-h-24 flex-col items-start gap-1 p-3 text-start',
+                      'card pressable animate-rise relative flex min-h-24 flex-col items-start gap-1 p-3 text-start active:scale-[0.985]',
                       isSuggested ? 'card-active' : '',
                     ]
                       .filter(Boolean)

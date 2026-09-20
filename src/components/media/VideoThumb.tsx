@@ -189,7 +189,7 @@ export function VideoThumb({
     <button
       onClick={onOpen}
       aria-label="פתח סרטון הדגמה"
-      className={`${frame} active:scale-95 transition-transform`}
+      className={`${frame} pressable active:scale-95`}
     >
       {inner}
     </button>

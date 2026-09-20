@@ -70,7 +70,7 @@ export function SetRow({
           aria-label={menuOpen ? 'סגור פעולות' : 'פעולות לסט'}
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((v) => !v)}
-          className={`flex size-12 shrink-0 items-center justify-center rounded-lg ${
+          className={`pressable flex size-12 shrink-0 items-center justify-center rounded-lg active:scale-90 ${
             menuOpen ? 'bg-ink-700 text-flame-400' : 'text-bone-500'
           }`}
         >

@@ -713,7 +713,7 @@ export function ExerciseCard({
           type="button"
           aria-expanded={canTune ? tuneOpen : undefined}
           onClick={() => (canTune ? setTuneOpen((v) => !v) : setActionsOpen(true))}
-          className="relative flex shrink-0 items-center gap-1.5 after:absolute after:inset-x-0 after:-inset-y-[14px] after:content-['']"
+          className="relative flex shrink-0 items-center gap-1.5 after:absolute after:inset-x-0 after:-inset-y-[14px] after:content-[''] active:opacity-70"
         >
           <span className="tnum border-b border-dashed border-flame-400/50 text-xs font-extrabold whitespace-nowrap text-flame-400">
             {setLine}
@@ -736,7 +736,7 @@ export function ExerciseCard({
               aria-label="סט אחד פחות"
               disabled={item.targetSets <= Math.max(1, workCount)}
               onClick={() => void setTargetSets(item.key, item.targetSets - 1)}
-              className="-my-2 -mx-[7px] px-[7px] py-2 disabled:opacity-30"
+              className="pressable -my-2 -mx-[7px] px-[7px] py-2 active:scale-[0.94] disabled:opacity-30"
             >
               <span className="flex h-7 w-[30px] items-center justify-center rounded-[9px] border border-ink-700 bg-ink-900 text-sm font-bold text-bone-300">
                 <Minus size={13} strokeWidth={3} />
@@ -746,7 +746,7 @@ export function ExerciseCard({
               type="button"
               aria-label="סט אחד יותר"
               onClick={() => void setTargetSets(item.key, item.targetSets + 1)}
-              className="-my-2 -mx-[7px] px-[7px] py-2"
+              className="pressable -my-2 -mx-[7px] px-[7px] py-2 active:scale-[0.94]"
             >
               <span className="flex h-7 w-[30px] items-center justify-center rounded-[9px] border border-ink-700 bg-ink-900 text-sm font-bold text-bone-300">
                 <Plus size={13} strokeWidth={3} />
@@ -972,7 +972,7 @@ export function ExerciseCard({
             setNoteDraft(exercise.personalNote ?? '')
             setNoteOpen(true)
           }}
-          className={`relative flex h-10 items-center justify-center rounded-[13px] border px-2 text-[0.71875rem] font-semibold after:absolute after:inset-x-0 after:-inset-y-[2px] after:content-[''] ${
+          className={`pressable relative flex h-10 items-center justify-center rounded-[13px] border px-2 text-[0.71875rem] font-semibold after:absolute after:inset-x-0 after:-inset-y-[2px] after:content-[''] active:scale-[0.97] ${
             exercise.cues.length > 0 ? 'w-24 shrink-0' : 'flex-1'
           } ${
             exercise.personalNote
@@ -998,7 +998,7 @@ export function ExerciseCard({
               if (warmupDone + 1 >= warmupPlan.length) void markWarmupOffered(item.key)
               void commitSet('warmup', warmupNext.weightKg, warmupNext.reps)
             }}
-            className="relative flex h-10 w-[52px] shrink-0 items-center justify-center rounded-[13px] border border-warmup-400/30 bg-warmup-400/[0.07] text-[0.6875rem] font-extrabold text-warmup-400 after:absolute after:inset-x-0 after:-inset-y-[2px] after:content-[''] disabled:opacity-40"
+            className="pressable relative flex h-10 w-[52px] shrink-0 items-center justify-center rounded-[13px] border border-warmup-400/30 bg-warmup-400/[0.07] text-[0.6875rem] font-extrabold text-warmup-400 after:absolute after:inset-x-0 after:-inset-y-[2px] after:content-[''] active:scale-95 disabled:opacity-40"
           >
             חימום
           </button>

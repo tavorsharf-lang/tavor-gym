@@ -141,7 +141,7 @@ export function RatingSheet({
               aria-pressed={selected}
               className={[
                 'flex min-h-[4.25rem] w-full items-center gap-4 rounded-card border px-5 text-start',
-                'transition-transform duration-100 active:scale-[0.985]',
+                'pressable active:scale-[0.985]',
                 selected ? choice.picked : choice.idle,
                 selected ? 'ring-1 ring-current/50' : '',
               ].join(' ')}
@@ -182,7 +182,7 @@ export function RatingSheet({
                   aria-pressed={selected}
                   className={[
                     'tnum min-h-12 min-w-14 rounded-pill border px-3 text-sm font-extrabold',
-                    'transition-transform duration-100 active:scale-95',
+                    'pressable active:scale-95',
                     selected
                       ? 'border-flame-400/70 bg-flame-500/15 text-flame-300'
                       : 'border-ink-700 bg-ink-800 text-bone-200',
