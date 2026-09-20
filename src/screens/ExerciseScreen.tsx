@@ -258,7 +258,7 @@ function SetChips({ sets, exercise }: { sets: SetLog[]; exercise: Exercise }): J
               : 'border-ink-700 bg-ink-800 text-bone-200'
           }`}
         >
-          {s.type === 'warmup' && <span className="text-[9px] font-bold opacity-80">חימום</span>}
+          {s.type === 'warmup' && <span className="text-[0.625rem] font-bold">חימום</span>}
           <span dir="ltr" className="tnum">
             {formatSetShort(s.weightKg, s.reps, exercise.weightMode, exercise.metric)}
           </span>

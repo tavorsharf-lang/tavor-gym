@@ -82,7 +82,7 @@ function QueueRow({
       className={[
         'card flex items-center gap-2 p-2',
         isDragging ? 'z-10 opacity-90 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.9)]' : '',
-        item.status === 'done' || item.status === 'skipped' ? 'opacity-55' : '',
+        item.status === 'done' || item.status === 'skipped' ? 'row-muted' : '',
       ].join(' ')}
     >
       <button

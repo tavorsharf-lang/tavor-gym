@@ -511,7 +511,7 @@ export function BuilderMuscleScreen(): JSX.Element {
                         toast(`${entry.name} הוחזר לרשימה`)
                       )
                     }
-                    className="flex min-h-12 w-full items-center gap-3 p-3 text-start opacity-60 transition-colors active:bg-ink-800 active:opacity-100"
+                    className="row-muted flex min-h-12 w-full items-center gap-3 p-3 text-start transition-colors active:bg-ink-800 active:opacity-100"
                   >
                     <EyeOff size={16} className="shrink-0 text-bone-500" />
                     <span className="min-w-0 flex-1 truncate text-sm font-bold text-bone-200">

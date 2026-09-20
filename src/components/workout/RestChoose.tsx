@@ -137,7 +137,7 @@ export function RestChoose({
   const urgent = timer.active && timer.remainingSeconds <= 3
 
   return (
-    <div className="animate-fade absolute inset-0 flex flex-col rounded-[18px] border border-flame-500/30 bg-ink-900 bg-[radial-gradient(120%_100%_at_50%_0%,color-mix(in_srgb,var(--color-flame-500)_14%,transparent),transparent_70%)] p-3">
+    <div className="absolute inset-0 flex flex-col rounded-[18px] border border-flame-500/30 bg-ink-900 bg-[radial-gradient(120%_100%_at_50%_0%,color-mix(in_srgb,var(--color-flame-500)_14%,transparent),transparent_70%)] p-3">
       {rest ? (
         <div className="flex h-[30px] shrink-0 items-center gap-2.5">
           <button

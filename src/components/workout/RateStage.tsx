@@ -35,7 +35,7 @@ const RIR_VALUES: Rir[] = [0, 1, 2, 3, 4]
 /** מסגרת אחת לשני השלבים — הם מחליפים זה את זה בלי שהקופסה תזוז */
 function Panel({ children }: { children: React.ReactNode }): JSX.Element {
   return (
-    <div className="animate-fade absolute inset-0 flex flex-col justify-between rounded-[18px] border border-ink-700 bg-ink-900 p-3">
+    <div className="absolute inset-0 flex flex-col justify-between rounded-[18px] border border-ink-700 bg-ink-900 p-3">
       {children}
     </div>
   )

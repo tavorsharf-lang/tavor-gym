@@ -85,7 +85,7 @@ export function ExercisePickList({
           <div
             key={entry.id}
             className={`flex h-[70px] w-full items-stretch rounded-2xl border bg-linear-to-b from-ink-850 to-ink-900 ${
-              inWorkout ? 'border-ink-800 opacity-55' : 'border-ink-800'
+              inWorkout ? 'row-muted border-ink-800' : 'border-ink-800'
             }`}
           >
             {/*

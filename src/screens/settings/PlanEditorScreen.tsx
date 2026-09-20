@@ -219,7 +219,7 @@ export function PlanEditorScreen(): JSX.Element {
             ].join(' ')}
           >
             <span className="text-sm font-extrabold">פול באדי</span>
-            <span className="mt-0.5 text-[0.6875rem] font-medium opacity-75">
+            <span className="mt-0.5 text-[0.6875rem] font-medium">
               חזרה הדרגתית · 2 אימונים
             </span>
           </button>
@@ -235,7 +235,7 @@ export function PlanEditorScreen(): JSX.Element {
             ].join(' ')}
           >
             <span className="text-sm font-extrabold">פיצול A/B/C</span>
-            <span className="mt-0.5 text-[0.6875rem] font-medium opacity-75">
+            <span className="mt-0.5 text-[0.6875rem] font-medium">
               התוכנית המלאה · 3 אימונים
             </span>
           </button>

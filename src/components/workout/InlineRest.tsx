@@ -46,7 +46,7 @@ export function InlineRest({
   const urgent = timer.active && timer.remainingSeconds <= 3
 
   return (
-    <div className="animate-fade absolute inset-0 flex flex-col justify-between rounded-[18px] border border-flame-500/30 bg-ink-900 bg-[radial-gradient(120%_100%_at_50%_0%,color-mix(in_srgb,var(--color-flame-500)_14%,transparent),transparent_70%)] px-3.5 py-3">
+    <div className="absolute inset-0 flex flex-col justify-between rounded-[18px] border border-flame-500/30 bg-ink-900 bg-[radial-gradient(120%_100%_at_50%_0%,color-mix(in_srgb,var(--color-flame-500)_14%,transparent),transparent_70%)] px-3.5 py-3">
       <div className="flex items-end justify-between gap-2.5">
         {/*
           כל הבלוק הוא הכפתור למסך המלא, ולא אייקון קטן לידו: המספר הוא הדבר

@@ -812,6 +812,13 @@ export function ExerciseCard({
 
         זה החוזה של כל המסך הזה: הכפתור הכתום, המנוחה והדירוג יושבים באותם
         פיקסלים בדיוק, ולכן האצבע לא צריכה לחפש אחרי אף מעבר.
+
+        **ואפס הצללה ביניהם.** לכל אחד מהמצבים היה `animate-fade`, וזה סתר את
+        החוזה משני כיוונים. ראשית `rate` ו-`rir` הם טיפוסים שונים באותו מקום
+        בעץ, ולכן React מרכיב מחדש והקיפריים מתחיל מאפס — לחיצה שנייה בתוך
+        ‏200ms החזירה את הפאנל לשקוף. ושנית, בזמן ההצללה רואים *דרך* הפאנל
+        הנכנס את הכרטיס שמתחתיו, כי היוצא כבר ירד. המסלול הזה רץ אחרי כל סט;
+        חיתוך נקי הוא מה שמצב עם גובה קבוע אמור לעשות.
       */}
       <div className="relative mt-2.5 h-[196px]">
         {stage === 'rate' ? (
@@ -839,7 +846,7 @@ export function ExerciseCard({
             onReady={onStopRest}
           />
         ) : (
-          <div className="animate-fade absolute inset-0 flex flex-col gap-2">
+          <div className="absolute inset-0 flex flex-col gap-2">
             {/* אריחי ההזנה — מה שאני רושם, גדול מספיק לקרוא בזווית */}
             <div className="flex h-[78px] gap-2">
               {bodyweight ? (

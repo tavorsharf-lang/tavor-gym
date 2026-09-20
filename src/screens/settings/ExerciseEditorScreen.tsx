@@ -262,7 +262,7 @@ function MultiSelect<T extends string>({
               className={[
                 'flex min-h-12 items-center rounded-pill border px-4 text-sm font-bold transition-colors',
                 isLocked
-                  ? 'border-ink-800 bg-ink-900 text-bone-600 opacity-50'
+                  ? 'border-ink-800 bg-ink-900 text-bone-400'
                   : on
                     ? 'border-flame-500/50 bg-flame-500/12 text-flame-300'
                     : 'border-ink-700 bg-ink-850 text-bone-400 active:bg-ink-800',

@@ -760,7 +760,7 @@ function Row({
   const press = useLongPress(onOpen, onFix)
 
   return (
-    <div className={['flex items-center', out ? 'opacity-60' : ''].join(' ')}>
+    <div className={['flex items-center', out ? 'row-muted' : ''].join(' ')}>
       <span className="shrink-0 ps-3">
         <ExerciseThumb
           exerciseId={ex?.id ?? entry.id}
