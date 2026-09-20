@@ -242,8 +242,8 @@ export function BackupScreen(): JSX.Element {
               aria-valuemax={100}
             >
               <div
-                className="h-full rounded-pill bg-flame-500 transition-[width] duration-300"
-                style={{ width: `${Math.max(2, percent)}%` }}
+                className="h-full w-full origin-right rounded-pill bg-flame-500 transition-transform duration-300 ease-linear"
+                style={{ transform: `scaleX(${Math.max(2, percent) / 100})` }}
               />
             </div>
             <p className="meta tnum mt-2">

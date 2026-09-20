@@ -151,9 +151,10 @@ export function RestChoose({
             <span dir="ltr">{clock}</span>
           </button>
           <span className="h-[5px] flex-1 overflow-hidden rounded-[3px] bg-ink-700">
+            {/* ראה ההערה ב-InlineRest: transform ולא width, ומקור בימין */}
             <span
-              className="block h-full rounded-[3px] bg-linear-to-l from-flame-500 to-flame-300 transition-[width] duration-300"
-              style={{ width: `${Math.round(timer.progress * 100)}%` }}
+              className="block h-full w-full origin-right rounded-[3px] bg-linear-to-l from-flame-500 to-flame-300 transition-transform duration-[250ms] ease-linear"
+              style={{ transform: `scaleX(${timer.progress})` }}
             />
           </span>
           {/* dir=ltr: בריצת RTL הסימן קופץ לסוף ו-"‎+30" נקרא "30+" */}

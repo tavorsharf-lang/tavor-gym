@@ -308,6 +308,17 @@ export function VideoPlayer({
   const onSwipeStart = (e: React.PointerEvent) => {
     swipeFrom.current = { x: e.clientX, y: e.clientY }
   }
+  /*
+    ביטול המחווה — ולא הערכה שלה.
+
+    המשטח הוא `touch-pan-y` עם `overflow-y-auto`, ולכן כשהגלילה משתלטת iOS
+    מבטל את המצביע ו-pointerup לא מגיע לכאן לעולם. בלי זה נקודת ההתחלה שרדה
+    עד ה-pointerup הבא על אותו div — כלומר בדיוק ה-dx הענק שההערה למעלה
+    נכתבה כדי למנוע, רק מכיוון אחר.
+  */
+  const onSwipeCancel = () => {
+    swipeFrom.current = null
+  }
   const onSwipeEnd = (e: React.PointerEvent) => {
     const from = swipeFrom.current
     swipeFrom.current = null
@@ -472,6 +483,8 @@ export function VideoPlayer({
         ].join(' ')}
         onPointerDown={onSwipeStart}
         onPointerUp={onSwipeEnd}
+        onPointerCancel={onSwipeCancel}
+        onLostPointerCapture={onSwipeCancel}
       >
         {loading && <Loader2 className="animate-spin text-bone-600" size={32} />}
 
@@ -591,8 +604,13 @@ export function VideoPlayer({
                   aria-current={i === pos}
                   className="flex h-11 w-6 items-center justify-center"
                 >
+                  {/*
+                    רשימת מאפיינים מפורשת ולא `all`: `transition-all` מאנפש גם
+                    מה שלא התכוונו אליו, מחוץ ל-GPU. כאן זה רוחב הנקודה וצבעה,
+                    ושניהם משתנים בקפיצה אחת לכל החלקה.
+                  */}
                   <span
-                    className={`h-2 rounded-pill transition-all ${
+                    className={`h-2 rounded-pill transition-[width,background-color] duration-200 ease-out ${
                       i === pos ? 'w-6 bg-flame-500' : 'w-2 bg-ink-600'
                     }`}
                   />
@@ -610,8 +628,8 @@ export function VideoPlayer({
                 aria-label="מיקום בגלריה"
               >
                 <span
-                  className="block h-full rounded-pill bg-flame-500 transition-all duration-200"
-                  style={{ width: `${((pos + 1) / total) * 100}%` }}
+                  className="block h-full w-full origin-right rounded-pill bg-flame-500 transition-transform duration-200 ease-linear"
+                  style={{ transform: `scaleX(${(pos + 1) / total})` }}
                 />
               </div>
               <span className="tnum shrink-0 text-xs font-bold text-bone-400" dir="ltr">

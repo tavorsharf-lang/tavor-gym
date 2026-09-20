@@ -403,8 +403,8 @@ export function SettingsScreen(): JSX.Element {
                     aria-valuemax={100}
                   >
                     <div
-                      className="h-full rounded-pill bg-flame-500 transition-[width] duration-500"
-                      style={{ width: `${Math.max(1.5, usedPercent)}%` }}
+                      className="h-full w-full origin-right rounded-pill bg-flame-500 transition-transform duration-500 ease-linear"
+                      style={{ transform: `scaleX(${Math.max(1.5, usedPercent) / 100})` }}
                     />
                   </div>
                 </>

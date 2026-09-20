@@ -86,9 +86,15 @@ export function InlineRest({
       </div>
 
       <div className="h-1.5 overflow-hidden rounded-[3px] bg-ink-700">
-        <div
-          className="h-full rounded-[3px] bg-linear-to-l from-flame-500 to-flame-300 transition-[width] duration-300"
-          style={{ width: `${Math.round(timer.progress * 100)}%` }}
+{/*
+            ‏`transform` ולא `width`: רוחב מאנפש פריסה, והערך כאן מתחלף כל
+            ‏250ms לאורך כל המנוחה — כלומר פריסה מחדש ברצף. ‏`origin-right`
+            כי המסמך RTL וההתחלה היא הקצה הימני. ‏`linear` כי זו תנועה קבועה
+            ולא כניסה, והמשך תואם לטיק כדי שהפס לא ייגרר אחרי הספרות.
+          */}
+          <div
+          className="h-full w-full origin-right rounded-[3px] bg-linear-to-l from-flame-500 to-flame-300 transition-transform duration-[250ms] ease-linear"
+          style={{ transform: `scaleX(${timer.progress})` }}
         />
       </div>
 
