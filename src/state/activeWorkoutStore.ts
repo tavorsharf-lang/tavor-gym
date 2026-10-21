@@ -109,12 +109,19 @@ interface WorkoutState {
   hydrate: () => Promise<void>
   start: (routineId: RoutineId | null, blockIds: string[]) => Promise<StartOutcome>
   /**
-   * פותח אימון חופשי מרשימת תרגילים שנבחרה במסך בניית האימון.
+   * פותח אימון מרשימת תרגילים שנבחרה — בסל של הבונה, או באימון קודם.
    *
    * לא `start(null, [])` ואחריו `addExercise` בלולאה: זה היה כותב את המצב
    * לדיסק פעם לכל תרגיל, ומשאיר את התור כולו `pending` בלי תרגיל פתוח.
+   *
+   * ‏`origin` הוא למי שהתור שלו *הוא* ביצוע של תוכנית — חזרה על אימון קודם.
+   * בלעדיו האימון הוא `routineId: null` כמו כל אימון של הבונה, ובצדק: סל
+   * שנבנה ידנית אינו ביצוע של שום תוכנית ולא מאפס את שעון ההזנחה של אף אחת.
    */
-  startWithItems: (exerciseIds: readonly string[]) => Promise<StartOutcome>
+  startWithItems: (
+    exerciseIds: readonly string[],
+    origin?: { routineId: RoutineId | null; blockIds?: readonly string[] }
+  ) => Promise<StartOutcome>
   discard: () => Promise<void>
   /**
    * סוגר את האימון וכותב אותו להיסטוריה.
@@ -375,7 +382,7 @@ export const useWorkout = create<WorkoutState>((set, get) => {
       return 'started'
     },
 
-    async startWithItems(exerciseIds) {
+    async startWithItems(exerciseIds, origin) {
       // אותו שער בדיוק כמו ב-start, ומאותה סיבה.
       if (await blockedByOpenWorkout()) return 'busy'
 
@@ -420,10 +427,15 @@ export const useWorkout = create<WorkoutState>((set, get) => {
       const workout: ActiveWorkout = {
         id: 'current',
         sessionId: newId('s'),
-        // אימון חופשי: הוא לא "ביצוע" של אף תוכנית, ולכן הוא לא מאפס את
-        // שעון ההזנחה של אף אחת מהן — וזה בדיוק הנכון.
-        routineId: null,
-        blockIds: [],
+        /*
+          בלי `origin` זה אימון חופשי: הוא לא "ביצוע" של אף תוכנית, ולכן הוא
+          לא מאפס את שעון ההזנחה של אף אחת מהן — וזה בדיוק הנכון לסל שנבנה
+          ידנית. חזרה על אימון קודם היא המקרה ההפוך: היא *כן* ביצוע של אותה
+          תוכנית, ובלי לשמר את המזהה מסך הבית היה ממשיך להציע אותה מיד אחרי
+          שעשית אותה, והשם בהיסטוריה היה הופך ל"אימון חופשי".
+        */
+        routineId: origin?.routineId ?? null,
+        blockIds: [...(origin?.blockIds ?? [])],
         startedAt: Date.now(),
         queue,
         currentKey: queue[0]?.key ?? null,

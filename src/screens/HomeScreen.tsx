@@ -9,6 +9,7 @@ import {
   CloudOff,
   Dumbbell,
   ListPlus,
+  Repeat,
   Shuffle,
   X,
 } from 'lucide-react'
@@ -25,6 +26,7 @@ import {
 import { coverageLookbackFrom, muscleCoverage, uncoveredGroups } from '@/domain/coverage'
 import type { RoutineId } from '@/db/types'
 import { blockStatuses, routineStatuses, suggestRoutine } from '@/domain/staleness'
+import { repeatLast } from '@/domain/repeatWorkout'
 import { staleWorkout } from '@/domain/staleWorkout'
 import { formatDuration, formatVolume } from '@/domain/units'
 import {
@@ -80,6 +82,7 @@ export function HomeScreen(): JSX.Element {
   const [sheetRoutine, setSheetRoutine] = useState<RoutineId | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [backupHidden, setBackupHidden] = useState(false)
+  const [repeating, setRepeating] = useState(false)
 
   /*
     ‏`exercises` ו-`history` בשער הטעינה ולא רק ארבעת הראשונים.
@@ -117,6 +120,39 @@ export function HomeScreen(): JSX.Element {
     להציע "המשך אימון" ולהכריז "התחיל לפני 24 שעות" כעובדה.
   */
   const stale = workout ? staleWorkout(workout, now) : null
+
+  /*
+    חזרה על האימון הקודם — מחושבת כאן ולא בלחיצה, כי השורה עצמה מצהירה
+    כמה תרגילים ייפתחו. `exercises` כבר נטען בשביל שורת הכיסוי.
+  */
+  const repeat = useMemo(
+    () => repeatLast(lastSession, exercises ?? []),
+    [lastSession, exercises]
+  )
+
+  const startRepeat = async (): Promise<void> => {
+    if (repeating || !repeat) return
+    setRepeating(true)
+    try {
+      const outcome = await useWorkout
+        .getState()
+        .startWithItems(repeat.exerciseIds, {
+          routineId: repeat.routineId,
+          blockIds: repeat.blockIds,
+        })
+      // השורה ממילא לא מוצגת כשיש אימון פתוח; השער נשאר בשביל המרוץ של
+      // לשונית שנייה, בדיוק כמו בסל של הבונה
+      if (outcome === 'busy') {
+        toast('יש כבר אימון פתוח — סיים אותו קודם', { tone: 'warn' })
+        return
+      }
+      navigate('/workout')
+    } catch {
+      toast('משהו השתבש — האימון לא נפתח', { tone: 'warn' })
+    } finally {
+      setRepeating(false)
+    }
+  }
 
   const closeStale = async (lastSetAt: number): Promise<void> => {
     try {
@@ -276,6 +312,40 @@ export function HomeScreen(): JSX.Element {
               </span>
             </span>
           </Button>
+
+          {/*
+            המסלול הקצר ביותר שיש: בלי שאלה אחת לפני הסט הראשון.
+
+            מעל האימון החופשי ומתחת לבונה, כי זה הסדר שבו הם נמדדים במספר
+            ההחלטות — אפס, שריר אחד, וסל שלם. מוצג רק כשיש על מה לחזור:
+            ‏`repeatLast` מחזיר null לאימון בלי סטים ולתרגילים שהוצאו מאז.
+          */}
+          {repeat && lastSession ? (
+            <button
+              type="button"
+              disabled={repeating}
+              onClick={() => void startRepeat()}
+              className="mt-2 flex min-h-14 w-full items-center gap-3 rounded-card border border-ink-700 bg-ink-900/60 px-4 text-start active:bg-ink-800 disabled:opacity-50"
+            >
+              <Repeat size={18} className="shrink-0 text-bone-400" aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-extrabold text-bone-100">
+                  חזור על האימון הקודם
+                </span>
+                {/*
+                  שלושה נתונים ולא משפט: מה, כמה, ומתי. ניסוח ארוך יותר
+                  ("בדיוק מה שעשית, בלי לבחור") נחתך ב-390 ואיבד דווקא את
+                  הסוף — ומה שהוא הסביר כבר כתוב בכותרת ממילא.
+                */}
+                <span className="meta block truncate">
+                  {routineNameOf(lastSession.routineId)} ·{' '}
+                  <span className="tnum">{repeat.exerciseIds.length}</span> תרגילים ·{' '}
+                  {formatRelativeDay(lastSession.startedAt, now)}
+                </span>
+              </span>
+              <ChevronLeft size={16} className="shrink-0 text-bone-600" aria-hidden="true" />
+            </button>
+          ) : null}
 
           {/*
             המסלול השני, ובכוונה שקט יותר: הבונה הוא מסך תכנון, וזה מסלול למי
