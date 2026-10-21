@@ -84,6 +84,13 @@ describe('formatDuration', () => {
   it('שעה ועוד דקות', () => {
     expect(formatDuration(72 * 60)).toBe('שעה ו-12 דקות')
   })
+
+  it('דקה אחת ולא "1 דקות" — בשני המקומות שהמספר מופיע', () => {
+    expect(formatDuration(60)).toBe('דקה אחת')
+    expect(formatDuration(30)).toBe('דקה אחת')
+    expect(formatDuration(61 * 60)).toBe('שעה ודקה אחת')
+    expect(formatDuration(25 * 3600 + 60)).toBe('25 שעות ודקה אחת')
+  })
 })
 
 describe('formatVolume', () => {

@@ -14,6 +14,7 @@ import { ensurePersisted } from '@/hooks/useStorageStatus'
 import { ToastHost } from '@/components/ui'
 import { TAB_ROUTES, TabBar } from '@/components/shell/TabBar'
 import { UpdateBanner } from '@/components/shell/UpdateBanner'
+import { StaleWorkoutSheet } from '@/components/workout/StaleWorkoutSheet'
 import { WelcomeScreen } from '@/screens/WelcomeScreen'
 import { HomeScreen } from '@/screens/HomeScreen'
 import { BuilderScreen } from '@/screens/BuilderScreen'
@@ -134,6 +135,11 @@ function Shell() {
       </Routes>
       </main>
       {showTabs && <TabBar />}
+      {/*
+        מעל כל המסכים ולא בתוך מסך הבית: מי שסגר את האפליקציה בתוך אימון
+        חוזר אל `/workout` ולא הביתה — `useColdLaunchHome` מדלג עליו בכוונה.
+      */}
+      <StaleWorkoutSheet />
       <ToastHost />
     </>
   )

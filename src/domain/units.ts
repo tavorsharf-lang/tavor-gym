@@ -155,12 +155,15 @@ export function formatClock(totalSeconds: number): string {
 /** משך אימון בעברית: "58 דקות" · "שעה ו-12 דקות" */
 export function formatDuration(totalSeconds: number): string {
   const mins = Math.round(totalSeconds / 60)
-  if (mins < 60) return `${mins} דקות`
+  // ‏"דקה אחת" ולא "1 דקות": אותו כלל ריבוי כמו "סט אחד". נתפס כשאימון
+  // שנשכח פתוח הציג "25 שעות ו-1 דקות" על המסך
+  const minsText = mins === 1 ? 'דקה אחת' : `${mins} דקות`
+  if (mins < 60) return minsText
   const h = Math.floor(mins / 60)
   const m = mins % 60
   const hoursText = h === 1 ? 'שעה' : h === 2 ? 'שעתיים' : `${h} שעות`
   if (m === 0) return hoursText
-  return `${hoursText} ו-${m} דקות`
+  return `${hoursText} ו${m === 1 ? 'דקה אחת' : `-${m} דקות`}`
 }
 
 /** נפח: 12,450 ק״ג · 12.4 טון כשגדול */

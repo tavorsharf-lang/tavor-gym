@@ -116,7 +116,18 @@ interface WorkoutState {
    */
   startWithItems: (exerciseIds: readonly string[]) => Promise<StartOutcome>
   discard: () => Promise<void>
-  finish: () => Promise<string | null>
+  /**
+   * סוגר את האימון וכותב אותו להיסטוריה.
+   *
+   * ‏`endedAt` הוא חריגה מכוונת מ"עכשיו", והוא קיים בשביל מקרה אחד: אימון
+   * שנשכח פתוח ונסגר למחרת. סגירה כזו על `Date.now()` רושמת אימון של 24
+   * שעות, ואותה חותמת נכתבת גם לדירוגים ולשיאי הנפח. מי שמעביר ערך מעביר
+   * את הסט האחרון שנרשם — ראה `domain/staleWorkout`.
+   *
+   * המסלול הרגיל לא מעביר כלום. הערך מוצמד ל-`startedAt` מלמטה, כי אימון
+   * קצר משנייה אחת אינו שגיאה שמישהו במעלה הזרם יתפוס.
+   */
+  finish: (endedAt?: number) => Promise<string | null>
 
   // תיעוד
   logSet: (key: string, type: SetType, weightKg: number, reps: number) => Promise<void>
@@ -464,7 +475,7 @@ export const useWorkout = create<WorkoutState>((set, get) => {
       set({ workout: null, pendingPrEvents: [] })
     },
 
-    async finish() {
+    async finish(closedAt) {
       // לחיצה כפולה על "סיים אימון" היא רפלקס נורמלי בטלפון. בלי הנעילה הזו
       // הריצה השנייה הייתה מכפילה את כל שורות הדירוג של האימון.
       if (finishing) return finishing
@@ -509,7 +520,9 @@ export const useWorkout = create<WorkoutState>((set, get) => {
           ),
         ].filter((id) => !performed.has(id))
 
-        const endedAt = Date.now()
+        // סגירה מאוחרת של אימון שנשכח מעבירה את שעת הסט האחרון. בלי ההצמדה
+        // ל-`startedAt` שעון שזז אחורה היה מייצר `durationSeconds` שלילי.
+        const endedAt = Math.max(w.startedAt, closedAt ?? Date.now())
         const session: Session = {
           id: w.sessionId,
           routineId: w.routineId,

@@ -25,8 +25,16 @@ import {
 import { coverageLookbackFrom, muscleCoverage, uncoveredGroups } from '@/domain/coverage'
 import type { RoutineId } from '@/db/types'
 import { blockStatuses, routineStatuses, suggestRoutine } from '@/domain/staleness'
+import { staleWorkout } from '@/domain/staleWorkout'
 import { formatDuration, formatVolume } from '@/domain/units'
-import { daysSince, formatDateLong, formatDayCount, formatRelativeDay, todayISO } from '@/lib/dates'
+import {
+  daysSince,
+  formatDateLong,
+  formatDayCount,
+  formatRelativeDay,
+  formatTime,
+  todayISO,
+} from '@/lib/dates'
 import { countMasculine } from '@/lib/text'
 import { useNow } from '@/hooks/useNow'
 import { useWorkout } from '@/state/activeWorkoutStore'
@@ -50,6 +58,7 @@ export function HomeScreen(): JSX.Element {
 
   const workout = useWorkout((s) => s.workout)
   const discard = useWorkout((s) => s.discard)
+  const finish = useWorkout((s) => s.finish)
 
   const routines = useLiveQuery(() => getActiveRoutines(), [])
   const customs = useLiveQuery(() => getCustomRoutines(), [])
@@ -99,6 +108,24 @@ export function HomeScreen(): JSX.Element {
   const elapsedSeconds = workout ? Math.max(0, Math.round((now - workout.startedAt) / 1000)) : 0
   const elapsedText =
     elapsedSeconds < 60 ? 'התחיל ממש עכשיו' : `התחיל לפני ${formatDuration(elapsedSeconds)}`
+
+  /*
+    אימון שנשכח פתוח — אותה הכרעה שהגיליון מציג, כאן על הכרטיס.
+
+    שניהם ולא אחד מהם: הגיליון נשאל פעם אחת ומי שענה "המשך" לא יראה אותו
+    שוב, והכרטיס הוא מה שנשאר מתחתיו. בלי התיקון הזה הכרטיס היה ממשיך
+    להציע "המשך אימון" ולהכריז "התחיל לפני 24 שעות" כעובדה.
+  */
+  const stale = workout ? staleWorkout(workout, now) : null
+
+  const closeStale = async (lastSetAt: number): Promise<void> => {
+    try {
+      await finish(lastSetAt)
+      toast('האימון נסגר על הסט האחרון שנרשם בו')
+    } catch {
+      toast('לא הצלחתי לסגור את האימון — הסטים שמורים, אפשר לנסות שוב', { tone: 'warn' })
+    }
+  }
 
   const lastBackupAt = settings?.lastBackupAt ?? null
   const backupDays = lastBackupAt === null ? null : daysSince(lastBackupAt, now)
@@ -166,21 +193,64 @@ export function HomeScreen(): JSX.Element {
 
       {workout ? (
         <section className="card card-active animate-rise relative mb-6 p-4">
-          <p className="text-lg font-extrabold text-bone-50">יש אימון פתוח</p>
-          <p className="meta mt-1">{elapsedText}</p>
-          <div className="mt-4 flex items-center gap-2">
-            <Button
-              variant="flame"
-              size="lg"
-              className="flex-1"
-              onClick={() => navigate('/workout')}
-            >
-              המשך אימון
-            </Button>
-            <Button variant="quiet" size="lg" onClick={() => setConfirmOpen(true)}>
-              בטל אימון
-            </Button>
-          </div>
+          <p className="text-lg font-extrabold text-bone-50">
+            {stale?.state === 'live' ? 'יש אימון פתוח' : 'אימון שנשאר פתוח'}
+          </p>
+          {stale?.state === 'abandoned' ? (
+            <p className="meta mt-1">
+              הסט האחרון נרשם {formatRelativeDay(stale.lastSetAt, now)} ב־
+              <span dir="ltr" className="tnum">
+                {formatTime(stale.lastSetAt)}
+              </span>
+            </p>
+          ) : stale?.state === 'empty' ? (
+            <p className="meta mt-1">{elapsedText} · לא נרשם בו אף סט</p>
+          ) : (
+            <p className="meta mt-1">{elapsedText}</p>
+          )}
+
+          {stale?.state === 'abandoned' ? (
+            <div className="mt-4 flex flex-col gap-2">
+              <Button
+                variant="flame"
+                size="lg"
+                fullWidth
+                onClick={() => void closeStale(stale.lastSetAt)}
+              >
+                {/* ספאן אחד — ‏`Button` מוסיף gap-2 בין ילדים, וזה רווח כפול */}
+                <span>
+                  סיים על <span dir="ltr" className="tnum">{formatTime(stale.lastSetAt)}</span>
+                </span>
+              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="quiet"
+                  size="lg"
+                  className="flex-1"
+                  onClick={() => navigate('/workout')}
+                >
+                  המשך אימון
+                </Button>
+                <Button variant="quiet" size="lg" onClick={() => setConfirmOpen(true)}>
+                  בטל אימון
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 flex items-center gap-2">
+              <Button
+                variant="flame"
+                size="lg"
+                className="flex-1"
+                onClick={() => navigate('/workout')}
+              >
+                המשך אימון
+              </Button>
+              <Button variant="quiet" size="lg" onClick={() => setConfirmOpen(true)}>
+                בטל אימון
+              </Button>
+            </div>
+          )}
         </section>
       ) : (
         <section className="animate-rise mb-6">
